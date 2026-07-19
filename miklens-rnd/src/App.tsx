@@ -18,7 +18,6 @@ import { Projects } from './pages/Projects';
 import { Tasks } from './pages/Tasks';
 import { Documents } from './pages/Documents';
 import { Calendar } from './pages/Calendar';
-import { Approvals } from './pages/Approvals';
 import { AIInsights } from './pages/AIInsights';
 import { AuditLogs } from './pages/AuditLogs';
 import { Notifications } from './pages/Notifications';
@@ -27,6 +26,9 @@ import { LaboratoryTests } from './pages/LaboratoryTests';
 import { Observations } from './pages/Observations';
 import { TeamActivity } from './pages/TeamActivity';
 import { TimeMotion } from './pages/TimeMotion';
+import { FormulationBuilder } from './pages/FormulationBuilder';
+import { StabilityTracker } from './pages/StabilityTracker';
+import { ProductPipeline } from './pages/ProductPipeline';
 import { ErrorBoundary } from './components/ErrorBoundary';
 const queryClient = new QueryClient();
 
@@ -47,7 +49,10 @@ function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/products" element={<Products />} />
+                <Route path="/product-pipeline" element={<ProductPipeline />} />
                 <Route path="/experiments" element={<Experiments />} />
+                <Route path="/formulation-builder" element={<FormulationBuilder />} />
+                <Route path="/stability-tracker" element={<StabilityTracker />} />
                 <Route path="/research-log" element={<ResearchLog />} />
                 <Route path="/profile" element={<EmployeeProfile />} />
                 <Route path="/profile/:userId" element={<EmployeeProfile />} />
@@ -55,7 +60,6 @@ function App() {
                 <Route path="/tasks" element={<Tasks />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/calendar" element={<Calendar />} />
-                <Route path="/approvals" element={<Approvals />} />
                 <Route path="/ai-insights" element={<AIInsights />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/field-trials" element={<FieldTrials />} />

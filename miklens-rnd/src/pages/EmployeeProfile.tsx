@@ -11,8 +11,9 @@ import { Badge } from '../components/ui/Badge';
 import { ScientistPerformanceOverview } from '../components/ScientistPerformanceOverview';
 import { getEntriesByScientist } from '../services/timeTracking';
 import type { TimeMotionEntry } from '../types/timeTracking';
-import { exportToExcel, formatEmployeeReportForExport } from '../utils/exportUtils';
-import { motion } from 'framer-motion';
+import { format, subDays } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar } from 'lucide-react';
 
 const buildMonthlyTrend = (logs: { createdAt: string; completionStatus: string; confidenceLevel: number }[]) => {
   const months: { key: string; label: string }[] = [];
@@ -44,6 +45,8 @@ export const EmployeeProfile: React.FC = () => {
   const [timeEntries, setTimeEntries] = useState<TimeMotionEntry[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [timeEntriesLoading, setTimeEntriesLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter'>('month');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const targetId = userId || currentProfile?.id;
   const isSelf = targetId === currentProfile?.id;
@@ -74,53 +77,121 @@ export const EmployeeProfile: React.FC = () => {
   const completedCount = personLogs.filter(l => l.completionStatus === 'Completed').length;
   const blockedCount = personLogs.filter(l => l.completionStatus === 'Blocked').length;
 
+  // Get filtered entries based on date range
+  const getFilteredEntries = useMemo(() => {
+    const now = new Date();
+    let startDate: Date;
+    switch (dateRange) {
+      case 'week': startDate = subDays(now, 7); break;
+      case 'month': startDate = subDays(now, 30); break;
+      case 'quarter': startDate = subDays(now, 90); break;
+    }
+    return timeEntries.filter(e => {
+      const entryDate = new Date(e.date || '');
+      return entryDate >= startDate && entryDate <= now;
+    });
+  }, [timeEntries, dateRange]);
+
+  const filteredTotalMinutes = getFilteredEntries.reduce((sum, e) => sum + (e.durationMinutes || 0), 0);
+  const filteredDaysWorked = new Set(getFilteredEntries.map(e => e.date)).size;
+
+  const openExportModal = () => {
+    setShowExportModal(true);
+  };
+
   const handleExportPDF = async () => {
     if (!person) return;
     setIsExporting(true);
     try {
-      const stats = {
-        totalHoursThisMonth: totalHours,
-        activeProjectsCount: 0,
-        experimentsWorkedOn: 0,
-        tasksCompleted: completedCount,
-        fieldDaysThisMonth: 0,
-        labDaysThisMonth: 0,
-        billablePercentage: 0
-      };
+      const now = new Date();
+      let startDate: Date;
+      switch (dateRange) {
+        case 'week': startDate = subDays(now, 7); break;
+        case 'month': startDate = subDays(now, 30); break;
+        case 'quarter': startDate = subDays(now, 90); break;
+      }
       
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       
-      doc.setFontSize(18);
-      doc.text('Employee Report', 14, 22);
-      doc.setFontSize(10);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
-      doc.text(`Employee: ${person.name}`, 14, 38);
-      doc.text(`Designation: ${person.designation}`, 14, 44);
+      // Title Page
+      doc.setFontSize(20);
+      doc.setTextColor(40, 40, 40);
+      doc.text('My Activity Report', 14, 22);
       
+      doc.setFontSize(12);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Name: ${person.name}`, 14, 35);
+      doc.text(`Designation: ${person.designation || 'N/A'}`, 14, 42);
+      doc.text(`Department: ${person.department || 'N/A'}`, 14, 49);
+      doc.text(`Report Period: ${format(startDate, 'MMM d, yyyy')} - ${format(now, 'MMM d, yyyy')}`, 14, 56);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 63);
+      
+      // Summary Stats
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Summary', 14, 80);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(60, 60, 60);
+      const totalHoursFiltered = (filteredTotalMinutes / 60).toFixed(1);
+      doc.text(`Total Hours: ${totalHoursFiltered}h`, 14, 90);
+      doc.text(`Days Worked: ${filteredDaysWorked}`, 14, 98);
+      doc.text(`Total Activities: ${getFilteredEntries.length}`, 14, 106);
+      doc.text(`Completed Tasks: ${completedCount}`, 14, 114);
+      
+      // Time Entries
       doc.addPage();
       doc.setFontSize(14);
-      doc.text('Time Motion Entries', 14, 22);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Time Entries', 14, 22);
       
       let y = 35;
-      const headers = ['Date', 'Category', 'Duration', 'Description', 'Billable'];
+      const headers = ['Date', 'Start', 'End', 'Duration', 'Category', 'Description'];
       doc.setFontSize(9);
+      doc.setFillColor(66, 66, 66);
+      doc.rect(14, y - 5, 180, 8, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.text(headers.join('  '), 14, y);
-      y += 8;
+      doc.text(headers[0], 16, y);
+      doc.text(headers[1], 55, y);
+      doc.text(headers[2], 80, y);
+      doc.text(headers[3], 105, y);
+      doc.text(headers[4], 135, y);
+      doc.text(headers[5], 160, y);
       
+      y += 10;
+      doc.setTextColor(60, 60, 60);
       doc.setFont('helvetica', 'normal');
-      timeEntries.slice(0, 30).forEach(entry => {
+      
+      getFilteredEntries.slice(0, 40).forEach(entry => {
         if (y > 270) {
           doc.addPage();
           y = 20;
         }
         const duration = entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : '-';
-        doc.text(`${entry.date || ''}  ${entry.category || ''}  ${duration}  ${(entry.description || '').substring(0, 30)}  ${entry.isBillable ? 'Yes' : 'No'}`, 14, y);
+        const desc = (entry.description || entry.category || '-').substring(0, 25);
+        
+        doc.text(entry.date || '-', 16, y);
+        doc.text(entry.startTime || '-', 55, y);
+        doc.text(entry.endTime || '-', 80, y);
+        doc.text(duration, 105, y);
+        doc.text(entry.category || '-', 135, y);
+        doc.text(desc, 160, y);
         y += 7;
       });
       
-      doc.save(`Employee_Report_${person.name.replace(/\s+/g, '_')}.pdf`);
+      // Footer
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+      }
+      
+      doc.save(`My_Report_${format(startDate, 'yyyy-MM-dd')}_to_${format(now, 'yyyy-MM-dd')}.pdf`);
+      setShowExportModal(false);
     } catch (error) {
       console.error('Export error:', error);
       alert('Failed to export PDF');
@@ -133,18 +204,80 @@ export const EmployeeProfile: React.FC = () => {
     if (!person) return;
     setIsExporting(true);
     try {
-      const stats = {
-        totalHoursThisMonth: totalHours,
-        activeProjectsCount: 0,
-        experimentsWorkedOn: 0,
-        tasksCompleted: completedCount,
-        fieldDaysThisMonth: 0,
-        labDaysThisMonth: 0,
-        billablePercentage: 0
-      };
+      const { default: XLSX } = await import('xlsx');
+      const now = new Date();
+      let startDate: Date;
+      switch (dateRange) {
+        case 'week': startDate = subDays(now, 7); break;
+        case 'month': startDate = subDays(now, 30); break;
+        case 'quarter': startDate = subDays(now, 90); break;
+      }
       
-      const sheets = formatEmployeeReportForExport(person, stats, timeEntries, 'excel');
-      exportToExcel(sheets, `Employee_Report_${person.name.replace(/\s+/g, '_')}.xlsx`);
+      const wb = XLSX.utils.book_new();
+      
+      // Summary Sheet
+      const summaryData = [
+        ['My Activity Report'],
+        [''],
+        ['Name', person.name],
+        ['Designation', person.designation || 'N/A'],
+        ['Department', person.department || 'N/A'],
+        ['Report Period', `${format(startDate, 'MMM d, yyyy')} - ${format(now, 'MMM d, yyyy')}`],
+        ['Generated', new Date().toLocaleString()],
+        [''],
+        ['Summary'],
+        ['Total Hours', (filteredTotalMinutes / 60).toFixed(1) + 'h'],
+        ['Days Worked', filteredDaysWorked.toString()],
+        ['Total Activities', getFilteredEntries.length.toString()],
+        ['Completed Tasks', completedCount.toString()]
+      ];
+      
+      const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+      
+      // Time Entries Sheet
+      const timeData = [['Date', 'Start Time', 'End Time', 'Duration (min)', 'Category', 'Description', 'Project', 'Billable']];
+      getFilteredEntries.forEach(entry => {
+        timeData.push([
+          entry.date || '',
+          entry.startTime || '',
+          entry.endTime || '',
+          entry.durationMinutes?.toString() || '0',
+          entry.category || '',
+          entry.description || '',
+          entry.projectName || '-',
+          entry.isBillable ? 'Yes' : 'No'
+        ]);
+      });
+      
+      const ws2 = XLSX.utils.aoa_to_sheet(timeData);
+      ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 20 }, { wch: 10 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Time Entries');
+      
+      // Daily Summary
+      const dailySummary: Record<string, { minutes: number; count: number }> = {};
+      getFilteredEntries.forEach(entry => {
+        if (!dailySummary[entry.date]) {
+          dailySummary[entry.date] = { minutes: 0, count: 0 };
+        }
+        dailySummary[entry.date].minutes += entry.durationMinutes || 0;
+        dailySummary[entry.date].count += 1;
+      });
+      
+      const dailyData = [['Date', 'Total Hours', 'Activities']];
+      Object.entries(dailySummary).sort().forEach(([date, data]) => {
+        dailyData.push([
+          date,
+          (data.minutes / 60).toFixed(1) + 'h',
+          data.count.toString()
+        ]);
+      });
+      
+      const ws3 = XLSX.utils.aoa_to_sheet(dailyData);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Daily Summary');
+      
+      XLSX.writeFile(wb, `My_Report_${format(startDate, 'yyyy-MM-dd')}_to_${format(now, 'yyyy-MM-dd')}.xlsx`);
+      setShowExportModal(false);
     } catch (error) {
       console.error('Export error:', error);
       alert('Failed to export Excel');
@@ -235,7 +368,7 @@ export const EmployeeProfile: React.FC = () => {
                   )}
                   <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
                     <button
-                      onClick={handleExportPDF}
+                      onClick={openExportModal}
                       disabled={isExporting || timeEntriesLoading}
                       className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     >
@@ -243,7 +376,7 @@ export const EmployeeProfile: React.FC = () => {
                       <span className="hidden sm:inline">PDF</span>
                     </button>
                     <button
-                      onClick={handleExportExcel}
+                      onClick={openExportModal}
                       disabled={isExporting || timeEntriesLoading}
                       className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                     >
@@ -482,6 +615,120 @@ export const EmployeeProfile: React.FC = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Export Modal */}
+      <AnimatePresence>
+        {showExportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowExportModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Export My Report</h3>
+                    <p className="text-white/80 text-sm mt-1">Download your activity data</p>
+                  </div>
+                  <button
+                    onClick={() => setShowExportModal(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Date Range Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Select Date Range
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['week', 'month', 'quarter'] as const).map((range) => {
+                      const labels = { week: 'Last 7 Days', month: 'Last 30 Days', quarter: 'Last 90 Days' };
+                      return (
+                        <button
+                          key={range}
+                          onClick={() => setDateRange(range)}
+                          className={`p-3 rounded-xl border-2 transition-all ${
+                            dateRange === range
+                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-600'
+                          }`}
+                        >
+                          <span className="block text-sm font-semibold">{labels[range]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Preview Stats */}
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Report Preview</h4>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{(filteredTotalMinutes / 60).toFixed(1)}h</p>
+                      <p className="text-xs text-gray-500">Total Hours</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{filteredDaysWorked}</p>
+                      <p className="text-xs text-gray-500">Days Worked</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{getFilteredEntries.length}</p>
+                      <p className="text-xs text-gray-500">Activities</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Export Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleExportPDF}
+                    disabled={isExporting}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/25 hover:from-red-600 hover:to-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExporting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Download className="w-5 h-5" />
+                    )}
+                    PDF
+                  </button>
+                  <button
+                    onClick={handleExportExcel}
+                    disabled={isExporting}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExporting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="w-5 h-5" />
+                    )}
+                    Excel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

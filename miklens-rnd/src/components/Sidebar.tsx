@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, FlaskConical, Beaker, FileText, BarChart3, Edit3, Settings, FolderGit2, CheckSquare, FileStack, CalendarDays, CheckCircle, Sparkles, Database, Bell, TestTube2, MapPin, Eye, Activity, Clock, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, FlaskConical, Beaker, FileText, BarChart3, Edit3, Settings, FolderGit2, CheckSquare, FileStack, CalendarDays, CheckCircle, Sparkles, Database, Bell, TestTube2, MapPin, Eye, Activity, Clock, TrendingUp, Pipette, Thermometer, Workflow } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { Role } from '../types';
 import { motion } from 'framer-motion';
@@ -20,13 +20,15 @@ const navItems: NavItem[] = [
   { name: 'Team Activity', href: '/team-activity', icon: Activity, roles: ['Admin', 'Management'] },
   { name: 'AI Insights', href: '/ai-insights', icon: Sparkles },
   { name: 'Products', href: '/products', icon: FlaskConical },
+  { name: 'Product Pipeline', href: '/product-pipeline', icon: Workflow },
   { name: 'Projects', href: '/projects', icon: FolderGit2 },
   { name: 'Experiments', href: '/experiments', icon: Beaker },
+  { name: 'Formulations', href: '/formulation-builder', icon: Pipette },
+  { name: 'Stability Logs', href: '/stability-tracker', icon: Thermometer },
   { name: 'Field Trials', href: '/field-trials', icon: MapPin },
   { name: 'Lab Tests', href: '/lab-tests', icon: TestTube2 },
   { name: 'Observations', href: '/observations', icon: Eye },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Approvals', href: '/approvals', icon: CheckCircle, badge: 3 },
   { name: 'Employees', href: '/employees', icon: Users, roles: ['Admin', 'Management'] },
   { name: 'Documents', href: '/documents', icon: FileStack },
   { name: 'Calendar', href: '/calendar', icon: CalendarDays },
