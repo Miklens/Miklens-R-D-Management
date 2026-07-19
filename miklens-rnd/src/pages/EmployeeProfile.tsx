@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Mail, CheckCircle, FileText, AlertTriangle, Clock, Download, FileSpreadsheet } from 'lucide-react';
+import { Mail, CheckCircle, FileText, AlertTriangle, Clock, Download, FileSpreadsheet, Award, Target, TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
@@ -12,9 +12,9 @@ import { ScientistPerformanceOverview } from '../components/ScientistPerformance
 import { getEntriesByScientist } from '../services/timeTracking';
 import type { TimeMotionEntry } from '../types/timeTracking';
 import { exportToExcel, formatEmployeeReportForExport } from '../utils/exportUtils';
+import { motion } from 'framer-motion';
 
 const buildMonthlyTrend = (logs: { createdAt: string; completionStatus: string; confidenceLevel: number }[]) => {
-  // Last 6 months, oldest first, aggregating log count (knowledge) and avg confidence (innovation proxy).
   const months: { key: string; label: string }[] = [];
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -40,12 +40,11 @@ export const EmployeeProfile: React.FC = () => {
   const { profile: currentProfile } = useAuth();
   const { data: users, isLoading: usersLoading } = useUsers();
   const { data: allLogs, isLoading: logsLoading } = useDailyLogs();
-  const [timeMotionRange, setTimeMotionRange] = React.useState<'week' | 'month' | 'quarter'>('month');
+  const [timeMotionRange, setTimeMotionRange] = useState<'week' | 'month' | 'quarter'>('month');
   const [timeEntries, setTimeEntries] = useState<TimeMotionEntry[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [timeEntriesLoading, setTimeEntriesLoading] = useState(false);
 
-  // No :userId param means "my own profile".
   const targetId = userId || currentProfile?.id;
   const isSelf = targetId === currentProfile?.id;
 
@@ -61,7 +60,6 @@ export const EmployeeProfile: React.FC = () => {
 
   const trendData = useMemo(() => buildMonthlyTrend(personLogs), [personLogs]);
 
-  // Load time motion entries
   useMemo(() => {
     if (targetId) {
       setTimeEntriesLoading(true);
@@ -76,7 +74,6 @@ export const EmployeeProfile: React.FC = () => {
   const completedCount = personLogs.filter(l => l.completionStatus === 'Completed').length;
   const blockedCount = personLogs.filter(l => l.completionStatus === 'Blocked').length;
 
-  // Export handlers
   const handleExportPDF = async () => {
     if (!person) return;
     setIsExporting(true);
@@ -87,14 +84,13 @@ export const EmployeeProfile: React.FC = () => {
         experimentsWorkedOn: 0,
         tasksCompleted: completedCount,
         fieldDaysThisMonth: 0,
-      labDaysThisMonth: 0,
+        labDaysThisMonth: 0,
         billablePercentage: 0
       };
       
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF();
       
-      // Profile sheet
       doc.setFontSize(18);
       doc.text('Employee Report', 14, 22);
       doc.setFontSize(10);
@@ -102,7 +98,6 @@ export const EmployeeProfile: React.FC = () => {
       doc.text(`Employee: ${person.name}`, 14, 38);
       doc.text(`Designation: ${person.designation}`, 14, 44);
       
-      // Time entries
       doc.addPage();
       doc.setFontSize(14);
       doc.text('Time Motion Entries', 14, 22);
@@ -159,7 +154,11 @@ export const EmployeeProfile: React.FC = () => {
   };
 
   if (usersLoading || logsLoading) {
-    return <div className="p-8 text-center text-gray-500">Loading profile...</div>;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+      </div>
+    );
   }
 
   if (!person) {
@@ -173,214 +172,316 @@ export const EmployeeProfile: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600 sm:h-48"></div>
-        <div className="px-4 pb-6 sm:px-6 lg:px-8">
-          <div className="-mt-12 sm:-mt-16 sm:flex sm:items-end sm:space-x-5">
-            <div className="flex">
-              <img className="h-24 w-24 rounded-full ring-4 ring-white dark:ring-gray-900 sm:h-32 sm:w-32" src={person.avatar || `https://i.pravatar.cc/150?u=${person.id}`} alt="" />
-            </div>
-            <div className="mt-6 sm:flex sm:min-w-0 sm:flex-1 sm:items-center sm:justify-end sm:space-x-6 sm:pb-1">
-              <div className="mt-6 min-w-0 flex-1 sm:hidden md:block">
-                <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-white">{person.name}</h1>
-                <p className="text-gray-500 dark:text-gray-400">{person.designation}</p>
-              </div>
-              <div className="mt-6 flex flex-col justify-stretch space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4">
-                {isSelf ? (
-                  <Badge variant="info">Your profile</Badge>
-                ) : (
-                  <a href={`mailto:${person.email}`} className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-                    <Mail className="-ml-1 mr-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                    <span>Message</span>
-                  </a>
+      {/* Profile Header Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50 shadow-2xl border border-gray-100/50 dark:border-gray-800/50"
+      >
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-400/10 to-transparent rounded-full blur-3xl"></div>
+        
+        <div className="relative p-6 md:p-8">
+          <div className="flex flex-col md:flex-row md:items-start gap-6">
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <div className="w-28 h-28 md:w-32 md:h-32 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-500 p-1 shadow-2xl shadow-emerald-500/25">
+                  <img 
+                    className="w-full h-full rounded-3xl object-cover" 
+                    src={person.avatar || `https://i.pravatar.cc/150?u=${person.id}`} 
+                    alt={person.name}
+                  />
+                </div>
+                {isSelf && (
+                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg">
+                    You
+                  </div>
                 )}
-                {/* Export Buttons */}
-                <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 dark:bg-gray-800 dark:border-gray-700">
-                  <button
-                    onClick={handleExportPDF}
-                    disabled={isExporting || timeEntriesLoading}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors dark:hover:bg-red-900/20"
-                    title="Download PDF"
-                  >
-                    <Download className="w-4 h-4" />
-                    PDF
-                  </button>
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={isExporting || timeEntriesLoading}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-50 rounded-md transition-colors dark:hover:bg-green-900/20"
-                    title="Download Excel"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    Excel
-                  </button>
-                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 sm:hidden">
-            <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-white">{person.name}</h1>
-            <p className="text-gray-500 dark:text-gray-400">{person.designation}</p>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div className="md:col-span-1 space-y-6">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-2">Core Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {person.skills.length > 0 ? person.skills.map(skill => (
-                    <span key={skill} className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20 dark:bg-blue-900/50 dark:text-blue-200">
-                      {skill}
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{person.name}</h1>
+                  <p className="text-gray-500 dark:text-gray-400 text-lg">{person.designation}</p>
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    {person.department && (
+                      <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
+                        <Target className="w-4 h-4 text-emerald-500" />
+                        {person.department}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
+                      <Mail className="w-4 h-4 text-emerald-500" />
+                      {person.email}
                     </span>
-                  )) : (
-                    <span className="text-sm text-gray-400">No skills listed</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  {!isSelf && (
+                    <a 
+                      href={`mailto:${person.email}`} 
+                      className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:from-emerald-600 hover:to-teal-600 transition-all"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Message
+                    </a>
                   )}
+                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+                    <button
+                      onClick={handleExportPDF}
+                      disabled={isExporting || timeEntriesLoading}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">PDF</span>
+                    </button>
+                    <button
+                      onClick={handleExportExcel}
+                      disabled={isExporting || timeEntriesLoading}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span className="hidden sm:inline">Excel</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-3">Work Summary</h3>
-                <dl className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-gray-500 dark:text-gray-400">Logs submitted</dt>
-                    <dd className="font-medium text-gray-900 dark:text-white">{personLogs.length}</dd>
+              {/* Skills */}
+              {person.skills.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex flex-wrap gap-2">
+                    {person.skills.map((skill) => (
+                      <span 
+                        key={skill} 
+                        className="px-3 py-1.5 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-medium border border-emerald-200/50 dark:border-emerald-800/50"
+                      >
+                        {skill}
+                      </span>
+                    ))}
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-gray-500 dark:text-gray-400">Hours logged</dt>
-                    <dd className="font-medium text-gray-900 dark:text-white">{totalHours}h</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-gray-500 dark:text-gray-400">Completed activities</dt>
-                    <dd className="font-medium text-green-600 dark:text-green-400">{completedCount}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-gray-500 dark:text-gray-400">Open blockers</dt>
-                    <dd className="font-medium text-yellow-600 dark:text-yellow-400">{blockedCount}</dd>
-                  </div>
-                </dl>
-              </div>
-
-              {personLogs[0]?.aiNotes && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-900/20">
-                  <h3 className="flex items-center font-medium text-blue-900 dark:text-blue-200 mb-2">
-                    <CheckCircle className="mr-2 h-4 w-4" /> AI Summary
-                  </h3>
-                  <p className="text-sm text-blue-800 dark:text-blue-300">{personLogs[0].aiNotes}</p>
                 </div>
               )}
             </div>
-
-            <div className="md:col-span-2 space-y-6">
-              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="font-medium text-gray-900 dark:text-white mb-4">Research Value Creation (last 6 months)</h3>
-                <div className="h-64 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorInnovation" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id="colorKnowledge" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:stroke-gray-800" />
-                      <Tooltip contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                      <Area type="monotone" dataKey="innovation" stroke="#3b82f6" fillOpacity={1} fill="url(#colorInnovation)" name="Avg Confidence" />
-                      <Area type="monotone" dataKey="knowledge" stroke="#10b981" fillOpacity={1} fill="url(#colorKnowledge)" name="Logs Submitted" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium text-gray-900 dark:text-white mb-4">Recent Research Logs</h3>
-                {personLogs.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700">
-                    No logs submitted yet.
-                  </div>
-                ) : (
-                  <ul className="space-y-4">
-                    {personLogs.slice(0, 5).map((log) => (
-                      <li key={log.id} className="flex space-x-3 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
-                        <div className="flex-shrink-0">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                              {getProductName(log.productId)} &middot; {getExperimentName(log.experimentId)}
-                            </h3>
-                            <p className="whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{formatDate(log.date)}</p>
-                          </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{log.objective}</p>
-                          <div className="flex items-center gap-2 pt-1">
-                            <Badge variant={log.completionStatus === 'Completed' ? 'success' : log.completionStatus === 'Blocked' ? 'warning' : 'info'}>
-                              {log.completionStatus}
-                            </Badge>
-                            <span className="text-xs text-gray-400">{log.timeSpentMinutes} min</span>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              
-              {/* Time Motion Section */}
-              <div className="mt-8">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-white" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Time Motion Performance</h3>
-                  </div>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                    {(['week', 'month', 'quarter'] as const).map((range) => (
-                      <button
-                        key={range}
-                        onClick={() => setTimeMotionRange(range)}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                          timeMotionRange === range
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        {range.charAt(0).toUpperCase() + range.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-lg hover:shadow-xl transition-shadow animate-fade-in">
-                  {targetId && person?.name ? (
-                    <ScientistPerformanceOverview
-                      scientistId={targetId}
-                      scientistName={person.name}
-                      dateRange={timeMotionRange}
-                    />
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <Clock className="h-8 w-8 text-gray-300" />
-                      </div>
-                      <p className="text-gray-500">
-                        Time motion data will appear here once the scientist starts logging their activities.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Hours Logged', value: `${totalHours}h`, icon: Clock, color: 'from-blue-500 to-cyan-500', text: 'text-blue-600' },
+          { label: 'Activities', value: personLogs.length, icon: FileText, color: 'from-emerald-500 to-teal-500', text: 'text-emerald-600' },
+          { label: 'Completed', value: completedCount, icon: CheckCircle, color: 'from-violet-500 to-purple-500', text: 'text-violet-600' },
+          { label: 'Pending', value: blockedCount, icon: AlertTriangle, color: 'from-amber-500 to-orange-500', text: 'text-amber-600' },
+        ].map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-lg border border-gray-100/50 dark:border-gray-800/50 hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-lg`}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{stat.label}</p>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
+
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Work Summary */}
+        <div className="space-y-6">
+          {/* Work Summary Card */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100/50 dark:border-gray-800/50"
+          >
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5 text-emerald-500" />
+              Work Summary
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                <span className="text-gray-600 dark:text-gray-300">Research Logs</span>
+                <span className="font-bold text-gray-900 dark:text-white">{personLogs.length}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                <span className="text-gray-600 dark:text-gray-300">Total Hours</span>
+                <span className="font-bold text-gray-900 dark:text-white">{totalHours}h</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                <span className="text-emerald-700 dark:text-emerald-300">Completed</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{completedCount}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                <span className="text-amber-700 dark:text-amber-300">In Progress</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">{blockedCount}</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* AI Summary */}
+          {personLogs[0]?.aiNotes && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-6 border border-emerald-100/50 dark:border-emerald-800/30"
+            >
+              <h3 className="text-lg font-bold text-emerald-900 dark:text-emerald-200 mb-3 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                AI Summary
+              </h3>
+              <p className="text-emerald-800 dark:text-emerald-300 text-sm leading-relaxed">
+                {personLogs[0].aiNotes}
+              </p>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Right Column - Charts & Recent Activity */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Chart */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100/50 dark:border-gray-800/50"
+          >
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Research Performance</h3>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorInnovation" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorKnowledge" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" className="dark:stroke-gray-800" />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)' }}
+                  />
+                  <Area type="monotone" dataKey="innovation" stroke="#10b981" fillOpacity={1} fill="url(#colorInnovation)" name="Innovation Score" />
+                  <Area type="monotone" dataKey="knowledge" stroke="#3b82f6" fillOpacity={1} fill="url(#colorKnowledge)" name="Research Logs" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
+
+          {/* Recent Logs */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100/50 dark:border-gray-800/50"
+          >
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Research Logs</h3>
+            {personLogs.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No research logs yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {personLogs.slice(0, 5).map((log) => (
+                  <div key={log.id} className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-medium text-gray-900 dark:text-white truncate">
+                          {getProductName(log.productId)} - {getExperimentName(log.experimentId)}
+                        </h4>
+                        <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(log.date)}</span>
+                      </div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">{log.objective}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant={log.completionStatus === 'Completed' ? 'success' : log.completionStatus === 'Blocked' ? 'warning' : 'info'}>
+                          {log.completionStatus}
+                        </Badge>
+                        <span className="text-xs text-gray-400">{log.timeSpentMinutes} min</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Time Motion Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100/50 dark:border-gray-800/50"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Time Motion Performance</h3>
+          </div>
+          <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+            {(['week', 'month', 'quarter'] as const).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeMotionRange(range)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  timeMotionRange === range
+                    ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {range.charAt(0).toUpperCase() + range.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {targetId && person?.name ? (
+          <ScientistPerformanceOverview
+            scientistId={targetId}
+            scientistName={person.name}
+            dateRange={timeMotionRange}
+          />
+        ) : (
+          <div className="text-center py-12">
+            <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">Time motion data will appear here once logging begins.</p>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };
