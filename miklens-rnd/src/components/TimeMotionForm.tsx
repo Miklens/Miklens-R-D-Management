@@ -98,6 +98,7 @@ export const TimeMotionForm: React.FC<TimeMotionFormProps> = memo(({
   onSuccess,
   editEntry,
   onCancel,
+}) => {
   const { currentUser, profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
