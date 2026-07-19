@@ -63,14 +63,14 @@ const ACTIVITY_ICONS: Record<string, string> = {
 };
 
 export const ScientistHub: React.FC<ScientistHubProps> = memo(({ userId }) => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [stats, setStats] = useState<ScientistDashboardStats | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [todayActivities, setTodayActivities] = useState<UnifiedActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'projects' | 'ai'>('overview');
 
-  const scientistId = userId || user?.uid || '';
+  const scientistId = userId || currentUser?.uid || '';
 
   useEffect(() => {
     const loadData = async () => {

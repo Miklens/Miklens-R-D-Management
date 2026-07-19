@@ -24,7 +24,7 @@ import {
   getCategoryLabel
 } from '../types/timeTracking';
 import { useAuth } from '../contexts/AuthContext';
-import { getDocs, collection, query, where } from '../services/firebaseUtils';
+import { db, getDocs, collection, query, where } from '../services/firebaseUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TimeTrackingTimerProps {
@@ -68,7 +68,7 @@ export const TimeTrackingTimer: React.FC<TimeTrackingTimerProps> = memo(({ onSuc
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const q = query(collection('projects'), where('status', '==', 'active'));
+        const q = query(collection(db, 'projects'), where('status', '==', 'active'));
         const snapshot = await getDocs(q);
         const projectList: Project[] = snapshot.docs.map((doc: any) => ({
           id: doc.id,

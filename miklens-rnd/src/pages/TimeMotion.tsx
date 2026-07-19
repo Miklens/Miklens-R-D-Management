@@ -33,13 +33,13 @@ import { getWeeklySummary, getScientistDashboardStats } from '../services/unifie
 type ViewType = 'hub' | 'timer' | 'weekly' | 'dashboard' | 'form' | 'management';
 
 export const TimeMotion: React.FC = memo(() => {
-  const { user } = useAuth();
+  const { currentUser, profile } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('hub');
   const [showManagementView, setShowManagementView] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  const isManagement = user?.role === 'Admin' || user?.role === 'Management';
-  const scientistId = user?.uid || '';
+  const isManagement = profile?.role === 'Admin' || profile?.role === 'Management';
+  const scientistId = currentUser?.uid || '';
 
   const handleExportPDF = async () => {
     setIsExporting(true);

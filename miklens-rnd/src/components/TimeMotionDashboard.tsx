@@ -64,7 +64,7 @@ export const TimeMotionDashboard: React.FC<TimeMotionDashboardProps> = memo(({
   userId,
   viewMode = 'personal'
 }) => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [entries, setEntries] = useState<TimeMotionEntry[]>([]);
   const [dailySummary, setDailySummary] = useState<DailyTimeSummary | null>(null);
@@ -75,7 +75,7 @@ export const TimeMotionDashboard: React.FC<TimeMotionDashboardProps> = memo(({
   const [categoryFilter, setCategoryFilter] = useState<ActivityCategory | 'all'>('all');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  const scientistId = userId || user?.uid || '';
+  const scientistId = userId || currentUser?.uid || '';
 
   // Load entries
   useEffect(() => {

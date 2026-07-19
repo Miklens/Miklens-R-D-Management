@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { createTimeMotionEntry, updateTimeMotionEntry } from '../services/timeTracking';
 import { useAuth } from '../contexts/AuthContext';
+import { initGoogleDrive, isDriveAuthorized } from '../services/googleDrive';
 import { getDocs, collection, query, where, or, and } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { 
@@ -97,8 +98,7 @@ export const TimeMotionForm: React.FC<TimeMotionFormProps> = memo(({
   onSuccess,
   editEntry,
   onCancel,
-}) => {
-  const { user } = useAuth();
+  const { currentUser, profile } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -238,6 +238,17 @@ const [formData, setFormData] = useState({
         notes: editEntry.notes || '',
         isDraft: editEntry.isDraft,
         attachments: editEntry.attachments || [],
+        linkedExperiments: (editEntry as any).linkedExperiments || [],
+        linkedFieldTrials: (editEntry as any).linkedFieldTrials || [],
+        linkedLabTests: (editEntry as any).linkedLabTests || [],
+        linkedTasks: (editEntry as any).linkedTasks || [],
+        isFieldWork: (editEntry as any).isFieldWork || false,
+        isLabWork: (editEntry as any).isLabWork || false,
+        results: (editEntry as any).results || '',
+        findings: (editEntry as any).findings || '',
+        isBillable: editEntry.isBillable || false,
+        priority: (editEntry as any).priority || 'medium',
+        completionStatus: (editEntry as any).completionStatus || 'in_progress',
       });
     }
   }, [editEntry]);
@@ -379,8 +390,8 @@ const [formData, setFormData] = useState({
       const linkedTasks = formData.linkedTasks;
 
       const entryData: any = {
-        scientistId: user?.uid || '',
-        scientistName: user?.displayName || user?.email || 'Unknown',
+        scientistId: currentUser?.uid || '',
+        scientistName: profile?.name || currentUser?.displayName || currentUser?.email || 'Unknown',
         date: formData.date,
         category: formData.category,
         subCategory: formData.subCategory || undefined,
@@ -567,7 +578,7 @@ const [formData, setFormData] = useState({
                 <button
                   key={cat.value}
                   type="button"
-                  onClick={() => setFormData({ ...formData, category: cat.value })}
+                  onClick={() => setFormData({ ...formData, category: cat.value as ActivityCategory })}
                   className={`relative p-3 rounded-xl border-2 transition-all duration-200 ${
                     isSelected
                       ? `${cat.border} shadow-lg transform scale-105`

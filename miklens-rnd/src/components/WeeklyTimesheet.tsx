@@ -58,7 +58,7 @@ const ACTIVITY_CATEGORIES = [
 ];
 
 export const WeeklyTimesheet: React.FC<WeeklyTimesheetProps> = memo(({ userId }) => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [entries, setEntries] = useState<TimeMotionEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,7 +66,7 @@ export const WeeklyTimesheet: React.FC<WeeklyTimesheetProps> = memo(({ userId })
   const [viewMode, setViewMode] = useState<'overview' | 'detailed'>('overview');
   const [isExporting, setIsExporting] = useState(false);
 
-  const scientistId = userId || user?.uid || '';
+  const scientistId = userId || currentUser?.uid || '';
 
   // Get week dates
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday

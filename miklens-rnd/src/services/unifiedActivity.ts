@@ -240,6 +240,7 @@ export const getWeeklySummary = async (
   
   let tasksCompleted = 0;
   let tasksCreated = 0;
+  let tasksPending = 0;
 
   activities.forEach(a => {
     const mins = a.durationMinutes || 0;
@@ -275,7 +276,11 @@ export const getWeeklySummary = async (
 
     // Tasks
     if (a.activityType === 'task') {
-      if (a.completionStatus === 'completed') tasksCompleted++;
+      if (a.completionStatus === 'completed') {
+        tasksCompleted++;
+      } else {
+        tasksPending++;
+      }
       tasksCreated++;
     }
   });
