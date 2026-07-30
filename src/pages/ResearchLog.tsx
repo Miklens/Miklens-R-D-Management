@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Clock, Plus, Trash2, CheckCircle2, Save,
-  Zap, AlertTriangle, ShieldCheck, Package2
+  Zap, AlertTriangle, ShieldCheck, Package2, Pencil, X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -74,6 +74,18 @@ const SCOPE_OPTIONS = [
 
 /** IDs that require a custom text input below */
 const REQUIRES_CUSTOM_INPUT = new Set(['new_product']);
+
+/** Quick-pick 1-hour time slots (10 AM – 6 PM) */
+const QUICK_SLOTS = [
+  { label: '10–11 AM', start: '10:00', end: '11:00' },
+  { label: '11–12 PM', start: '11:00', end: '12:00' },
+  { label: '12–1 PM',  start: '12:00', end: '13:00' },
+  { label: '1–2 PM',   start: '13:00', end: '14:00' },
+  { label: '2–3 PM',   start: '14:00', end: '15:00' },
+  { label: '3–4 PM',   start: '15:00', end: '16:00' },
+  { label: '4–5 PM',   start: '16:00', end: '17:00' },
+  { label: '5–6 PM',   start: '17:00', end: '18:00' },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -210,7 +222,51 @@ export const ResearchLog: React.FC = () => {
     setCollisionError(null);
   };
 
+  /* ---------- quick-slot picker ---------- */
+  const addQuickSlot = (start: string, end: string) => {
+    const alreadyInForm = activities.some(a => a.startTime === start && a.endTime === end);
+    const alreadySaved  = logsOnDate.some(l => l.startTime === start && l.endTime === end);
+    if (alreadyInForm || alreadySaved) {
+      setCollisionError(`Slot ${formatTime12h(start)} – ${formatTime12h(end)} is already added or saved for ${logDate}.`);
+      return;
+    }
+    setActivities(p => [...p, {
+      id: `row-${Date.now()}`,
+      category: 'lab', customCategory: '',
+      productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+      startTime: start, endTime: end,
+      durationMinutes: calcDurationMinutes(start, end),
+      description: '',
+    }]);
+    setCollisionError(null);
+  };
+
+  /* ---------- edit saved log ---------- */
+  const handleEditLog = (log: DailyLog) => {
+    setEditingLogId(log.id);
+    setLogDate(log.date?.split('T')[0] || logDate);
+    setDayFocus(log.objective || '');
+    setActivities([{
+      id: `edit-${log.id}`,
+      category: 'lab', customCategory: '',
+      productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+      startTime: log.startTime || '09:00',
+      endTime:   log.endTime   || '10:00',
+      durationMinutes: log.timeSpentMinutes || calcDurationMinutes(log.startTime || '09:00', log.endTime || '10:00'),
+      description: log.activities || '',
+    }]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingLogId(null);
+    setActivities(DEFAULT_SESSIONS);
+    setDayFocus('');
+    setCollisionError(null);
+  };
+
   /* ---------- submit ---------- */
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const err = validateTimeSlots();
@@ -322,6 +378,44 @@ export const ResearchLog: React.FC = () => {
               </div>
             )}
 
+            {/* Edit mode banner */}
+            {editingLogId && (
+              <div className="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300">
+                  <Pencil className="w-4 h-4" />
+                  Editing saved session — modify below and click Save to update
+                </div>
+                <button type="button" onClick={cancelEdit}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-red-500 font-bold transition-colors">
+                  <X className="w-3.5 h-3.5" /> Cancel Edit
+                </button>
+              </div>
+            )}
+
+            {/* Quick-pick time slots */}
+            <div className="space-y-2 p-4 rounded-2xl bg-gray-50/70 dark:bg-gray-800/30 border border-gray-100 dark:border-gray-800">
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">⚡ Quick Add 1-Hour Time Slot</p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_SLOTS.map(slot => {
+                  const used = activities.some(a => a.startTime === slot.start && a.endTime === slot.end)
+                    || logsOnDate.some(l => l.startTime === slot.start && l.endTime === slot.end);
+                  return (
+                    <button key={slot.label} type="button"
+                      onClick={() => addQuickSlot(slot.start, slot.end)}
+                      disabled={used}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all ${
+                        used
+                          ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 line-through cursor-not-allowed opacity-60'
+                          : 'bg-white dark:bg-gray-900 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 shadow-sm'
+                      }`}>
+                      {slot.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400">Used / already saved slots are greyed out. Click any slot to add it to your session list.</p>
+            </div>
+
             {/* Sessions */}
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
@@ -331,7 +425,7 @@ export const ResearchLog: React.FC = () => {
                 </h3>
                 <button type="button" onClick={addRow}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> + Add Session
+                  <Plus className="w-3.5 h-3.5" /> + Add Manually
                 </button>
               </div>
 
@@ -509,9 +603,16 @@ export const ResearchLog: React.FC = () => {
                           ? `${formatTime12h(log.startTime)} – ${formatTime12h(log.endTime)}`
                           : `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`}
                       </span>
-                      <button onClick={() => deleteLog(log.id)} className="text-gray-400 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleEditLog(log)}
+                          className="p-1 text-blue-400 hover:text-blue-600 transition-colors" title="Edit this session">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => deleteLog(log.id)}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Delete this session">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{log.objective}</p>
                     <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2">{log.activities}</p>
