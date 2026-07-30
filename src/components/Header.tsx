@@ -15,7 +15,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onToggleMobileMenu?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   const { profile, userRole, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -103,7 +107,10 @@ export const Header: React.FC = () => {
       {/* Left: Page Title */}
       <div className="flex items-center gap-4">
         <div className="md:hidden">
-          <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button 
+            onClick={onToggleMobileMenu}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
             <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
         </div>

@@ -61,7 +61,11 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  onCloseMobile?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const { userRole, profile } = useAuth();
   const { pendingCount } = useTasks();
   const location = useLocation();
@@ -69,7 +73,7 @@ export const Sidebar: React.FC = () => {
   return (
     <div className="flex h-full w-72 flex-col bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-900/80 border-r border-gray-200/50 dark:border-gray-800/50 backdrop-blur-xl">
       {/* Logo Section */}
-      <div className="flex h-20 items-center px-6 border-b border-gray-100/50 dark:border-gray-800/50">
+      <div className="flex h-20 items-center justify-between px-6 border-b border-gray-100/50 dark:border-gray-800/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
             <TrendingUp className="w-5 h-5 text-white" />
@@ -112,6 +116,7 @@ export const Sidebar: React.FC = () => {
                   <NavLink
                     key={item.name}
                     to={item.href}
+                    onClick={() => onCloseMobile?.()}
                     className={({ isActive }) =>
                       `group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
                         isActive
