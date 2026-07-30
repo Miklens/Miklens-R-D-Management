@@ -78,8 +78,7 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['Admin', 'Management']} />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/employees" element={<Employees />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/reports" element={<TeamActivity />} />
                 <Route path="/team-activity" element={<TeamActivity />} />
               </Route>
             </Route>
