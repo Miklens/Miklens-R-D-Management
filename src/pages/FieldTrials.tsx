@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { MapPin, Plus, X, Search, Calendar, CheckCircle2, Clock, Trash2, Package } from 'lucide-react';
+import { MapPin, Plus, X, Search, Trash2, Package, Sparkles, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useExperiments } from '../contexts/ExperimentContext';
+import { ScientificWorkbenchModal } from '../components/ScientificWorkbenchModal';
 
 export const FieldTrials: React.FC = () => {
   const { fieldTrials, addFieldTrial, deleteFieldTrial, allProducts } = useExperiments();
 
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTrial, setSelectedTrial] = useState<any>(null);
 
   // Modal State
   const [nameInput, setNameInput] = useState('');
@@ -16,6 +18,7 @@ export const FieldTrials: React.FC = () => {
   const [customProductInput, setCustomProductInput] = useState('');
   const [locationInput, setLocationInput] = useState('Punjab, India');
   const [areaInput, setAreaInput] = useState('50 acres');
+  const [hypothesis, setHypothesis] = useState('');
 
   const handleCreateTrial = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,14 +34,15 @@ export const FieldTrials: React.FC = () => {
       status: 'Active',
       startDate: new Date().toISOString().split('T')[0],
       duration: '90 days',
+      hypothesis: hypothesis.trim() || `Evaluate crop disease reduction for ${finalProduct} in ${locationInput}.`,
     });
 
     setNameInput('');
+    setHypothesis('');
     setCustomProductInput('');
     setShowModal(false);
   };
 
-  // Group Field Trials Product-Wise
   const trialsByProduct = fieldTrials
     .filter(
       (t) =>
@@ -117,7 +121,8 @@ export const FieldTrials: React.FC = () => {
               {trialList.map((trial) => (
                 <div
                   key={trial.id}
-                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3"
+                  onClick={() => setSelectedTrial(trial)}
+                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-emerald-500 transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5">
@@ -125,17 +130,22 @@ export const FieldTrials: React.FC = () => {
                         <MapPin className="w-4 h-4" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm">{trial.name}</h4>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-emerald-600 transition-colors">
+                          {trial.name}
+                        </h4>
                         <p className="text-[11px] text-gray-400">{trial.location}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                        {trial.status}
+                        {trial.outcomeStatus || trial.status}
                       </span>
                       <button
-                        onClick={() => deleteFieldTrial(trial.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFieldTrial(trial.id);
+                        }}
                         className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
                         title="Delete Trial"
                       >
@@ -158,11 +168,28 @@ export const FieldTrials: React.FC = () => {
                       <span className="font-semibold text-gray-800 dark:text-gray-200">{trial.duration}</span>
                     </div>
                   </div>
+
+                  <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      Open Scientific Workbench
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         ))
+      )}
+
+      {/* Drawer */}
+      {selectedTrial && (
+        <ScientificWorkbenchModal
+          category="field"
+          item={selectedTrial}
+          onClose={() => setSelectedTrial(null)}
+        />
       )}
 
       {/* Add Modal */}
@@ -180,13 +207,16 @@ export const FieldTrials: React.FC = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                 <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-emerald-500" />
                   Add New Field Trial
                 </h3>
+                <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
               </div>
 
               <form onSubmit={handleCreateTrial} className="space-y-4">
@@ -237,6 +267,19 @@ export const FieldTrials: React.FC = () => {
                       className="mt-2 w-full px-4 py-2 bg-white dark:bg-gray-800 border border-emerald-400 rounded-xl text-sm"
                     />
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Field Trial Hypothesis
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Foliar spray application reduces rust disease severity score by >85%..."
+                    value={hypothesis}
+                    onChange={(e) => setHypothesis(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

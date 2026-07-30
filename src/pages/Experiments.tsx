@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Beaker, Plus, X, Search, FlaskConical, CheckCircle2, AlertCircle, Trash2, Package, Layers } from 'lucide-react';
+import { Plus, X, Search, FlaskConical, CheckCircle2, AlertCircle, Trash2, Package, Sparkles, ChevronRight, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LaboratoryTests } from './LaboratoryTests';
 import { StabilityTracker } from './StabilityTracker';
 import { FieldTrials } from './FieldTrials';
 import { Observations } from './Observations';
 import { useExperiments } from '../contexts/ExperimentContext';
-import type { ExperimentType, ExperimentStatus } from '../types/experimentTypes';
+import { ScientificWorkbenchModal } from '../components/ScientificWorkbenchModal';
+import type { ExperimentType } from '../types/experimentTypes';
 
 export const Experiments: React.FC = () => {
   const { experiments, addExperiment, deleteExperiment } = useExperiments();
@@ -15,12 +16,17 @@ export const Experiments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'experiments' | 'lab' | 'stability' | 'field' | 'observations'>('experiments');
 
-  // Modal State
+  // Scientific Workbench Drawer State
+  const [selectedExperiment, setSelectedExperiment] = useState<any>(null);
+
+  // Creation Modal State
   const [expName, setExpName] = useState('');
   const [productName, setProductName] = useState('BioShield Alpha (Bio-fungicide)');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductName, setCustomProductName] = useState('');
   const [expType, setExpType] = useState<ExperimentType>('Lab');
+  const [hypothesis, setHypothesis] = useState('');
+  const [protocolStepsText, setProtocolStepsText] = useState('');
 
   const PRODUCTS = [
     'BioShield Alpha (Bio-fungicide)',
@@ -33,17 +39,27 @@ export const Experiments: React.FC = () => {
 
     const finalProduct = isCustomProduct ? customProductName.trim() || 'Custom Product' : productName;
 
+    // Parse custom protocol steps if entered
+    const parsedSteps = protocolStepsText
+      .split('\n')
+      .filter((s) => s.trim().length > 0)
+      .map((s, idx) => ({ id: `s-${idx + 1}`, title: s.trim(), completed: false }));
+
     addExperiment({
       name: expName.trim(),
       productName: finalProduct,
       type: expType,
       status: 'InProgress',
-      progress: 10,
+      progress: 0,
       startDate: new Date().toISOString().split('T')[0],
-      description: 'Newly created experiment',
+      description: 'Newly created scientific experiment',
+      hypothesis: hypothesis.trim() || `Evaluate ${expName} performance on ${finalProduct}.`,
+      protocolSteps: parsedSteps.length > 0 ? parsedSteps : undefined,
     });
 
     setExpName('');
+    setHypothesis('');
+    setProtocolStepsText('');
     setCustomProductName('');
     setShowModal(false);
   };
@@ -61,14 +77,16 @@ export const Experiments: React.FC = () => {
       return acc;
     }, {} as Record<string, typeof experiments>);
 
-  const getStatusIcon = (status: string) => {
+  const getOutcomeBadge = (status?: string) => {
     switch (status) {
-      case 'Completed':
-        return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
-      case 'Blocked':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      case 'Passed':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-300';
+      case 'Failed':
+        return 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-red-300';
+      case 'Inconclusive':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300';
       default:
-        return <div className="w-4 h-4 rounded-full border-2 border-blue-500" />;
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-300';
     }
   };
 
@@ -81,10 +99,10 @@ export const Experiments: React.FC = () => {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white shadow-md">
               <FlaskConical className="w-5 h-5" />
             </div>
-            Product Testing & R&D Operations
+            Product Testing & Scientific R&D Workbench
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-            Product-wise structured lab tests, CIPAC stability tracking, field trials, and observations
+            End-to-end scientific experiment lifecycle: Hypothesis, Protocol Checklists, Data Readings & Outcome Verdicts
           </p>
         </div>
 
@@ -138,7 +156,7 @@ export const Experiments: React.FC = () => {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search experiments or products..."
+              placeholder="Search experiments, hypotheses or products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500/30"
@@ -175,19 +193,23 @@ export const Experiments: React.FC = () => {
                   {expList.map((exp) => (
                     <div
                       key={exp.id}
-                      className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group"
+                      onClick={() => setSelectedExperiment(exp)}
+                      className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-emerald-500/50 hover:shadow-lg transition-all cursor-pointer"
                     >
                       <div className="flex items-start justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md">
                           <FlaskConical className="w-5 h-5" />
                         </div>
+
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(exp.status)}
-                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                            {exp.status}
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getOutcomeBadge(exp.outcomeStatus)}`}>
+                            {exp.outcomeStatus || 'Pending'}
                           </span>
                           <button
-                            onClick={() => deleteExperiment(exp.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteExperiment(exp.id);
+                            }}
                             className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
                             title="Delete"
                           >
@@ -197,24 +219,35 @@ export const Experiments: React.FC = () => {
                       </div>
 
                       <div>
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm">{exp.name}</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          Type: <span className="font-medium">{exp.type}</span> • Started: {exp.startDate}
+                        <h4 className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-emerald-600 transition-colors">
+                          {exp.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 italic">
+                          "{exp.hypothesis || 'No hypothesis stated yet.'}"
                         </p>
                       </div>
 
-                      {/* Progress Bar */}
+                      {/* Protocol Progress */}
                       <div>
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-gray-500">Progress</span>
-                          <span className="font-bold text-gray-900 dark:text-white">{exp.progress}%</span>
+                          <span className="text-gray-500 text-[11px]">Protocol Checklist</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[11px]">{exp.progress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
                           <div
-                            className="h-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
+                            className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
                             style={{ width: `${exp.progress}%` }}
                           />
                         </div>
+                      </div>
+
+                      {/* Card Footer CTA */}
+                      <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-amber-500" />
+                          Open Scientific Workbench
+                        </span>
+                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
                   ))}
@@ -225,7 +258,16 @@ export const Experiments: React.FC = () => {
         </div>
       )}
 
-      {/* New Experiment Modal */}
+      {/* Interactive Scientific Workbench Modal */}
+      {selectedExperiment && (
+        <ScientificWorkbenchModal
+          category="exp"
+          item={selectedExperiment}
+          onClose={() => setSelectedExperiment(null)}
+        />
+      )}
+
+      {/* Create New Experiment Modal with Scientific Hypothesis */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -240,12 +282,12 @@ export const Experiments: React.FC = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4"
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                 <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Plus className="w-4 h-4 text-emerald-500" />
-                  Create New Product Experiment
+                  Design New Scientific Experiment
                 </h3>
                 <button
                   onClick={() => setShowModal(false)}
@@ -258,11 +300,11 @@ export const Experiments: React.FC = () => {
               <form onSubmit={handleCreateExperiment} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Experiment Name *
+                    Experiment Title *
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. BioShield pH Adjustment Assay"
+                    placeholder="e.g. pH Adjustment & Viscosity Optimization"
                     value={expName}
                     onChange={(e) => setExpName(e.target.value)}
                     required
@@ -302,6 +344,32 @@ export const Experiments: React.FC = () => {
                       className="mt-2 w-full px-4 py-2 bg-white dark:bg-gray-800 border border-emerald-400 rounded-xl text-sm"
                     />
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Scientific Hypothesis & Goal
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="State expected outcome, e.g. Adjusting pH to 6.2 increases emulsion shelf-life by 20%..."
+                    value={hypothesis}
+                    onChange={(e) => setHypothesis(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Protocol Steps (1 per line)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder={`e.g.\nPrepare 0.1M HCl buffer\nTitrate sample to pH 6.2\nMeasure viscosity after 24h incubation`}
+                    value={protocolStepsText}
+                    onChange={(e) => setProtocolStepsText(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
+                  />
                 </div>
 
                 <div>

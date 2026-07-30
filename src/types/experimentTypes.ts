@@ -1,5 +1,21 @@
 export type ExperimentType = 'Lab' | 'Field' | 'Both';
-export type ExperimentStatus = 'InProgress' | 'Completed' | 'Blocked' | 'Queued';
+export type ExperimentStatus = 'InProgress' | 'Completed' | 'Blocked' | 'Queued' | 'Planning';
+export type ScientificOutcomeStatus = 'Pending' | 'Passed' | 'Failed' | 'Inconclusive';
+
+export interface ProtocolStep {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface DataReading {
+  id: string;
+  parameter: string;
+  value: string;
+  unit: string;
+  timestamp: string;
+  notes?: string;
+}
 
 export interface ExperimentItem {
   id: string;
@@ -10,6 +26,11 @@ export interface ExperimentItem {
   progress: number;
   startDate: string;
   description?: string;
+  hypothesis?: string;
+  protocolSteps?: ProtocolStep[];
+  dataReadings?: DataReading[];
+  conclusion?: string;
+  outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
 }
 
@@ -22,6 +43,11 @@ export interface LabTestItem {
   progress: number;
   lab: string;
   dueDate: string;
+  hypothesis?: string;
+  protocolSteps?: ProtocolStep[];
+  dataReadings?: DataReading[];
+  conclusion?: string;
+  outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
 }
 
@@ -37,6 +63,11 @@ export interface StabilityLogItem {
   status: 'active' | 'completed' | 'overdue' | 'warning';
   activeRetention: number;
   pH: number;
+  hypothesis?: string;
+  protocolSteps?: ProtocolStep[];
+  dataReadings?: DataReading[];
+  conclusion?: string;
+  outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
 }
 
@@ -49,6 +80,11 @@ export interface FieldTrialItem {
   status: string;
   startDate: string;
   duration: string;
+  hypothesis?: string;
+  protocolSteps?: ProtocolStep[];
+  dataReadings?: DataReading[];
+  conclusion?: string;
+  outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
 }
 
@@ -56,7 +92,7 @@ export interface ObservationItem {
   id: string;
   title: string;
   productName: string;
-  type: string; // Visual, Measurement, Environmental, Equipment
+  type: string;
   location: string;
   date: string;
   severity: 'Low' | 'Medium' | 'High' | 'Critical';

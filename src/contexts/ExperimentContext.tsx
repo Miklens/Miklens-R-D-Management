@@ -4,7 +4,10 @@ import type {
   LabTestItem, 
   StabilityLogItem, 
   FieldTrialItem, 
-  ObservationItem 
+  ObservationItem,
+  ScientificOutcomeStatus,
+  DataReading,
+  ExperimentStatus
 } from '../types/experimentTypes';
 import { 
   loadExperiments, saveExperiments,
@@ -26,6 +29,10 @@ interface ExperimentContextType {
   addStabilityLog: (item: Omit<StabilityLogItem, 'id' | 'createdAt'>) => StabilityLogItem;
   addFieldTrial: (item: Omit<FieldTrialItem, 'id' | 'createdAt'>) => FieldTrialItem;
   addObservation: (item: Omit<ObservationItem, 'id' | 'createdAt'>) => ObservationItem;
+
+  toggleProtocolStep: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, stepId: string) => void;
+  addDataReading: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, reading: Omit<DataReading, 'id' | 'timestamp'>) => void;
+  updateScientificConclusion: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, conclusion: string, outcomeStatus: ScientificOutcomeStatus) => void;
 
   deleteExperiment: (id: string) => void;
   deleteLabTest: (id: string) => void;
@@ -52,9 +59,18 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => { saveObservations(observations); }, [observations]);
 
   const addExperiment = (item: Omit<ExperimentItem, 'id' | 'createdAt'>): ExperimentItem => {
+    const steps = item.protocolSteps || [
+      { id: 's1', title: 'Preparation & Calibration', completed: false },
+      { id: 's2', title: 'Execution & Treatment Assay', completed: false },
+      { id: 's3', title: 'Data Measurement & Recording', completed: false },
+      { id: 's4', title: 'Final Analysis & Conclusion', completed: false },
+    ];
     const newItem: ExperimentItem = {
       ...item,
       id: `exp-${Date.now()}`,
+      protocolSteps: steps,
+      dataReadings: item.dataReadings || [],
+      outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
     setExperiments((prev) => [newItem, ...prev]);
@@ -62,9 +78,17 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const addLabTest = (item: Omit<LabTestItem, 'id' | 'createdAt'>): LabTestItem => {
+    const steps = item.protocolSteps || [
+      { id: 's1', title: 'Sample Preparation & Dilution', completed: false },
+      { id: 's2', title: 'Incubation & Reagent Reaction', completed: false },
+      { id: 's3', title: 'Assay Quantification', completed: false },
+    ];
     const newItem: LabTestItem = {
       ...item,
       id: `lab-${Date.now()}`,
+      protocolSteps: steps,
+      dataReadings: item.dataReadings || [],
+      outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
     setLabTests((prev) => [newItem, ...prev]);
@@ -75,6 +99,12 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newItem: StabilityLogItem = {
       ...item,
       id: `stab-${Date.now()}`,
+      protocolSteps: item.protocolSteps || [
+        { id: 's1', title: 'Thermal Oven Setup', completed: true },
+        { id: 's2', title: 'Interval Inspection', completed: false },
+      ],
+      dataReadings: item.dataReadings || [],
+      outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
     setStabilityLogs((prev) => [newItem, ...prev]);
@@ -85,6 +115,13 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newItem: FieldTrialItem = {
       ...item,
       id: `field-${Date.now()}`,
+      protocolSteps: item.protocolSteps || [
+        { id: 's1', title: 'Plot Delineation', completed: true },
+        { id: 's2', title: 'Foliar Spray Application', completed: false },
+        { id: 's3', title: 'Yield & Efficacy Logging', completed: false },
+      ],
+      dataReadings: item.dataReadings || [],
+      outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
     setFieldTrials((prev) => [newItem, ...prev]);
@@ -101,13 +138,80 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return newItem;
   };
 
+  // Toggle protocol step and auto-calculate progress %
+  const toggleProtocolStep = (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, stepId: string) => {
+    const updateItem = (item: any) => {
+      const steps = (item.protocolSteps || []).map((s: any) =>
+        s.id === stepId ? { ...s, completed: !s.completed } : s
+      );
+      const completedCount = steps.filter((s: any) => s.completed).length;
+      const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : item.progress;
+      const status: ExperimentStatus = progress === 100 ? 'Completed' : progress > 0 ? 'InProgress' : 'Queued';
+
+      return {
+        ...item,
+        protocolSteps: steps,
+        progress,
+        status,
+      };
+    };
+
+    if (category === 'exp') setExperiments((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'lab') setLabTests((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'stability') setStabilityLogs((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'field') setFieldTrials((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+  };
+
+  // Add Data Reading
+  const addDataReading = (
+    category: 'exp' | 'lab' | 'stability' | 'field',
+    itemId: string,
+    reading: Omit<DataReading, 'id' | 'timestamp'>
+  ) => {
+    const newReading: DataReading = {
+      ...reading,
+      id: `rd-${Date.now()}`,
+      timestamp: new Date().toLocaleString(),
+    };
+
+    const updateItem = (item: any) => ({
+      ...item,
+      dataReadings: [...(item.dataReadings || []), newReading],
+    });
+
+    if (category === 'exp') setExperiments((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'lab') setLabTests((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'stability') setStabilityLogs((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'field') setFieldTrials((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+  };
+
+  // Update Scientific Conclusion & Outcome
+  const updateScientificConclusion = (
+    category: 'exp' | 'lab' | 'stability' | 'field',
+    itemId: string,
+    conclusion: string,
+    outcomeStatus: ScientificOutcomeStatus
+  ) => {
+    const updateItem = (item: any) => ({
+      ...item,
+      conclusion,
+      outcomeStatus,
+      status: outcomeStatus === 'Passed' || outcomeStatus === 'Failed' ? 'Completed' : item.status,
+      progress: outcomeStatus === 'Passed' ? 100 : item.progress,
+    });
+
+    if (category === 'exp') setExperiments((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'lab') setLabTests((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'stability') setStabilityLogs((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+    if (category === 'field') setFieldTrials((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
+  };
+
   const deleteExperiment = (id: string) => setExperiments((prev) => prev.filter((e) => e.id !== id));
   const deleteLabTest = (id: string) => setLabTests((prev) => prev.filter((e) => e.id !== id));
   const deleteStabilityLog = (id: string) => setStabilityLogs((prev) => prev.filter((e) => e.id !== id));
   const deleteFieldTrial = (id: string) => setFieldTrials((prev) => prev.filter((e) => e.id !== id));
   const deleteObservation = (id: string) => setObservations((prev) => prev.filter((e) => e.id !== id));
 
-  // Dynamic set of all product names
   const allProducts = useMemo(() => {
     const set = new Set<string>();
     set.add('BioShield Alpha (Bio-fungicide)');
@@ -132,6 +236,9 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addStabilityLog,
         addFieldTrial,
         addObservation,
+        toggleProtocolStep,
+        addDataReading,
+        updateScientificConclusion,
         deleteExperiment,
         deleteLabTest,
         deleteStabilityLog,

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Thermometer, Calendar, Plus, CheckCircle2, AlertTriangle, Search, Trash2, Package, Sparkles } from 'lucide-react';
+import { Thermometer, Plus, Search, Trash2, Package, Sparkles, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useExperiments } from '../contexts/ExperimentContext';
+import { ScientificWorkbenchModal } from '../components/ScientificWorkbenchModal';
 
 export const StabilityTracker: React.FC = () => {
   const { stabilityLogs, addStabilityLog, deleteStabilityLog, allProducts } = useExperiments();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<any>(null);
 
   // Modal State
   const [newBatchNo, setNewBatchNo] = useState('');
@@ -38,6 +40,7 @@ export const StabilityTracker: React.FC = () => {
       status: 'active',
       activeRetention: 99.0,
       pH: 6.5,
+      hypothesis: `Active ingredient retention stays >90% during ${newDuration} at ${newChamber}.`,
     });
 
     setNewBatchNo('');
@@ -45,7 +48,8 @@ export const StabilityTracker: React.FC = () => {
     setShowAddModal(false);
   };
 
-  const handleSimulateArrhenius = (id: string) => {
+  const handleSimulateArrhenius = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     setProjectingId(id);
     setAiProjection(null);
     setTimeout(() => {
@@ -55,7 +59,6 @@ export const StabilityTracker: React.FC = () => {
     }, 800);
   };
 
-  // Group Stability Logs Product-Wise
   const logsByProduct = stabilityLogs
     .filter(
       (b) =>
@@ -134,24 +137,28 @@ export const StabilityTracker: React.FC = () => {
               {batchList.map((batch) => (
                 <div
                   key={batch.id}
-                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3"
+                  onClick={() => setSelectedBatch(batch)}
+                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-amber-400 transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between">
                     <div>
                       <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider block">
                         {batch.batchNo}
                       </span>
-                      <h4 className="font-bold text-gray-900 dark:text-white text-sm mt-0.5">
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm mt-0.5 group-hover:text-amber-600 transition-colors">
                         {batch.chamberTemp}
                       </h4>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                        {batch.status}
+                        {batch.outcomeStatus || 'active'}
                       </span>
                       <button
-                        onClick={() => deleteStabilityLog(batch.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteStabilityLog(batch.id);
+                        }}
                         className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
                         title="Delete Batch"
                       >
@@ -178,7 +185,7 @@ export const StabilityTracker: React.FC = () => {
                   <div className="flex items-center justify-between text-xs pt-1">
                     <span className="text-[11px] text-gray-400">Next Check: {batch.nextTestDate}</span>
                     <button
-                      onClick={() => handleSimulateArrhenius(batch.id)}
+                      onClick={(e) => handleSimulateArrhenius(batch.id, e)}
                       className="flex items-center gap-1 text-[11px] font-semibold text-purple-600 hover:underline"
                     >
                       <Sparkles className="w-3 h-3 text-purple-500" />
@@ -191,11 +198,28 @@ export const StabilityTracker: React.FC = () => {
                       {aiProjection}
                     </div>
                   )}
+
+                  <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      Open Scientific Workbench
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         ))
+      )}
+
+      {/* Drawer */}
+      {selectedBatch && (
+        <ScientificWorkbenchModal
+          category="stability"
+          item={selectedBatch}
+          onClose={() => setSelectedBatch(null)}
+        />
       )}
 
       {/* Add Modal */}
@@ -220,6 +244,9 @@ export const StabilityTracker: React.FC = () => {
                   <Thermometer className="w-4 h-4 text-amber-500" />
                   Setup CIPAC Stability Program
                 </h3>
+                <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
               </div>
 
               <form onSubmit={handleCreateBatch} className="space-y-4">
