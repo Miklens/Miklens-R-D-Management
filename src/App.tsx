@@ -28,6 +28,7 @@ const Notifications = lazy(() => import('./pages/Notifications').then((m) => ({ 
 const AuditLogs = lazy(() => import('./pages/AuditLogs').then((m) => ({ default: m.AuditLogs })));
 const TeamActivity = lazy(() => import('./pages/TeamActivity').then((m) => ({ default: m.TeamActivity })));
 const TimeMotion = lazy(() => import('./pages/TimeMotion').then((m) => ({ default: m.TimeMotion })));
+const FieldTrials = lazy(() => import('./pages/FieldTrials').then((m) => ({ default: m.FieldTrials })));
 
 // Optimized React Query Client with Stale Caching
 const queryClient = new QueryClient({
@@ -81,6 +82,7 @@ function App() {
                         <Route path="/ai-insights" element={<AIInsights />} />
                         <Route path="/notifications" element={<Notifications />} />
                         <Route path="/time-motion" element={<TimeMotion />} />
+                        <Route path="/trial-sync" element={<FieldTrials />} />
                         <Route path="/settings" element={<Settings />} />
                       </Route>
                     </Route>

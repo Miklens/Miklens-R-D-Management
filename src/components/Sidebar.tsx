@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, FlaskConical, Beaker, BarChart3, Edit3, 
-  Settings, CheckSquare, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X
+  Settings, CheckSquare, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTasks } from '../contexts/TaskContext';
@@ -34,6 +34,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Daily Research Log', href: '/research-log', icon: Edit3 },
       { name: 'Experiments & Testing', href: '/experiments', icon: Beaker },
+      { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin },
     ],
   },
   {
