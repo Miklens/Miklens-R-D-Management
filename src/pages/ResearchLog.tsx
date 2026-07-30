@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Clock, Calendar, Plus, Trash2, CheckCircle2, Save, 
   FlaskConical, Microscope, Users, Building2, MapPin, FileText, 
-  Zap, Layers, Edit2, X, AlertCircle, AlertTriangle, ShieldCheck 
+  Zap, Layers, Edit2, X, AlertCircle, AlertTriangle, ShieldCheck, Tag, Laptop, PhoneCall, MessageSquare 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ interface DailyActivityRow {
   customCategory?: string;
   productId: string;
   productName: string;
+  customProductName?: string;
   isCustomProduct?: boolean;
   startTime: string; // HH:mm (24-hour format)
   endTime: string;   // HH:mm (24-hour format)
@@ -34,16 +35,33 @@ const CATEGORY_OPTIONS = [
   { value: 'lab', label: 'Laboratory Experiment' },
   { value: 'formulation', label: 'Formulation & Stability' },
   { value: 'trials', label: 'Field Trial / Sampling' },
-  { value: 'meetings', label: 'Team Sync / Meeting' },
-  { value: 'document', label: 'Report / Documentation' },
+  { value: 'app_dev', label: 'App Development & Software' },
+  { value: 'doc_prep', label: 'Document & Dossier Prep' },
+  { value: 'label_prep', label: 'Label & Packaging Design' },
+  { value: 'vendor_talk', label: 'Talk to Vendors / Suppliers' },
+  { value: 'client_talk', label: 'Talk to Clients / Customers' },
+  { value: 'discussions', label: 'Discussions & Brainstorming' },
+  { value: 'meetings', label: 'Team Meetings & Sync' },
+  { value: 'maintenance', label: 'Equipment Maintenance' },
   { value: 'admin', label: 'General R&D Admin' },
   { value: 'custom', label: '+ Custom Category...' },
 ];
 
 const PRODUCTS_LIST = [
   { id: 'p1', name: 'BioShield Alpha (Bio-fungicide)' },
-  { id: 'general', name: 'General R&D / Non-Product Work' },
-  { id: 'custom', name: '+ Add New / Custom Product...' },
+  { id: 'app_dev', name: '📱 App Development' },
+  { id: 'app_upgrade', name: '🔄 App Upgradation & Maintenance' },
+  { id: 'doc_prep', name: '📄 Document Preparation' },
+  { id: 'label_prep', name: '🏷️ Label Preparation & Packaging' },
+  { id: 'vendor_talk', name: '🏬 Talk to Vendors & Suppliers' },
+  { id: 'client_talk', name: '🤝 Talk to Clients & Customers' },
+  { id: 'discussion', name: '💬 Discussions & Brainstorming' },
+  { id: 'meeting', name: '📅 Team Meetings & Sync' },
+  { id: 'maintenance', name: '🛠️ Equipment Maintenance & Calibration' },
+  { id: 'safety', name: '🥽 Lab Safety & Protocol Audits' },
+  { id: 'literature', name: '📚 Literature Review & Patent Research' },
+  { id: 'general', name: '🏢 General R&D / Non-Product Work' },
+  { id: 'custom', name: '✏️ + Custom Non-Product Activity...' },
 ];
 
 // Helper to format 24h "13:00" to 12h "01:00 PM"
@@ -161,7 +179,6 @@ export const ResearchLog: React.FC = () => {
         const s2 = a2.startTime.split(':').map(Number)[0] * 60 + a2.startTime.split(':').map(Number)[1];
         const e2 = a2.endTime.split(':').map(Number)[0] * 60 + a2.endTime.split(':').map(Number)[1];
 
-        // Interval collision check
         if (s1 < e2 && e1 > s2) {
           return `Time slot overlap between Session #${i + 1} (${formatTime12h(a1.startTime)} - ${formatTime12h(a1.endTime)}) and Session #${j + 1} (${formatTime12h(a2.startTime)} - ${formatTime12h(a2.endTime)}). Please adjust your session times.`;
         }
@@ -190,7 +207,6 @@ export const ResearchLog: React.FC = () => {
 
   // Add new activity row
   const handleAddActivityRow = () => {
-    // Pick next logical start time (end time of last row)
     const lastEnd = activities.length > 0 ? activities[activities.length - 1].endTime : '13:00';
     const [h, m] = lastEnd.split(':').map(Number);
     const endH = (h + 2) % 24;
@@ -218,7 +234,6 @@ export const ResearchLog: React.FC = () => {
         if (act.id !== id) return act;
         const updated = { ...act, ...updates };
 
-        // Recalculate duration if startTime or endTime changed
         if (updates.startTime || updates.endTime) {
           updated.durationMinutes = calcDurationMinutes(updated.startTime, updated.endTime);
         }
@@ -230,7 +245,7 @@ export const ResearchLog: React.FC = () => {
 
   // Remove activity row
   const handleRemoveActivityRow = (id: string) => {
-    if (activities.length === 1) return; // Keep at least one
+    if (activities.length === 1) return;
     setActivities(activities.filter((a) => a.id !== id));
     setCollisionError(null);
   };
@@ -240,7 +255,6 @@ export const ResearchLog: React.FC = () => {
     e.preventDefault();
     if (activities.length === 0) return;
 
-    // Validate time collision and End > Start
     const errorMsg = validateTimeSlots();
     if (errorMsg) {
       setCollisionError(errorMsg);
@@ -253,7 +267,13 @@ export const ResearchLog: React.FC = () => {
     // Save each activity as a discrete time session
     activities.forEach((act) => {
       const finalCategory = act.category === 'custom' ? act.customCategory || 'Custom R&D' : act.category;
-      const finalProduct = act.productId === 'custom' ? act.productName || 'Custom Product' : act.productName;
+
+      let finalProductTitle = act.productName;
+      if (act.productId !== 'p1') {
+        finalProductTitle = act.customProductName?.trim()
+          ? `${act.productName} (${act.customProductName.trim()})`
+          : act.productName;
+      }
 
       const newLogData: Partial<DailyLog> = {
         date: logDate,
@@ -262,7 +282,7 @@ export const ResearchLog: React.FC = () => {
         startTime: act.startTime,
         endTime: act.endTime,
         objective: dayFocus.trim() || `R&D Session (${formatTime12h(act.startTime)} - ${formatTime12h(act.endTime)})`,
-        activities: `[${finalCategory.toUpperCase()}] ${finalProduct}: ${act.description.trim()}`,
+        activities: `[${finalCategory.toUpperCase()}] ${finalProductTitle}: ${act.description.trim()}`,
         completionStatus: 'Completed',
         confidenceLevel: 90,
         achievements: overallAchievements.trim() || undefined,
@@ -275,8 +295,8 @@ export const ResearchLog: React.FC = () => {
         addLog(newLogData as Omit<DailyLog, 'id' | 'createdAt' | 'updatedAt'>);
       }
 
-      // Auto-sync run to BioShield Alpha Multi-Day Traceability Timeline
-      if (experiments.length > 0) {
+      // Auto-sync run to BioShield Alpha Multi-Day Traceability Timeline if product is BioShield
+      if (act.productId === 'p1' && experiments.length > 0) {
         const bioshieldExp = experiments.find((e) => e.name.includes('BioShield') || e.productName?.includes('BioShield')) || experiments[0];
         if (bioshieldExp) {
           const runNumber = (bioshieldExp.dailyRuns?.length || 0) + 1;
@@ -316,7 +336,7 @@ export const ResearchLog: React.FC = () => {
             Daily R&D Work Log & Session Timesheet
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-            Log morning and evening sessions with explicit start/end times and zero time overlap
+            Log product trials, app development, document/label prep, vendor/client calls, and custom non-product sessions
           </p>
         </div>
       </div>
@@ -350,7 +370,7 @@ export const ResearchLog: React.FC = () => {
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Main Focus / Objective of the Session</label>
                 <input
                   type="text"
-                  placeholder="e.g. BioShield Alpha volume makeup & CIPAC thermal stability check"
+                  placeholder="e.g. BioShield Alpha volume makeup, App dev, Vendor call, Label design"
                   value={dayFocus}
                   onChange={(e) => setDayFocus(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
@@ -384,6 +404,7 @@ export const ResearchLog: React.FC = () => {
 
               {activities.map((act, index) => {
                 const isValidDuration = act.durationMinutes > 0;
+                const isNonProduct = act.productId !== 'p1';
 
                 return (
                   <div key={act.id} className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3">
@@ -400,7 +421,7 @@ export const ResearchLog: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Start Time, End Time & Product Row */}
+                    {/* Start Time, End Time & Work Category Row */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                       {/* Start Time */}
                       <div>
@@ -440,9 +461,9 @@ export const ResearchLog: React.FC = () => {
                         </select>
                       </div>
 
-                      {/* Target Product */}
+                      {/* Product / Non-Product Work Option */}
                       <div>
-                        <label className="text-[11px] font-semibold text-gray-500 block mb-1">Product / Trial</label>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1">Product / Non-Product Work</label>
                         <select
                           value={act.productId}
                           onChange={(e) => {
@@ -463,6 +484,22 @@ export const ResearchLog: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Inline Custom Task / Non-Product Activity Input */}
+                    {isNonProduct && (
+                      <div className="p-3 bg-purple-50/60 dark:bg-purple-950/30 rounded-xl border border-purple-100 dark:border-purple-900/50 space-y-1">
+                        <label className="text-[11px] font-bold text-purple-700 dark:text-purple-300 block">
+                          Specify Non-Product Activity / Task Title
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Client Demo with BioCrop Solutions, Autoclave Sterilization, Label Barcode Design..."
+                          value={act.customProductName || ''}
+                          onChange={(e) => handleUpdateActivityRow(act.id, { customProductName: e.target.value })}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-semibold text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    )}
+
                     {/* Calculated Duration & Description */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -476,7 +513,7 @@ export const ResearchLog: React.FC = () => {
 
                       <textarea
                         rows={2}
-                        placeholder="Describe work performed, physical measurements (pH, viscosity), agar growth..."
+                        placeholder="Describe work performed, meeting minutes, vendor feedback, app code changes..."
                         value={act.description}
                         onChange={(e) => handleUpdateActivityRow(act.id, { description: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500/30"
@@ -491,7 +528,7 @@ export const ResearchLog: React.FC = () => {
             <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
               {submitSuccess ? (
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                  <CheckCircle2 className="w-5 h-5" /> Session logs saved successfully & synced to traceability timeline!
+                  <CheckCircle2 className="w-5 h-5" /> Session logs saved successfully!
                 </div>
               ) : (
                 <span className="text-xs text-gray-400 font-medium">De-duplication enabled: Overlapping time slots are prevented</span>
