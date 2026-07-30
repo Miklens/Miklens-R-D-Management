@@ -27,19 +27,11 @@ export const USER_ROLES = {
 // Reference data shared across Research Log, Team Activity, Profiles, etc.
 // so logs and dashboards can resolve human-readable names from ids.
 export const PRODUCTS = [
-  { id: 'p1', name: 'BioShield Alpha' },
-  { id: 'p2', name: 'NemaKill Pro' },
-  { id: 'p3', name: 'RootBoost X' },
-  { id: 'p4', name: 'AeroSpore V2' },
+  { id: 'p1', name: 'BioShield Alpha (Bio-fungicide)' },
 ];
 
 export const EXPERIMENTS = [
-  { id: 'exp1', name: 'EXP-2023-089', productId: 'p1' },
-  { id: 'exp2', name: 'EXP-2023-090', productId: 'p1' },
-  { id: 'exp3', name: 'EXP-2023-045', productId: 'p2' },
-  { id: 'exp4', name: 'EXP-2023-046', productId: 'p2' },
-  { id: 'exp5', name: 'EXP-2023-071', productId: 'p3' },
-  { id: 'exp6', name: 'EXP-2023-012', productId: 'p4' },
+  { id: 'exp1', name: 'BioShield Efficacy & Heat Stability Assay #101', productId: 'p1' },
 ];
 
 export const getProductName = (id: string) => PRODUCTS.find(p => p.id === id)?.name || id;

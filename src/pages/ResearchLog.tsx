@@ -39,9 +39,6 @@ const CATEGORY_OPTIONS = [
 
 const PRODUCTS_LIST = [
   { id: 'p1', name: 'BioShield Alpha (Bio-fungicide)' },
-  { id: 'p2', name: 'NemaKill Pro (Bio-nematicide)' },
-  { id: 'p3', name: 'RootBoost X (Bio-stimulant)' },
-  { id: 'p4', name: 'AeroSpore V2 (Bio-insecticide)' },
   { id: 'general', name: 'General R&D / Non-Product Work' },
   { id: 'custom', name: '+ Add New / Custom Product...' },
 ];
@@ -53,15 +50,15 @@ const DEFAULT_INITIAL_ACTIVITIES: DailyActivityRow[] = [
     productId: 'p1',
     productName: 'BioShield Alpha (Bio-fungicide)',
     durationMinutes: 180,
-    description: 'Ran fungal pathogen inhibition assays across 6 agar plates. Evaluated colony growth radius.',
+    description: 'Ran fungal pathogen inhibition assays across 6 agar plates for BioShield Alpha. Evaluated colony growth radius.',
   },
   {
     id: 'row-2',
     category: 'formulation',
-    productId: 'p2',
-    productName: 'NemaKill Pro (Bio-nematicide)',
+    productId: 'p1',
+    productName: 'BioShield Alpha (Bio-fungicide)',
     durationMinutes: 150,
-    description: 'Measured emulsification stability after 54°C heat stress. Recorded phase separation viscosity.',
+    description: 'Measured emulsification stability after 54°C heat stress for BioShield Alpha. Recorded phase separation viscosity.',
   },
 ];
 

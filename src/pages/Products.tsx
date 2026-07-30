@@ -5,10 +5,7 @@ import { useProducts } from '../hooks/useProducts';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const mockProducts = [
-  { id: 'p1', name: 'BioShield Alpha', category: 'Bio-fungicide', stage: 'Lab Testing', status: 'Active', progress: 45, teamSize: 4, lastUpdate: '2 hours ago' },
-  { id: 'p2', name: 'NemaKill Pro', category: 'Bio-nematicide', stage: 'Field Trial', status: 'Delayed', progress: 75, teamSize: 6, lastUpdate: '1 day ago' },
-  { id: 'p3', name: 'RootBoost X', category: 'Bio-stimulant', stage: 'Commercial Validation', status: 'Blocked', progress: 90, teamSize: 3, lastUpdate: '5 mins ago' },
-  { id: 'p4', name: 'AeroSpore V2', category: 'Bio-insecticide', stage: 'Commercial Launch', status: 'Completed', progress: 100, teamSize: 8, lastUpdate: '1 week ago' }
+  { id: 'p1', name: 'BioShield Alpha', category: 'Bio-fungicide', stage: 'Lab Testing', status: 'Active', progress: 65, teamSize: 2, lastUpdate: 'Just now' },
 ];
 
 export const Products: React.FC = () => {

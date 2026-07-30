@@ -28,9 +28,9 @@ export const Tasks: React.FC = () => {
   const [assignedToName, setAssignedToName] = useState(profile?.name || 'Dr. Sarah Jenkins');
   const [dueDate, setDueDate] = useState('');
 
-  const PRODUCTS = ['BioShield Alpha', 'NemaKill Pro', 'RootBoost X', 'CropGuard Eco'];
-  const PROJECTS = ['Organic Biopesticide Line', 'Microbial Inoculant R&D', 'Accelerated Shelf-Life Project'];
-  const EXPERIMENTS = ['Efficacy Trial #104', 'Thermal Stability 54°C Test', 'Soil Fungal Colony Assay'];
+  const PRODUCTS = ['BioShield Alpha (Bio-fungicide)'];
+  const PROJECTS = ['BioShield Commercialization Project'];
+  const EXPERIMENTS = ['BioShield Efficacy & Heat Stability Assay #101'];
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
