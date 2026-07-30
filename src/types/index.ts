@@ -18,15 +18,19 @@ export interface DailyLog {
   id: string;
   userId: string;
   date: string; // ISO date string
-  productId: string;
-  experimentId: string;
+  productId?: string;
+  experimentId?: string;
+  startTime?: string; // HH:mm
+  endTime?: string;   // HH:mm
   objective: string;
   activities: string;
   problems?: string;
   achievements?: string;
+  blockers?: string;
   timeSpentMinutes: number;
   completionStatus: CompletionStatus;
   confidenceLevel: number;
   aiNotes?: string;
   createdAt: string; // ISO timestamp
+  updatedAt?: string;
 }

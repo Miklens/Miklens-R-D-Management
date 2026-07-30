@@ -621,7 +621,7 @@ export const EmployeeProfile: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <h4 className="font-medium text-gray-900 dark:text-white truncate">
-                          {getProductName(log.productId)} - {getExperimentName(log.experimentId)}
+                          {getProductName(log.productId || '')} - {getExperimentName(log.experimentId || '')}
                         </h4>
                         <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(log.date)}</span>
                       </div>
