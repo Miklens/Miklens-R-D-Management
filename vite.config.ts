@@ -13,7 +13,7 @@ export default defineConfig({
         name: 'Miklens Bio R&D Platform',
         short_name: 'MiklensRND',
         description: 'Enterprise AI Powered Research & Development Management Platform',
-        theme_color: '#ffffff',
+        theme_color: '#059669',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -28,8 +28,25 @@ export default defineConfig({
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024 // 8MB
       }
     })
   ],
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('jspdf')) return 'vendor-jspdf';
+            if (id.includes('xlsx')) return 'vendor-xlsx';
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('framer-motion')) return 'vendor-framer';
+            if (id.includes('@tanstack')) return 'vendor-query';
+            if (id.includes('react')) return 'vendor-react';
+          }
+        }
+      }
+    }
+  }
 })
