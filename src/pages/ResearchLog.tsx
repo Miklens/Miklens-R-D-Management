@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Clock, Plus, Trash2, CheckCircle2, Save,
-  Zap, AlertTriangle, ShieldCheck, Package2, Wrench
+  Zap, AlertTriangle, ShieldCheck, Package2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,33 +61,19 @@ const WORK_TYPE_OPTIONS = [
   { group: '⚙️ General', value: 'custom',          label: '+ Custom Work Type...' },
 ];
 
-/** Product / Non-Product SCOPE (right dropdown) */
+/**
+ * Product / Work Scope (right dropdown)
+ * Work Type (left) captures WHAT kind of work.
+ * This captures WHICH product it was done ON.
+ */
 const SCOPE_OPTIONS = [
-  // --- Products ---
-  { group: '🧪 Products',     id: 'p1',           name: 'BioShield Alpha (Bio-fungicide)' },
-  { group: '🧪 Products',     id: 'new_product',  name: '➕ Add New / Custom Product...' },
-  // --- Non-Product Work ---
-  { group: '📱 App & Digital', id: 'app_dev',     name: '📱 App Development' },
-  { group: '📱 App & Digital', id: 'app_upgrade', name: '🔄 App Upgradation & Maintenance' },
-  // --- Documents & Labels ---
-  { group: '📄 Docs & Labels', id: 'doc_prep',    name: '📄 Document Preparation' },
-  { group: '📄 Docs & Labels', id: 'label_prep',  name: '🏷️ Label Preparation & Packaging' },
-  // --- Communication ---
-  { group: '🤝 Communication', id: 'vendor_talk', name: '🏬 Talk to Vendors & Suppliers' },
-  { group: '🤝 Communication', id: 'client_talk', name: '🤝 Talk to Clients & Customers' },
-  { group: '🤝 Communication', id: 'discussion',  name: '💬 Discussions & Brainstorming' },
-  { group: '🤝 Communication', id: 'meeting',     name: '📅 Team Meetings & Sync' },
-  // --- Lab Support ---
-  { group: '🛠️ Lab Support',  id: 'maintenance',  name: '🛠️ Equipment Maintenance & Calibration' },
-  { group: '🛠️ Lab Support',  id: 'safety',       name: '🥽 Lab Safety & Protocol Audits' },
-  { group: '🛠️ Lab Support',  id: 'literature',   name: '📚 Literature Review & Patent Research' },
-  // --- Other ---
-  { group: '⚙️ Other',        id: 'general',      name: '🏢 General R&D / Non-Product Work' },
-  { group: '⚙️ Other',        id: 'custom_scope', name: '✏️ Other / Custom Non-Product Activity...' },
+  { group: '🧪 Products',   id: 'p1',          name: 'BioShield Alpha (Bio-fungicide)' },
+  { group: '🧪 Products',   id: 'new_product', name: '➕ Add New / Custom Product...' },
+  { group: '⚙️ Non-Product', id: 'non_product', name: '🏢 N/A — Non-Product Work' },
 ];
 
 /** IDs that require a custom text input below */
-const REQUIRES_CUSTOM_INPUT = new Set(['new_product', 'app_dev', 'app_upgrade', 'doc_prep', 'label_prep', 'vendor_talk', 'client_talk', 'discussion', 'meeting', 'maintenance', 'safety', 'literature', 'general', 'custom_scope']);
+const REQUIRES_CUSTOM_INPUT = new Set(['new_product']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -245,8 +231,8 @@ export const ResearchLog: React.FC = () => {
       } else if (act.productId === 'new_product') {
         scopeTitle = act.customProductName.trim() || 'New Product';
       } else {
-        const base = SCOPE_OPTIONS.find(s => s.id === act.productId)?.name?.replace(/^[\p{Emoji}\s]+/u, '').trim() || act.productName;
-        scopeTitle = act.customProductName.trim() ? `${base}: ${act.customProductName.trim()}` : base;
+        // non_product — scope is captured by Work Type
+        scopeTitle = 'Non-Product Work';
       }
 
       const logData: Partial<DailyLog> = {
@@ -350,9 +336,8 @@ export const ResearchLog: React.FC = () => {
               </div>
 
               {activities.map((act, idx) => {
-                const isValid       = act.durationMinutes > 0;
-                const needsCustom   = REQUIRES_CUSTOM_INPUT.has(act.productId);
-                const isNewProduct  = act.productId === 'new_product';
+                const isValid      = act.durationMinutes > 0;
+                const needsCustom  = REQUIRES_CUSTOM_INPUT.has(act.productId);
 
                 return (
                   <div key={act.id} className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3">
@@ -443,16 +428,14 @@ export const ResearchLog: React.FC = () => {
                         className="w-full px-3 py-2 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl text-xs font-semibold" />
                     )}
 
-                    {/* Custom scope / non-product activity input */}
+                    {/* Custom scope input — only for Add New Product */}
                     {needsCustom && (
                       <div className="p-3 rounded-xl border space-y-1 bg-purple-50/60 dark:bg-purple-950/30 border-purple-100 dark:border-purple-900/50">
                         <label className="text-[11px] font-bold text-purple-700 dark:text-purple-300 flex items-center gap-1.5">
-                          {isNewProduct ? <><Package2 className="w-3.5 h-3.5" /> New Product Name</> : <><Wrench className="w-3.5 h-3.5" /> Specify Activity / Task Title</>}
+                          <Package2 className="w-3.5 h-3.5" /> New Product Name
                         </label>
                         <input type="text"
-                          placeholder={isNewProduct
-                            ? "e.g. BioCide Pro, BioNeem Gold, HerbaSafe Plus..."
-                            : "e.g. Client demo with BioCrop, Autoclave sterilization, Label barcode design, Sprint review meeting..."}
+                          placeholder="e.g. BioCide Pro, BioNeem Gold, HerbaSafe Plus..."
                           value={act.customProductName}
                           onChange={e => updateRow(act.id, { customProductName: e.target.value })}
                           className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-semibold text-gray-900 dark:text-white" />
