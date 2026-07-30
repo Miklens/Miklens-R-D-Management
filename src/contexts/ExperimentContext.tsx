@@ -6,8 +6,7 @@ import type {
   FieldTrialItem, 
   ObservationItem,
   ScientificOutcomeStatus,
-  DataReading,
-  ExperimentStatus
+  DailyExecutionRun
 } from '../types/experimentTypes';
 import { 
   loadExperiments, saveExperiments,
@@ -30,8 +29,7 @@ interface ExperimentContextType {
   addFieldTrial: (item: Omit<FieldTrialItem, 'id' | 'createdAt'>) => FieldTrialItem;
   addObservation: (item: Omit<ObservationItem, 'id' | 'createdAt'>) => ObservationItem;
 
-  toggleProtocolStep: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, stepId: string) => void;
-  addDataReading: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, reading: Omit<DataReading, 'id' | 'timestamp'>) => void;
+  addDailyRun: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, runData: Omit<DailyExecutionRun, 'id'>) => void;
   updateScientificConclusion: (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, conclusion: string, outcomeStatus: ScientificOutcomeStatus) => void;
 
   deleteExperiment: (id: string) => void;
@@ -59,17 +57,20 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => { saveObservations(observations); }, [observations]);
 
   const addExperiment = (item: Omit<ExperimentItem, 'id' | 'createdAt'>): ExperimentItem => {
-    const steps = item.protocolSteps || [
-      { id: 's1', title: 'Preparation & Calibration', completed: false },
-      { id: 's2', title: 'Execution & Treatment Assay', completed: false },
-      { id: 's3', title: 'Data Measurement & Recording', completed: false },
-      { id: 's4', title: 'Final Analysis & Conclusion', completed: false },
-    ];
     const newItem: ExperimentItem = {
       ...item,
       id: `exp-${Date.now()}`,
-      protocolSteps: steps,
-      dataReadings: item.dataReadings || [],
+      dailyRuns: item.dailyRuns || [
+        {
+          id: `run-${Date.now()}`,
+          dayNumber: 1,
+          date: new Date().toISOString().split('T')[0],
+          scientistName: 'Dr. Sarah Jenkins',
+          activityPerformed: 'Initial experiment setup & baseline measurement.',
+          observationResult: 'Sample prepared, baseline parameters recorded.',
+          runStatus: 'In Progress',
+        },
+      ],
       outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
@@ -78,16 +79,20 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const addLabTest = (item: Omit<LabTestItem, 'id' | 'createdAt'>): LabTestItem => {
-    const steps = item.protocolSteps || [
-      { id: 's1', title: 'Sample Preparation & Dilution', completed: false },
-      { id: 's2', title: 'Incubation & Reagent Reaction', completed: false },
-      { id: 's3', title: 'Assay Quantification', completed: false },
-    ];
     const newItem: LabTestItem = {
       ...item,
       id: `lab-${Date.now()}`,
-      protocolSteps: steps,
-      dataReadings: item.dataReadings || [],
+      dailyRuns: item.dailyRuns || [
+        {
+          id: `run-${Date.now()}`,
+          dayNumber: 1,
+          date: new Date().toISOString().split('T')[0],
+          scientistName: 'Dr. Sarah Jenkins',
+          activityPerformed: 'Initial assay dilution & plate preparation.',
+          observationResult: 'Reagents & culture plates initialized.',
+          runStatus: 'In Progress',
+        },
+      ],
       outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
@@ -99,11 +104,17 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newItem: StabilityLogItem = {
       ...item,
       id: `stab-${Date.now()}`,
-      protocolSteps: item.protocolSteps || [
-        { id: 's1', title: 'Thermal Oven Setup', completed: true },
-        { id: 's2', title: 'Interval Inspection', completed: false },
+      dailyRuns: item.dailyRuns || [
+        {
+          id: `run-${Date.now()}`,
+          dayNumber: 1,
+          date: new Date().toISOString().split('T')[0],
+          scientistName: 'Dr. Sarah Jenkins',
+          activityPerformed: 'Oven placement at thermal chamber temperature.',
+          observationResult: 'Initial pH and viscosity recorded.',
+          runStatus: 'Passed',
+        },
       ],
-      dataReadings: item.dataReadings || [],
       outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
@@ -115,12 +126,17 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newItem: FieldTrialItem = {
       ...item,
       id: `field-${Date.now()}`,
-      protocolSteps: item.protocolSteps || [
-        { id: 's1', title: 'Plot Delineation', completed: true },
-        { id: 's2', title: 'Foliar Spray Application', completed: false },
-        { id: 's3', title: 'Yield & Efficacy Logging', completed: false },
+      dailyRuns: item.dailyRuns || [
+        {
+          id: `run-${Date.now()}`,
+          dayNumber: 1,
+          date: new Date().toISOString().split('T')[0],
+          scientistName: 'Dr. Sarah Jenkins',
+          activityPerformed: 'Plot mapping & initial foliar spray application.',
+          observationResult: 'Target plot acreage treated uniformly.',
+          runStatus: 'Passed',
+        },
       ],
-      dataReadings: item.dataReadings || [],
       outcomeStatus: item.outcomeStatus || 'Pending',
       createdAt: new Date().toISOString(),
     };
@@ -138,45 +154,20 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return newItem;
   };
 
-  // Toggle protocol step and auto-calculate progress %
-  const toggleProtocolStep = (category: 'exp' | 'lab' | 'stability' | 'field', itemId: string, stepId: string) => {
-    const updateItem = (item: any) => {
-      const steps = (item.protocolSteps || []).map((s: any) =>
-        s.id === stepId ? { ...s, completed: !s.completed } : s
-      );
-      const completedCount = steps.filter((s: any) => s.completed).length;
-      const progress = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : item.progress;
-      const status: ExperimentStatus = progress === 100 ? 'Completed' : progress > 0 ? 'InProgress' : 'Queued';
-
-      return {
-        ...item,
-        protocolSteps: steps,
-        progress,
-        status,
-      };
-    };
-
-    if (category === 'exp') setExperiments((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
-    if (category === 'lab') setLabTests((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
-    if (category === 'stability') setStabilityLogs((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
-    if (category === 'field') setFieldTrials((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
-  };
-
-  // Add Data Reading
-  const addDataReading = (
+  // Add Daily Execution Run
+  const addDailyRun = (
     category: 'exp' | 'lab' | 'stability' | 'field',
     itemId: string,
-    reading: Omit<DataReading, 'id' | 'timestamp'>
+    runData: Omit<DailyExecutionRun, 'id'>
   ) => {
-    const newReading: DataReading = {
-      ...reading,
-      id: `rd-${Date.now()}`,
-      timestamp: new Date().toLocaleString(),
+    const newRun: DailyExecutionRun = {
+      ...runData,
+      id: `run-${Date.now()}`,
     };
 
     const updateItem = (item: any) => ({
       ...item,
-      dataReadings: [...(item.dataReadings || []), newReading],
+      dailyRuns: [...(item.dailyRuns || []), newRun],
     });
 
     if (category === 'exp') setExperiments((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
@@ -197,7 +188,6 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       conclusion,
       outcomeStatus,
       status: outcomeStatus === 'Passed' || outcomeStatus === 'Failed' ? 'Completed' : item.status,
-      progress: outcomeStatus === 'Passed' ? 100 : item.progress,
     });
 
     if (category === 'exp') setExperiments((prev) => prev.map((e) => (e.id === itemId ? updateItem(e) : e)));
@@ -236,8 +226,7 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addStabilityLog,
         addFieldTrial,
         addObservation,
-        toggleProtocolStep,
-        addDataReading,
+        addDailyRun,
         updateScientificConclusion,
         deleteExperiment,
         deleteLabTest,

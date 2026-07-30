@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Search, FlaskConical, CheckCircle2, AlertCircle, Trash2, Package, Sparkles, ChevronRight, Award } from 'lucide-react';
+import { Plus, X, Search, FlaskConical, Trash2, Package, Sparkles, ChevronRight, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LaboratoryTests } from './LaboratoryTests';
 import { StabilityTracker } from './StabilityTracker';
@@ -26,7 +26,7 @@ export const Experiments: React.FC = () => {
   const [customProductName, setCustomProductName] = useState('');
   const [expType, setExpType] = useState<ExperimentType>('Lab');
   const [hypothesis, setHypothesis] = useState('');
-  const [protocolStepsText, setProtocolStepsText] = useState('');
+  const [initialActivity, setInitialActivity] = useState('');
 
   const PRODUCTS = [
     'BioShield Alpha (Bio-fungicide)',
@@ -39,27 +39,30 @@ export const Experiments: React.FC = () => {
 
     const finalProduct = isCustomProduct ? customProductName.trim() || 'Custom Product' : productName;
 
-    // Parse custom protocol steps if entered
-    const parsedSteps = protocolStepsText
-      .split('\n')
-      .filter((s) => s.trim().length > 0)
-      .map((s, idx) => ({ id: `s-${idx + 1}`, title: s.trim(), completed: false }));
-
     addExperiment({
       name: expName.trim(),
       productName: finalProduct,
       type: expType,
       status: 'InProgress',
-      progress: 0,
       startDate: new Date().toISOString().split('T')[0],
       description: 'Newly created scientific experiment',
       hypothesis: hypothesis.trim() || `Evaluate ${expName} performance on ${finalProduct}.`,
-      protocolSteps: parsedSteps.length > 0 ? parsedSteps : undefined,
+      dailyRuns: [
+        {
+          id: `run-${Date.now()}`,
+          dayNumber: 1,
+          date: new Date().toISOString().split('T')[0],
+          scientistName: 'Dr. Sarah Jenkins',
+          activityPerformed: initialActivity.trim() || 'Initial experiment setup & baseline parameter measurement.',
+          observationResult: 'Sample prepared, initial parameters recorded.',
+          runStatus: 'In Progress',
+        },
+      ],
     });
 
     setExpName('');
     setHypothesis('');
-    setProtocolStepsText('');
+    setInitialActivity('');
     setCustomProductName('');
     setShowModal(false);
   };
@@ -99,10 +102,10 @@ export const Experiments: React.FC = () => {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white shadow-md">
               <FlaskConical className="w-5 h-5" />
             </div>
-            Product Testing & Scientific R&D Workbench
+            Product Testing & R&D Audit Traceability
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
-            End-to-end scientific experiment lifecycle: Hypothesis, Protocol Checklists, Data Readings & Outcome Verdicts
+            Chronological multi-day execution traceability timeline, hypotheses & scientific verdicts
           </p>
         </div>
 
@@ -188,69 +191,77 @@ export const Experiments: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Experiments Cards Grid under this Product */}
+                {/* Experiments Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {expList.map((exp) => (
-                    <div
-                      key={exp.id}
-                      onClick={() => setSelectedExperiment(exp)}
-                      className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-emerald-500/50 hover:shadow-lg transition-all cursor-pointer"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md">
-                          <FlaskConical className="w-5 h-5" />
+                  {expList.map((exp) => {
+                    const runs = exp.dailyRuns || [];
+                    const latestRun = runs.length > 0 ? runs[runs.length - 1] : null;
+
+                    return (
+                      <div
+                        key={exp.id}
+                        onClick={() => setSelectedExperiment(exp)}
+                        className="p-5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-emerald-500/50 hover:shadow-lg transition-all cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md">
+                            <FlaskConical className="w-5 h-5" />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getOutcomeBadge(exp.outcomeStatus)}`}>
+                              Verdict: {exp.outcomeStatus || 'Pending'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteExperiment(exp.id);
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getOutcomeBadge(exp.outcomeStatus)}`}>
-                            {exp.outcomeStatus || 'Pending'}
+                        <div>
+                          <h4 className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-emerald-600 transition-colors">
+                            {exp.name}
+                          </h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 italic">
+                            "{exp.hypothesis || 'No hypothesis stated.'}"
+                          </p>
+                        </div>
+
+                        {/* Daily Runs Traceability Summary */}
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-200 dark:border-gray-800 space-y-1 text-xs">
+                          <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                            <span className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                              <History className="w-3.5 h-3.5 text-emerald-500" />
+                              {runs.length} Daily Runs Logged
+                            </span>
+                            <span className="font-mono text-[10px]">Started: {exp.startDate}</span>
+                          </div>
+
+                          {latestRun && (
+                            <p className="text-[11px] text-gray-700 dark:text-gray-300 font-medium truncate pt-1 border-t border-gray-100 dark:border-gray-800">
+                              Day #{latestRun.dayNumber}: {latestRun.activityPerformed}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Card Footer CTA */}
+                        <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                          <span className="flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-amber-500" />
+                            View Traceability Timeline
                           </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteExperiment(exp.id);
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                         </div>
                       </div>
-
-                      <div>
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-emerald-600 transition-colors">
-                          {exp.name}
-                        </h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 italic">
-                          "{exp.hypothesis || 'No hypothesis stated yet.'}"
-                        </p>
-                      </div>
-
-                      {/* Protocol Progress */}
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-gray-500 text-[11px]">Protocol Checklist</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[11px]">{exp.progress}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
-                            style={{ width: `${exp.progress}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Card Footer CTA */}
-                      <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                        <span className="flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-amber-500" />
-                          Open Scientific Workbench
-                        </span>
-                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))
@@ -267,7 +278,7 @@ export const Experiments: React.FC = () => {
         />
       )}
 
-      {/* Create New Experiment Modal with Scientific Hypothesis */}
+      {/* Create New Experiment Modal */}
       <AnimatePresence>
         {showModal && (
           <motion.div
@@ -304,7 +315,7 @@ export const Experiments: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. pH Adjustment & Viscosity Optimization"
+                    placeholder="e.g. Volume Makeup & pH Adjustment Assay"
                     value={expName}
                     onChange={(e) => setExpName(e.target.value)}
                     required
@@ -348,11 +359,11 @@ export const Experiments: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Scientific Hypothesis & Goal
+                    Scientific Hypothesis & Target Goal
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="State expected outcome, e.g. Adjusting pH to 6.2 increases emulsion shelf-life by 20%..."
+                    placeholder="e.g. Adjusting pH from 7.4 to 6.2 and volume to 1000mL optimizes viscosity without spore precipitation..."
                     value={hypothesis}
                     onChange={(e) => setHypothesis(e.target.value)}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
@@ -361,13 +372,13 @@ export const Experiments: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                    Protocol Steps (1 per line)
+                    Day 1 Activity & Method Performed
                   </label>
                   <textarea
-                    rows={3}
-                    placeholder={`e.g.\nPrepare 0.1M HCl buffer\nTitrate sample to pH 6.2\nMeasure viscosity after 24h incubation`}
-                    value={protocolStepsText}
-                    onChange={(e) => setProtocolStepsText(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Initial formulation batch prep. Measured initial volume 800mL and initial pH 7.4..."
+                    value={initialActivity}
+                    onChange={(e) => setInitialActivity(e.target.value)}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs"
                   />
                 </div>

@@ -3,28 +3,14 @@ export type ExperimentStatus = 'InProgress' | 'Completed' | 'Blocked' | 'Queued'
 export type ScientificOutcomeStatus = 'Pending' | 'Passed' | 'Failed' | 'Inconclusive';
 export type TemplateType = 'Formulation' | 'Microbiology' | 'Stability' | 'Field' | 'Custom';
 
-export interface RecipeIngredient {
+export interface DailyExecutionRun {
   id: string;
-  name: string;
-  targetQty: string;
-  unit: string;
-  actualQty?: string;
-  purpose?: string;
-}
-
-export interface ProtocolStep {
-  id: string;
-  title: string;
-  completed: boolean;
-}
-
-export interface DataReading {
-  id: string;
-  parameter: string;
-  value: string;
-  unit: string;
-  timestamp: string;
-  notes?: string;
+  dayNumber: number;
+  date: string;
+  scientistName: string;
+  activityPerformed: string; // e.g. "Adjusted pH from 7.4 to 6.2 using 1M HCl buffer, brought volume to 1000mL"
+  observationResult: string; // e.g. "Viscosity 145 cPs, clear emulsion, zero precipitation"
+  runStatus: 'Passed' | 'In Progress' | 'Needs Re-Run';
 }
 
 export interface ExperimentItem {
@@ -34,16 +20,11 @@ export interface ExperimentItem {
   type: ExperimentType;
   templateType?: TemplateType;
   status: ExperimentStatus;
-  progress: number;
   startDate: string;
   description?: string;
   hypothesis?: string;
-  recipeIngredients?: RecipeIngredient[];
-  targetVolume?: string; // e.g. "1000 mL"
-  targetOrganism?: string; // e.g. "Botrytis cinerea"
-  applicationRate?: string; // e.g. "3.0 mL/L"
-  protocolSteps?: ProtocolStep[];
-  dataReadings?: DataReading[];
+  targetVolume?: string;
+  dailyRuns?: DailyExecutionRun[];
   conclusion?: string;
   outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
@@ -56,13 +37,10 @@ export interface LabTestItem {
   type: string;
   templateType?: TemplateType;
   status: ExperimentStatus;
-  progress: number;
   lab: string;
   dueDate: string;
   hypothesis?: string;
-  recipeIngredients?: RecipeIngredient[];
-  protocolSteps?: ProtocolStep[];
-  dataReadings?: DataReading[];
+  dailyRuns?: DailyExecutionRun[];
   conclusion?: string;
   outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
@@ -81,8 +59,7 @@ export interface StabilityLogItem {
   activeRetention: number;
   pH: number;
   hypothesis?: string;
-  protocolSteps?: ProtocolStep[];
-  dataReadings?: DataReading[];
+  dailyRuns?: DailyExecutionRun[];
   conclusion?: string;
   outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;
@@ -98,8 +75,7 @@ export interface FieldTrialItem {
   startDate: string;
   duration: string;
   hypothesis?: string;
-  protocolSteps?: ProtocolStep[];
-  dataReadings?: DataReading[];
+  dailyRuns?: DailyExecutionRun[];
   conclusion?: string;
   outcomeStatus?: ScientificOutcomeStatus;
   createdAt: string;

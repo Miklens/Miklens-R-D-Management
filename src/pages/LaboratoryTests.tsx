@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TestTube2, Plus, X, Search, CheckCircle2, Clock, AlertTriangle, Trash2, Package, Sparkles, ChevronRight } from 'lucide-react';
+import { TestTube2, Plus, X, Search, Trash2, Package, Sparkles, ChevronRight, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { ScientificWorkbenchModal } from '../components/ScientificWorkbenchModal';
@@ -31,7 +31,6 @@ export const LaboratoryTests: React.FC = () => {
       productName: finalProduct,
       type: typeInput,
       status: 'InProgress',
-      progress: 0,
       lab: labInput,
       dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
       hypothesis: hypothesis.trim() || `Assay ${nameInput} for ${finalProduct}.`,
@@ -75,10 +74,10 @@ export const LaboratoryTests: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <TestTube2 className="w-5 h-5 text-pink-500" />
-            Laboratory Assay Operations
+            Laboratory Assay Operations & Traceability
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-xs">
-            Product-wise quality analysis, efficacy assays, and microbial counts
+            Product-wise quality analysis, efficacy assays, and multi-day run logs
           </p>
         </div>
         <button
@@ -129,67 +128,76 @@ export const LaboratoryTests: React.FC = () => {
 
             {/* Test Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {testList.map((test) => (
-                <div
-                  key={test.id}
-                  onClick={() => setSelectedLabTest(test)}
-                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-pink-400 transition-all cursor-pointer"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white">
-                      <TestTube2 className="w-5 h-5" />
+              {testList.map((test) => {
+                const runs = test.dailyRuns || [];
+                const latestRun = runs.length > 0 ? runs[runs.length - 1] : null;
+
+                return (
+                  <div
+                    key={test.id}
+                    onClick={() => setSelectedLabTest(test)}
+                    className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3 relative group hover:border-pink-400 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white">
+                        <TestTube2 className="w-5 h-5" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getOutcomeBadge(test.outcomeStatus)}`}>
+                          Verdict: {test.outcomeStatus || 'Pending'}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteLabTest(test.id);
+                          }}
+                          className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getOutcomeBadge(test.outcomeStatus)}`}>
-                        {test.outcomeStatus || 'Pending'}
+
+                    <div>
+                      <h4 className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-pink-600 transition-colors">
+                        {test.name}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                        <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded font-semibold text-gray-700 dark:text-gray-300">
+                          {test.type}
+                        </span>
+                        <span>{test.lab}</span>
+                      </div>
+                    </div>
+
+                    {/* Traceability Daily Runs Summary */}
+                    <div className="bg-white dark:bg-gray-900 p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 space-y-1 text-xs">
+                      <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                        <span className="flex items-center gap-1 font-bold text-pink-600 dark:text-pink-400">
+                          <History className="w-3.5 h-3.5 text-pink-500" />
+                          {runs.length} Runs Logged
+                        </span>
+                        <span className="text-[10px]">Due: {test.dueDate}</span>
+                      </div>
+
+                      {latestRun && (
+                        <p className="text-[11px] text-gray-700 dark:text-gray-300 font-medium truncate pt-1 border-t border-gray-100 dark:border-gray-800">
+                          Day #{latestRun.dayNumber}: {latestRun.activityPerformed}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-pink-600 dark:text-pink-400 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-500" />
+                        View Traceability Timeline
                       </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteLabTest(test.id);
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
-
-                  <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-pink-600 transition-colors">
-                      {test.name}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
-                      <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded font-semibold text-gray-700 dark:text-gray-300">
-                        {test.type}
-                      </span>
-                      <span>{test.lab}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-gray-500 text-[10px]">Protocol Checklist</span>
-                      <span className="font-bold text-pink-600 dark:text-pink-400 text-[11px]">{test.progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="h-1.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500"
-                        style={{ width: `${test.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-pink-600 dark:text-pink-400 font-semibold">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                      Open Scientific Workbench
-                    </span>
-                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))
