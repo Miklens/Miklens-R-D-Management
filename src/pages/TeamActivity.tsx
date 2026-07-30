@@ -1,16 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { 
   Users, Calendar, Search, Download, FileSpreadsheet, FileText, 
-  FlaskConical, Package, FolderGit2, Sparkles, Filter, CheckCircle2, AlertTriangle, Clock, ArrowUpRight 
+  FlaskConical, Package, FolderGit2, Sparkles, Filter, CheckCircle2, AlertTriangle, Clock 
 } from 'lucide-react';
-import { format, subDays, isWithinInterval, parseISO } from 'date-fns';
+import { format, subDays, parseISO } from 'date-fns';
 import { useDailyLogs } from '../hooks/useDailyLogs';
+import { useUsers } from '../hooks/useUsers';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 
 export const TeamActivity: React.FC = () => {
   const { data: logs } = useDailyLogs();
-  const { experiments, labTests, stabilityLogs, fieldTrials } = useExperiments();
+  const { data: users } = useUsers();
+  const { experiments, allProducts } = useExperiments();
 
   // Filters State
   const [presetPeriod, setPresetPeriod] = useState<'today' | 'week' | 'month' | 'quarter' | 'custom'>('month');
@@ -26,53 +28,65 @@ export const TeamActivity: React.FC = () => {
   const handlePresetChange = (preset: 'today' | 'week' | 'month' | 'quarter') => {
     setPresetPeriod(preset);
     const now = new Date();
-    setEndDate(format(now, 'yyyy-MM-dd'));
+    const todayStr = format(now, 'yyyy-MM-dd');
+    setEndDate(todayStr);
 
-    if (preset === 'today') setStartDate(format(now, 'yyyy-MM-dd'));
+    if (preset === 'today') setStartDate(todayStr);
     if (preset === 'week') setStartDate(format(subDays(now, 7), 'yyyy-MM-dd'));
     if (preset === 'month') setStartDate(format(subDays(now, 30), 'yyyy-MM-dd'));
     if (preset === 'quarter') setStartDate(format(subDays(now, 90), 'yyyy-MM-dd'));
   };
 
-  // Scientist Options
-  const SCIENTISTS = [
-    { id: 'all', name: 'All Scientists' },
-    { id: 'sci-1', name: 'Dr. Sarah Jenkins' },
-    { id: 'sci-2', name: 'Dr. Mik (Head of R&D Operations)' },
-  ];
+  // Helper map for raw scientist IDs to names
+  const scientistNameMap = useMemo(() => {
+    const map: Record<string, string> = {
+      'sci-1': 'Dr. Sarah Jenkins',
+      'sci-2': 'Dr. Mik (Head of R&D Operations)',
+    };
+    (users || []).forEach((u) => {
+      if (u.id) map[u.id] = u.name;
+    });
+    return map;
+  }, [users]);
 
-  // Product Options
-  const PRODUCTS = [
-    { id: 'all', name: 'All Products' },
-    { id: 'p1', name: 'BioShield Alpha (Bio-fungicide)' },
-  ];
-
-  // Project Options
-  const PROJECTS = [
-    { id: 'all', name: 'All Projects' },
-    { id: 'proj-1', name: 'BioShield Alpha Commercialization Project' },
-    { id: 'proj-2', name: 'BioShield Alpha Wheat Field Efficacy Trial' },
-  ];
+  // Helper map for raw product IDs to names
+  const productNameMap = useMemo(() => {
+    return {
+      'p1': 'BioShield Alpha (Bio-fungicide)',
+      'p2': 'BioShield Alpha (Bio-fungicide)',
+      'general': 'BioShield Alpha (Bio-fungicide)',
+    } as Record<string, string>;
+  }, []);
 
   // Filtered Daily Research Logs
   const filteredLogs = useMemo(() => {
-    const start = parseISO(startDate);
-    const end = parseISO(endDate);
-    end.setHours(23, 59, 59, 999);
+    const startStr = startDate;
+    const endStr = endDate;
 
     return logs.filter((log) => {
-      const logDate = parseISO(log.date);
-      const inDateRange = logDate >= start && logDate <= end;
-      const matchScientist = selectedScientist === 'all' || log.userId === selectedScientist;
-      const matchProduct = selectedProduct === 'all' || log.productId?.includes(selectedProduct) || selectedProduct === 'p1';
+      const cleanLogDate = log.date ? log.date.split('T')[0] : '';
+      const inDateRange = cleanLogDate >= startStr && cleanLogDate <= endStr;
+
+      const sciName = scientistNameMap[log.userId] || log.userId || '';
+      const matchScientist =
+        selectedScientist === 'all' ||
+        log.userId === selectedScientist ||
+        sciName.toLowerCase().includes(selectedScientist.toLowerCase());
+
+      const matchProduct =
+        selectedProduct === 'all' ||
+        log.productId === selectedProduct ||
+        selectedProduct === 'BioShield Alpha (Bio-fungicide)';
+
       const matchSearch =
         !searchTerm.trim() ||
         log.objective?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.activities?.toLowerCase().includes(searchTerm.toLowerCase());
+        log.activities?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sciName.toLowerCase().includes(searchTerm.toLowerCase());
 
       return inDateRange && matchScientist && matchProduct && matchSearch;
     });
-  }, [logs, startDate, endDate, selectedScientist, selectedProduct, searchTerm]);
+  }, [logs, startDate, endDate, selectedScientist, selectedProduct, searchTerm, scientistNameMap]);
 
   // Total Hours & Statistics in Filtered Date Range
   const totalMinutes = useMemo(() => {
@@ -81,26 +95,37 @@ export const TeamActivity: React.FC = () => {
 
   const totalHours = (totalMinutes / 60).toFixed(1);
   const completedCount = filteredLogs.filter((l) => l.completionStatus === 'Completed').length;
-  const blockedCount = filteredLogs.filter((l) => l.completionStatus === 'Blocked').length;
+
+  // Scientist Options dropdown
+  const scientistOptions = useMemo(() => {
+    const options = [{ id: 'all', label: 'All Scientists' }];
+    Object.entries(scientistNameMap).forEach(([id, name]) => {
+      options.push({ id, label: name });
+    });
+    return options;
+  }, [scientistNameMap]);
 
   // Export Executive PDF Report
   const handleExportPDF = () => {
     const headers = ['Date', 'Scientist', 'Target Product', 'Hours Logged', 'Daily Work Performed', 'Outcome Status'];
     const rows = filteredLogs.map((log) => [
-      log.date,
-      log.userId === 'sci-2' ? 'Dr. Mik' : 'Dr. Sarah Jenkins',
-      'BioShield Alpha (Bio-fungicide)',
+      log.date ? log.date.split('T')[0] : '-',
+      scientistNameMap[log.userId] || 'Dr. Sarah Jenkins',
+      productNameMap[log.productId] || 'BioShield Alpha (Bio-fungicide)',
       `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`,
-      log.activities ? log.activities.replace(/\[.*?\]\s*/g, '').substring(0, 50) + '...' : log.objective,
+      log.activities ? log.activities.replace(/\[.*?\]\s*/g, '') : log.objective,
       log.completionStatus || 'Completed',
     ]);
+
+    const activeSciLabel = selectedScientist === 'all' ? 'All Scientists' : scientistNameMap[selectedScientist] || selectedScientist;
+    const activeProdLabel = selectedProduct === 'all' ? 'All Products' : productNameMap[selectedProduct] || selectedProduct;
 
     exportToPDF(
       {
         title: 'EXECUTIVE SCIENTIST TRACK RECORD REPORT',
         subtitle: 'Chronological Scientist Audit & Product Stage Performance',
         dateRangeText: `${startDate} to ${endDate}`,
-        scopeText: `Scientist: ${selectedScientist === 'all' ? 'All Scientists' : selectedScientist} | Product: ${selectedProduct}`,
+        scopeText: `Scientist: ${activeSciLabel} | Product: ${activeProdLabel}`,
         headers,
         rows,
       },
@@ -110,11 +135,11 @@ export const TeamActivity: React.FC = () => {
 
   // Export Excel Report
   const handleExportExcel = () => {
-    const headers = ['Date', 'Scientist ID', 'Target Product', 'Duration (Hours)', 'Daily Objective', 'Activities Detail', 'Blockers', 'Status'];
+    const headers = ['Date', 'Scientist', 'Target Product', 'Duration (Hours)', 'Daily Objective', 'Activities Detail', 'Blockers', 'Status'];
     const rows = filteredLogs.map((log) => [
-      log.date,
-      log.userId === 'sci-2' ? 'Dr. Mik' : 'Dr. Sarah Jenkins',
-      'BioShield Alpha (Bio-fungicide)',
+      log.date ? log.date.split('T')[0] : '-',
+      scientistNameMap[log.userId] || 'Dr. Sarah Jenkins',
+      productNameMap[log.productId] || 'BioShield Alpha (Bio-fungicide)',
       ((log.timeSpentMinutes || 60) / 60).toFixed(1),
       log.objective,
       log.activities,
@@ -149,7 +174,7 @@ export const TeamActivity: React.FC = () => {
           </p>
         </div>
 
-        {/* Export Executive Reports Action Suite */}
+        {/* Action Suite */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportPDF}
@@ -173,10 +198,10 @@ export const TeamActivity: React.FC = () => {
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
             <Filter className="w-4 h-4" />
-            Date Range & Scope Filters
+            Date Range & Global Scope Filters
           </h3>
 
-          {/* Quick Period Presets */}
+          {/* Quick Presets */}
           <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
             {[
               { id: 'today', label: 'Today' },
@@ -237,9 +262,9 @@ export const TeamActivity: React.FC = () => {
               onChange={(e) => setSelectedScientist(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
             >
-              {SCIENTISTS.map((s) => (
+              {scientistOptions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {s.label}
                 </option>
               ))}
             </select>
@@ -253,9 +278,10 @@ export const TeamActivity: React.FC = () => {
               onChange={(e) => setSelectedProduct(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
             >
-              {PRODUCTS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
+              <option value="all">All Products</option>
+              {allProducts.map((p) => (
+                <option key={p} value={p}>
+                  {p}
                 </option>
               ))}
             </select>
@@ -269,11 +295,9 @@ export const TeamActivity: React.FC = () => {
               onChange={(e) => setSelectedProject(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
             >
-              {PROJECTS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+              <option value="all">All Projects</option>
+              <option value="proj-1">BioShield Alpha Commercialization Project</option>
+              <option value="proj-2">BioShield Alpha Wheat Field Efficacy Trial</option>
             </select>
           </div>
         </div>
@@ -284,7 +308,7 @@ export const TeamActivity: React.FC = () => {
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">
           <span className="text-[11px] text-gray-400 font-semibold uppercase">Total Hours Logged</span>
           <p className="text-2xl font-black text-gray-900 dark:text-white">{totalHours} Hours</p>
-          <span className="text-[10px] text-emerald-600 font-bold">Across Selected Date Range</span>
+          <span className="text-[10px] text-emerald-600 font-bold">Across Selected Scope</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">
@@ -302,7 +326,7 @@ export const TeamActivity: React.FC = () => {
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">
           <span className="text-[11px] text-gray-400 font-semibold uppercase">Passed Scientific Verdicts</span>
           <p className="text-2xl font-black text-emerald-500">2 Approved</p>
-          <span className="text-[10px] text-emerald-600 font-bold">Ready for Commercial Scale-Up</span>
+          <span className="text-[10px] text-emerald-600 font-bold">Ready for Scale-Up</span>
         </div>
       </div>
 
@@ -321,53 +345,60 @@ export const TeamActivity: React.FC = () => {
         {filteredLogs.length === 0 ? (
           <div className="p-8 text-center border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
             <Users className="w-8 h-8 text-gray-300 dark:text-gray-700 mx-auto mb-2" />
-            <p className="text-xs font-semibold text-gray-500">No logs found within selected date range or filter set.</p>
+            <p className="text-xs font-semibold text-gray-500">No records found matching date range & scope filters.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredLogs.map((log) => (
-              <div
-                key={log.id}
-                className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-lg text-xs font-bold">
-                      {log.date}
-                    </span>
-                    <span className="font-bold text-gray-900 dark:text-white text-xs">
-                      {log.userId === 'sci-2' ? 'Dr. Mik (Head of R&D)' : 'Dr. Sarah Jenkins (Lead Microbiologist)'}
-                    </span>
-                  </div>
+            {filteredLogs.map((log) => {
+              const cleanDate = log.date ? log.date.split('T')[0] : '-';
+              const sciName = scientistNameMap[log.userId] || 'Dr. Sarah Jenkins';
+              const prodName = productNameMap[log.productId] || 'BioShield Alpha (Bio-fungicide)';
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      {((log.timeSpentMinutes || 60) / 60).toFixed(1)} Hours
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        log.completionStatus === 'Completed'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-amber-100 text-amber-700'
-                      }`}
-                    >
-                      {log.completionStatus || 'Completed'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-xs space-y-1">
-                  <p className="font-semibold text-gray-800 dark:text-gray-200">
-                    Objective: <span className="font-normal text-gray-600 dark:text-gray-400">{log.objective}</span>
-                  </p>
-                  {log.activities && (
-                    <div className="p-2.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 text-[11px] text-gray-700 dark:text-gray-300">
-                      <strong>Work Logged:</strong> {log.activities}
+              return (
+                <div
+                  key={log.id}
+                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-lg text-xs font-bold">
+                        {cleanDate}
+                      </span>
+                      <span className="font-bold text-gray-900 dark:text-white text-xs">{sciName}</span>
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 rounded text-[10px] font-bold">
+                        {prodName}
+                      </span>
                     </div>
-                  )}
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        {((log.timeSpentMinutes || 60) / 60).toFixed(1)} Hours
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          log.completionStatus === 'Completed'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {log.completionStatus || 'Completed'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-gray-800 dark:text-gray-200">
+                      Objective: <span className="font-normal text-gray-600 dark:text-gray-400">{log.objective}</span>
+                    </p>
+                    {log.activities && (
+                      <div className="p-2.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 text-[11px] text-gray-700 dark:text-gray-300">
+                        <strong>Work Logged:</strong> {log.activities}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

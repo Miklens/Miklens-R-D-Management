@@ -14,33 +14,41 @@ export interface ExportData {
   sheetName?: string;
 }
 
-// Generate Beautiful Executive PDF from data
+// Format raw ISO date strings cleanly to YYYY-MM-DD
+export const formatCleanDate = (val: string | undefined): string => {
+  if (!val) return '-';
+  if (val.includes('T')) return val.split('T')[0];
+  return val;
+};
+
+// Generate Beautiful Executive PDF with Clean Multi-Line Text Wrapping (Zero Overlap)
 export const exportToPDF = (data: ExportData, filename?: string): void => {
   const doc = new jsPDF();
   
   // Page setup
-  const pageWidth = doc.internal.pageSize.width;
-  const margin = 14;
+  const pageWidth = doc.internal.pageSize.width; // ~210 mm
+  const margin = 12;
+  const contentWidth = pageWidth - 2 * margin; // ~186 mm
 
   // Header Branding Banner (Miklens Emerald Header)
   doc.setFillColor(5, 150, 105); // #059669 Emerald-600
   doc.rect(0, 0, pageWidth, 28, 'F');
 
   // Company Brand Title
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
   doc.text('MIKLENS R&D MANAGEMENT | EXECUTIVE REPORT', margin, 18);
 
   // Document Title
   let y = 38;
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setTextColor(30, 41, 59); // Slate-800
   doc.text(data.title, margin, y);
 
   // Subtitle / Scope
   y += 6;
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139); // Slate-500
   doc.text(`Generated: ${format(new Date(), 'PPpp')} • Scope: ${data.scopeText || 'All Scientists & Products'}`, margin, y);
@@ -52,61 +60,91 @@ export const exportToPDF = (data: ExportData, filename?: string): void => {
     doc.text(`Reporting Period: ${data.dateRangeText}`, margin, y);
   }
 
-  y += 10;
+  y += 9;
   
-  // Table Setup
-  const colWidth = (pageWidth - 2 * margin) / data.headers.length;
-  
-  // Table Header Row
-  doc.setFillColor(15, 23, 42); // Slate-900 Header
-  doc.rect(margin, y - 5, pageWidth - 2 * margin, 8, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  
-  data.headers.forEach((header, i) => {
-    doc.text(header, margin + i * colWidth + 2, y);
-  });
-  
-  y += 10;
+  // Column Width Proportions (Allocated to prevent column text collisions)
+  // For 6 columns: Date (24mm), Scientist (32mm), Product (38mm), Hours (18mm), Work Log (54mm), Status (20mm) = 186mm
+  const numCols = data.headers.length;
+  let colWidths: number[] = [];
+
+  if (numCols === 6) {
+    colWidths = [24, 32, 38, 18, 54, 20];
+  } else {
+    const avg = contentWidth / numCols;
+    colWidths = Array(numCols).fill(avg);
+  }
+
+  // Helper to draw Table Headers
+  const drawTableHeader = (startY: number) => {
+    doc.setFillColor(15, 23, 42); // Slate-900 Header
+    doc.rect(margin, startY - 4, contentWidth, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+
+    let currentX = margin;
+    data.headers.forEach((header, i) => {
+      const w = colWidths[i] || 30;
+      doc.text(header, currentX + 2, startY);
+      currentX += w;
+    });
+  };
+
+  // Draw initial Table Header
+  drawTableHeader(y);
+  y += 8;
   
   // Table Rows
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
   
   data.rows.forEach((row, rowIndex) => {
-    // Check for page overflow
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
+    // Clean up dates & raw strings in row cells
+    const processedCells = row.map((cell, colIdx) => {
+      let str = cell !== undefined ? String(cell) : '';
+      if (colIdx === 0 && str.includes('T')) str = str.split('T')[0]; // Format dates
+      return str;
+    });
 
-      // Re-draw header on new page
-      doc.setFillColor(15, 23, 42);
-      doc.rect(margin, y - 5, pageWidth - 2 * margin, 8, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      data.headers.forEach((header, i) => {
-        doc.text(header, margin + i * colWidth + 2, y);
-      });
-      y += 10;
+    // Wrap text for each cell based on column width
+    const cellLineArrays = processedCells.map((text, colIdx) => {
+      const w = (colWidths[colIdx] || 30) - 3;
+      return doc.splitTextToSize(text, w);
+    });
+
+    // Calculate maximum row height needed based on lines
+    const maxLines = Math.max(...cellLineArrays.map((lines) => lines.length), 1);
+    const rowHeight = Math.max(7, maxLines * 4.2 + 2);
+
+    // Check for page overflow before drawing row
+    if (y + rowHeight > 275) {
+      doc.addPage();
+      y = 18;
+      drawTableHeader(y);
+      y += 8;
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
       doc.setTextColor(51, 65, 85);
     }
-    
-    // Alternating Row Fill
+
+    // Alternate Row Shading
     if (rowIndex % 2 === 0) {
       doc.setFillColor(241, 245, 249); // Slate-100
-      doc.rect(margin, y - 4, pageWidth - 2 * margin, 7, 'F');
+      doc.rect(margin, y - 4, contentWidth, rowHeight, 'F');
     }
-    
-    row.forEach((cell, colIndex) => {
-      const cellValue = cell !== undefined ? String(cell) : '';
-      const truncated = cellValue.length > 28 ? cellValue.substring(0, 25) + '...' : cellValue;
-      doc.text(truncated, margin + colIndex * colWidth + 2, y);
+
+    // Render cells in row
+    let currentX = margin;
+    cellLineArrays.forEach((lines, colIdx) => {
+      const w = colWidths[colIdx] || 30;
+      lines.forEach((line: string, lineIdx: number) => {
+        doc.text(line, currentX + 2, y + lineIdx * 4);
+      });
+      currentX += w;
     });
-    
-    y += 7;
+
+    y += rowHeight;
   });
   
   // Page Numbers Footer
@@ -130,14 +168,20 @@ export const exportToExcel = (data: ExportData | ExportData[], filename?: string
   datasets.forEach((sheetData, index) => {
     const worksheet = XLSX.utils.aoa_to_sheet([
       sheetData.headers,
-      ...sheetData.rows
+      ...sheetData.rows.map((r) =>
+        r.map((cell, colIdx) => {
+          let val = cell !== undefined ? String(cell) : '';
+          if (colIdx === 0 && val.includes('T')) val = val.split('T')[0];
+          return val;
+        })
+      ),
     ]);
     
     // Set column widths
     const colWidths = sheetData.headers.map((h, i) => {
       const maxLength = Math.max(
         h.length,
-        ...sheetData.rows.map(r => String(r[i] || '').length)
+        ...sheetData.rows.map((r) => String(r[i] || '').length)
       );
       return { wch: Math.min(maxLength + 2, 50) };
     });
@@ -158,7 +202,7 @@ export const formatTimeEntriesForExport = (entries: any[], type: 'pdf' | 'excel'
   const headers = ['Date', 'Start', 'End', 'Duration', 'Category', 'Description', 'Project', 'Location', 'Billable', 'Status'];
   
   const rows = entries.map(entry => [
-    entry.date,
+    formatCleanDate(entry.date),
     entry.startTime || '',
     entry.endTime || '',
     entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : '0m',
@@ -182,7 +226,7 @@ export const formatTimeEntriesForExport = (entries: any[], type: 'pdf' | 'excel'
 export const formatWeeklySummaryForExport = (summary: any, type: 'pdf' | 'excel') => {
   const headers = ['Day', 'Hours', 'Activities'];
   const rows = Object.entries(summary.hoursByDay || {}).map(([date, minutes]: [string, any]) => [
-    format(new Date(date), 'EEE, MMM d'),
+    formatCleanDate(date),
     `${(minutes / 60).toFixed(1)}h`,
     summary.activitiesByType?.[date] || '-'
   ]);
