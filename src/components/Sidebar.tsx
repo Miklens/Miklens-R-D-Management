@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, FlaskConical, Beaker, BarChart3, Edit3, 
-  Settings, CheckSquare, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles
+  Settings, CheckSquare, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTasks } from '../contexts/TaskContext';
@@ -23,40 +23,25 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    category: 'Overview',
+    category: 'Main Hub',
     items: [
       { name: 'Dashboard', href: '/', icon: LayoutDashboard },
       { name: 'Gemini AI Assistant', href: '/ai-insights', icon: Sparkles },
-      { name: 'Notifications', href: '/notifications', icon: Bell },
     ],
   },
   {
-    category: 'Research & Development',
+    category: 'Scientist Workbench',
     items: [
       { name: 'Daily Research Log', href: '/research-log', icon: Edit3 },
       { name: 'Experiments & Testing', href: '/experiments', icon: Beaker },
     ],
   },
   {
-    category: 'Products & Pipeline',
+    category: 'Management & Products',
     items: [
       { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
-      { name: 'Projects & Milestones', href: '/projects', icon: Layers },
-      { name: 'Documents Library', href: '/documents', icon: FileStack },
-    ],
-  },
-  {
-    category: 'Global Tasks',
-    items: [
-      { name: 'Task Center', href: '/tasks', icon: CheckSquare, badgeKey: 'tasks' },
-    ],
-  },
-  {
-    category: 'Management & Reports',
-    items: [
       { name: 'Executive Reports & Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
-      { name: 'Scientist Directory', href: '/employees', icon: Users, roles: ['Admin', 'Management'] },
-      { name: 'System Settings', href: '/settings', icon: Settings },
+      { name: 'Task Center', href: '/tasks', icon: CheckSquare, badgeKey: 'tasks' },
     ],
   },
 ];
@@ -85,9 +70,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
             <p className="text-[10px] text-gray-400 font-medium tracking-wide">RESEARCH MANAGEMENT</p>
           </div>
         </div>
+
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="md:hidden p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-lg"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      {/* Welcome Banner */}
+      {/* User Welcome Banner */}
       <div className="mx-4 mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-100/50 dark:border-emerald-800/30">
         <p className="text-xs text-gray-500 dark:text-gray-400">Signed in as</p>
         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile?.name || 'Scientist'}</p>
