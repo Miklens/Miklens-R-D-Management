@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { 
   X, CheckSquare, Square, Plus, FlaskConical, Award, Table, Lightbulb, 
-  CheckCircle2, AlertTriangle, Clock, ArrowRight 
+  Beaker, Bug, MapPin, Thermometer, Layers, CheckCircle2 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useExperiments } from '../contexts/ExperimentContext';
-import type { ScientificOutcomeStatus } from '../types/experimentTypes';
+import type { ScientificOutcomeStatus, TemplateType } from '../types/experimentTypes';
 
 interface ScientificWorkbenchProps {
   category: 'exp' | 'lab' | 'stability' | 'field';
@@ -30,7 +30,14 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
   const [outcomeStatus, setOutcomeStatus] = useState<ScientificOutcomeStatus>(item?.outcomeStatus || 'Pending');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Formulation Makeup Calculator state
+  const [initialVol, setInitialVol] = useState('800');
+  const [targetVol, setTargetVol] = useState('1000');
+  const makeupVolNeeded = Math.max(0, (parseFloat(targetVol) || 0) - (parseFloat(initialVol) || 0));
+
   if (!item) return null;
+
+  const template: TemplateType = item.templateType || (category === 'lab' ? 'Microbiology' : category === 'stability' ? 'Stability' : category === 'field' ? 'Field' : 'Formulation');
 
   const handleAddReading = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +81,7 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-4xl overflow-hidden my-8"
+          className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 w-full max-w-5xl overflow-hidden my-6"
         >
           {/* Top Header Banner */}
           <div className="p-6 bg-gradient-to-r from-slate-900 via-gray-900 to-emerald-950 text-white relative">
@@ -89,23 +96,26 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {item.productName}
               </span>
-              <span
-                className={`px-3 py-0.5 rounded-full text-xs font-bold border ${getOutcomeBadge(
-                  outcomeStatus
-                )}`}
-              >
-                Outcome: {outcomeStatus || 'Pending'}
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                {template === 'Formulation' && <Beaker className="w-3 h-3 text-purple-400" />}
+                {template === 'Microbiology' && <Bug className="w-3 h-3 text-pink-400" />}
+                {template === 'Stability' && <Thermometer className="w-3 h-3 text-amber-400" />}
+                {template === 'Field' && <MapPin className="w-3 h-3 text-emerald-400" />}
+                Template: {template}
+              </span>
+              <span className={`px-3 py-0.5 rounded-full text-xs font-bold border ${getOutcomeBadge(outcomeStatus)}`}>
+                Verdict: {outcomeStatus || 'Pending'}
               </span>
             </div>
 
             <h2 className="text-2xl font-black text-white tracking-tight">{item.name || item.title || item.batchNo}</h2>
-            <p className="text-xs text-gray-300 mt-1 max-w-2xl">{item.description || 'Scientific R&D Testing Protocol'}</p>
+            <p className="text-xs text-gray-300 mt-1 max-w-2xl">{item.description || 'Specialized Scientific R&D Experiment'}</p>
 
             {/* Live Progress Bar */}
             <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4">
               <div className="flex-1">
                 <div className="flex items-center justify-between text-xs text-gray-300 mb-1">
-                  <span>Protocol Progress</span>
+                  <span>Protocol Checklist Progress</span>
                   <span className="font-bold text-emerald-400">{item.progress}% Completed</span>
                 </div>
                 <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
@@ -118,20 +128,137 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
             </div>
           </div>
 
-          {/* Body Content Tabs Grid */}
-          <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-h-[70vh] overflow-y-auto">
-            {/* Left Column: Hypothesis & Interactive Protocol Steps (7 cols) */}
+          {/* Body Content */}
+          <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-h-[72vh] overflow-y-auto">
+            {/* Left Column: Specialized Template Widgets (7 cols) */}
             <div className="lg:col-span-7 space-y-6">
-              {/* 🎯 Hypothesis & Scientific Goal */}
-              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl space-y-2">
+              {/* 🎯 Hypothesis & Objective */}
+              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl space-y-1.5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
                   <FlaskConical className="w-4 h-4 text-emerald-600" />
                   Scientific Hypothesis & Objective
                 </h3>
                 <p className="text-xs text-gray-700 dark:text-gray-300 italic leading-relaxed">
-                  "{item.hypothesis || 'Evaluate treatment parameters to achieve target inhibition and stability thresholds.'}"
+                  "{item.hypothesis || 'Evaluate formulation & treatment parameters to achieve target efficacy and stability thresholds.'}"
                 </p>
               </div>
+
+              {/* SPECIALIZED TEMPLATE WIDGET 1: Formulation Recipe & Volume Makeup */}
+              {template === 'Formulation' && (
+                <div className="p-4 bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/40 rounded-2xl space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-800 dark:text-purple-300 flex items-center gap-1.5">
+                    <Beaker className="w-4 h-4 text-purple-600" />
+                    Formulation Composition & Volume Makeup Calculator
+                  </h3>
+
+                  {/* Volume Makeup Calculator */}
+                  <div className="grid grid-cols-3 gap-2 bg-white dark:bg-gray-800 p-3 rounded-xl border border-purple-100 dark:border-purple-900 text-xs">
+                    <div>
+                      <label className="text-[10px] text-gray-400 block font-semibold">Initial Vol (mL)</label>
+                      <input
+                        type="number"
+                        value={initialVol}
+                        onChange={(e) => setInitialVol(e.target.value)}
+                        className="w-full mt-0.5 px-2 py-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 rounded font-bold text-purple-700 dark:text-purple-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-400 block font-semibold">Target Vol (mL)</label>
+                      <input
+                        type="number"
+                        value={targetVol}
+                        onChange={(e) => setTargetVol(e.target.value)}
+                        className="w-full mt-0.5 px-2 py-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 rounded font-bold text-purple-700 dark:text-purple-300"
+                      />
+                    </div>
+                    <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded flex flex-col justify-center">
+                      <span className="text-[10px] text-purple-600 dark:text-purple-300 font-bold">Solvent Makeup</span>
+                      <span className="text-sm font-extrabold text-purple-900 dark:text-purple-100">+{makeupVolNeeded} mL</span>
+                    </div>
+                  </div>
+
+                  {/* Batch Recipe Ingredients Table */}
+                  <div className="border border-purple-100 dark:border-purple-900 rounded-xl overflow-hidden text-xs">
+                    <table className="w-full text-left bg-white dark:bg-gray-900">
+                      <thead className="bg-purple-100/50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 font-bold text-[11px]">
+                        <tr>
+                          <th className="p-2">Ingredient</th>
+                          <th className="p-2">Function / Purpose</th>
+                          <th className="p-2">Target Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-purple-50 dark:divide-purple-900/30">
+                        <tr>
+                          <td className="p-2 font-semibold">BioShield Bio-Active Spores</td>
+                          <td className="p-2 text-gray-500">Active Fungicide Agent</td>
+                          <td className="p-2 font-bold text-purple-600">25.0 g/L</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-semibold">Polyoxyethylene Sorbitan (Tween 80)</td>
+                          <td className="p-2 text-gray-500">Emulsifier & Surfactant</td>
+                          <td className="p-2 font-bold text-purple-600">4.5 % w/v</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-semibold">Citric Acid / Sodium Citrate</td>
+                          <td className="p-2 text-gray-500">pH Buffer System (pH 6.2)</td>
+                          <td className="p-2 font-bold text-purple-600">1.2 % w/v</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-semibold">Deionized Water (DI Water)</td>
+                          <td className="p-2 text-gray-500">Solvent / Volume Makeup</td>
+                          <td className="p-2 font-bold text-purple-600">q.s. to {targetVol} mL</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SPECIALIZED TEMPLATE WIDGET 2: Microbiology & Efficacy */}
+              {template === 'Microbiology' && (
+                <div className="p-4 bg-pink-50/40 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-900/40 rounded-2xl space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-pink-800 dark:text-pink-300 flex items-center gap-1.5">
+                    <Bug className="w-4 h-4 text-pink-600" />
+                    Microbiological Pathogen Assay Parameters
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-3 bg-white dark:bg-gray-800 p-3 rounded-xl border border-pink-100 dark:border-pink-900 text-xs">
+                    <div>
+                      <span className="text-[10px] text-gray-400 block font-semibold">Target Pathogen</span>
+                      <span className="font-extrabold text-pink-700 dark:text-pink-300">Botrytis cinerea / Fusarium</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block font-semibold">Plating Assay Method</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">Agar Well Diffusion Assay</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SPECIALIZED TEMPLATE WIDGET 3: CIPAC Stability */}
+              {template === 'Stability' && (
+                <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-2xl space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                    <Thermometer className="w-4 h-4 text-amber-600" />
+                    CIPAC Thermal Degradation Mapping
+                  </h3>
+
+                  <div className="grid grid-cols-3 gap-2 bg-white dark:bg-gray-800 p-3 rounded-xl border border-amber-100 dark:border-amber-900 text-xs">
+                    <div>
+                      <span className="text-[10px] text-gray-400 block font-semibold">Chamber Temp</span>
+                      <span className="font-extrabold text-amber-700 dark:text-amber-300">{item.chamberTemp || '54°C (Accelerated)'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block font-semibold">Active Retention %</span>
+                      <span className="font-extrabold text-emerald-600">{item.activeRetention || 95.8}%</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-gray-400 block font-semibold">pH Stability</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">{item.pH || 6.5} pH</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 📋 Interactive Protocol Checklist */}
               <div className="space-y-3">
@@ -174,10 +301,9 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
               <div className="space-y-3">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Table className="w-4 h-4 text-blue-500" />
-                  Experimental Readings & Parameters Log
+                  Experimental Readings & Parameter Log
                 </h3>
 
-                {/* Form to log data */}
                 <form onSubmit={handleAddReading} className="grid grid-cols-12 gap-2 bg-gray-50 dark:bg-gray-800/40 p-3 rounded-xl border border-gray-200 dark:border-gray-800">
                   <input
                     type="text"
@@ -208,7 +334,6 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
                   </button>
                 </form>
 
-                {/* Data Readings Table */}
                 {(item.dataReadings || []).length === 0 ? (
                   <p className="text-xs text-gray-400 italic">No numeric data readings logged yet.</p>
                 ) : (
@@ -243,7 +368,7 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
               <div className="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-800 space-y-4">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Lightbulb className="w-4 h-4 text-amber-500" />
-                  Scientific Conclusion & Outcome
+                  Scientific Conclusion & Verdict
                 </h3>
 
                 <form onSubmit={handleSaveConclusion} className="space-y-4">

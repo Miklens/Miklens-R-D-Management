@@ -11,16 +11,16 @@ interface Ingredient {
 }
 
 const DEFAULT_INGREDIENTS: Ingredient[] = [
-  { id: '1', name: 'Pseudomonas fluorescens (Active strain)', category: 'active', percentage: 10.0, costPerKg: 350 },
-  { id: '2', name: 'Al alkylbenzenesulfonate (Surfactant)', category: 'surfactant', percentage: 4.5, costPerKg: 120 },
-  { id: '3', name: 'Xanthan Gum (Thickener/Stabilizer)', category: 'stabilizer', percentage: 0.15, costPerKg: 450 },
-  { id: '4', name: 'Propylene Glycol (Antifreeze)', category: 'adjuvant', percentage: 5.0, costPerKg: 180 },
-  { id: '5', name: 'Demineralized Water (Carrier)', category: 'solvent', percentage: 80.35, costPerKg: 10 },
+  { id: '1', name: 'BioShield Bio-Active Fungal Spores', category: 'active', percentage: 10.0, costPerKg: 350 },
+  { id: '2', name: 'Polyoxyethylene Sorbitan (Tween 80)', category: 'surfactant', percentage: 4.5, costPerKg: 120 },
+  { id: '3', name: 'Sodium Citrate / Citric Acid Buffer', category: 'stabilizer', percentage: 1.2, costPerKg: 90 },
+  { id: '4', name: 'Xanthan Gum (Thickener/Stabilizer)', category: 'stabilizer', percentage: 0.15, costPerKg: 450 },
+  { id: '5', name: 'Demineralized Water (Carrier)', category: 'solvent', percentage: 84.15, costPerKg: 10 },
 ];
 
 export const FormulationBuilder: React.FC = () => {
   const [ingredients, setIngredients] = useState<Ingredient[]>(DEFAULT_INGREDIENTS);
-  const [name, setName] = useState('Bio-Pesticide Pseudomonas SC (Flowable)');
+  const [name, setName] = useState('BioShield Alpha (Bio-fungicide Formulation)');
   const [ph, setPh] = useState(6.2);
   const [viscosity, setViscosity] = useState(480); // in cP
   const [density, setDensity] = useState(1.05); // g/mL

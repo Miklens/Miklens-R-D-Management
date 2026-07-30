@@ -1,6 +1,16 @@
 export type ExperimentType = 'Lab' | 'Field' | 'Both';
 export type ExperimentStatus = 'InProgress' | 'Completed' | 'Blocked' | 'Queued' | 'Planning';
 export type ScientificOutcomeStatus = 'Pending' | 'Passed' | 'Failed' | 'Inconclusive';
+export type TemplateType = 'Formulation' | 'Microbiology' | 'Stability' | 'Field' | 'Custom';
+
+export interface RecipeIngredient {
+  id: string;
+  name: string;
+  targetQty: string;
+  unit: string;
+  actualQty?: string;
+  purpose?: string;
+}
 
 export interface ProtocolStep {
   id: string;
@@ -22,11 +32,16 @@ export interface ExperimentItem {
   name: string;
   productName: string;
   type: ExperimentType;
+  templateType?: TemplateType;
   status: ExperimentStatus;
   progress: number;
   startDate: string;
   description?: string;
   hypothesis?: string;
+  recipeIngredients?: RecipeIngredient[];
+  targetVolume?: string; // e.g. "1000 mL"
+  targetOrganism?: string; // e.g. "Botrytis cinerea"
+  applicationRate?: string; // e.g. "3.0 mL/L"
   protocolSteps?: ProtocolStep[];
   dataReadings?: DataReading[];
   conclusion?: string;
@@ -38,12 +53,14 @@ export interface LabTestItem {
   id: string;
   name: string;
   productName: string;
-  type: string; // Efficacy, Quality, Stability, Safety
+  type: string;
+  templateType?: TemplateType;
   status: ExperimentStatus;
   progress: number;
   lab: string;
   dueDate: string;
   hypothesis?: string;
+  recipeIngredients?: RecipeIngredient[];
   protocolSteps?: ProtocolStep[];
   dataReadings?: DataReading[];
   conclusion?: string;
@@ -55,7 +72,7 @@ export interface StabilityLogItem {
   id: string;
   batchNo: string;
   productName: string;
-  chamberTemp: string; // "54°C (Accelerated)", "0°C (Cold)", "25°C (Ambient)"
+  chamberTemp: string;
   startDate: string;
   duration: string;
   nextTestDate: string;
