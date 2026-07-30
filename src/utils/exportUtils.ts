@@ -21,21 +21,23 @@ export const formatCleanDate = (val: string | undefined): string => {
   return val;
 };
 
-// Generate Beautiful Executive PDF with Clean Multi-Line Text Wrapping (Zero Overlap)
+// Generate Beautiful Executive PDF in Wide Landscape Mode with Multi-Line Text & Header Wrapping (Zero Overlap)
 export const exportToPDF = (data: ExportData, filename?: string): void => {
-  const doc = new jsPDF();
+  // Use Landscape orientation for multi-column management reports
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   
-  // Page setup
-  const pageWidth = doc.internal.pageSize.width; // ~210 mm
+  // Page setup (Landscape A4: 297mm width x 210mm height)
+  const pageWidth = doc.internal.pageSize.width; // 297 mm
+  const pageHeight = doc.internal.pageSize.height; // 210 mm
   const margin = 12;
-  const contentWidth = pageWidth - 2 * margin; // ~186 mm
+  const contentWidth = pageWidth - 2 * margin; // 273 mm
 
   // Header Branding Banner (Miklens Emerald Header)
   doc.setFillColor(5, 150, 105); // #059669 Emerald-600
   doc.rect(0, 0, pageWidth, 28, 'F');
 
   // Company Brand Title
-  doc.setFontSize(15);
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
   doc.text('MIKLENS R&D MANAGEMENT | EXECUTIVE REPORT', margin, 18);
@@ -62,90 +64,112 @@ export const exportToPDF = (data: ExportData, filename?: string): void => {
 
   y += 9;
   
-  // Column Width Proportions (Allocated to prevent column text collisions)
-  // For 6 columns: Date (24mm), Scientist (32mm), Product (38mm), Hours (18mm), Work Log (54mm), Status (20mm) = 186mm
+  // Column Width Proportions for Landscape A4 (273mm total)
+  // For 6 columns: Date (32mm), Scientist (45mm), Product (55mm), Hours (25mm), Work Log (88mm), Status (28mm) = 273mm
   const numCols = data.headers.length;
   let colWidths: number[] = [];
 
   if (numCols === 6) {
-    colWidths = [24, 32, 38, 18, 54, 20];
+    colWidths = [32, 45, 55, 25, 88, 28];
   } else {
     const avg = contentWidth / numCols;
     colWidths = Array(numCols).fill(avg);
   }
 
+  // Wrap Table Headers into lines to prevent title text collisions
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+
+  const wrappedHeaderLines = data.headers.map((h, i) => {
+    const w = (colWidths[i] || 30) - 4;
+    return doc.splitTextToSize(h, w);
+  });
+
+  const maxHeaderLines = Math.max(...wrappedHeaderLines.map((lines) => lines.length), 1);
+  const headerHeight = Math.max(9, maxHeaderLines * 4.2 + 3);
+
   // Helper to draw Table Headers
   const drawTableHeader = (startY: number) => {
     doc.setFillColor(15, 23, 42); // Slate-900 Header
-    doc.rect(margin, startY - 4, contentWidth, 8, 'F');
+    doc.rect(margin, startY - 4, contentWidth, headerHeight, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold');
 
     let currentX = margin;
-    data.headers.forEach((header, i) => {
+    wrappedHeaderLines.forEach((lines: string[], i: number) => {
       const w = colWidths[i] || 30;
-      doc.text(header, currentX + 2, startY);
+      lines.forEach((line: string, lineIdx: number) => {
+        doc.text(line, currentX + 2, startY + lineIdx * 4);
+      });
       currentX += w;
     });
   };
 
   // Draw initial Table Header
   drawTableHeader(y);
-  y += 8;
+  y += headerHeight + 3;
   
   // Table Rows
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
   doc.setTextColor(51, 65, 85);
   
-  data.rows.forEach((row, rowIndex) => {
-    // Clean up dates & raw strings in row cells
-    const processedCells = row.map((cell, colIdx) => {
-      let str = cell !== undefined ? String(cell) : '';
-      if (colIdx === 0 && str.includes('T')) str = str.split('T')[0]; // Format dates
-      return str;
-    });
-
-    // Wrap text for each cell based on column width
-    const cellLineArrays = processedCells.map((text, colIdx) => {
-      const w = (colWidths[colIdx] || 30) - 3;
-      return doc.splitTextToSize(text, w);
-    });
-
-    // Calculate maximum row height needed based on lines
-    const maxLines = Math.max(...cellLineArrays.map((lines) => lines.length), 1);
-    const rowHeight = Math.max(7, maxLines * 4.2 + 2);
-
-    // Check for page overflow before drawing row
-    if (y + rowHeight > 275) {
-      doc.addPage();
-      y = 18;
-      drawTableHeader(y);
-      y += 8;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(51, 65, 85);
-    }
-
-    // Alternate Row Shading
-    if (rowIndex % 2 === 0) {
-      doc.setFillColor(241, 245, 249); // Slate-100
-      doc.rect(margin, y - 4, contentWidth, rowHeight, 'F');
-    }
-
-    // Render cells in row
-    let currentX = margin;
-    cellLineArrays.forEach((lines, colIdx) => {
-      const w = colWidths[colIdx] || 30;
-      lines.forEach((line: string, lineIdx: number) => {
-        doc.text(line, currentX + 2, y + lineIdx * 4);
+  if (data.rows.length === 0) {
+    // Render Fallback Empty Row
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y - 4, contentWidth, 10, 'F');
+    doc.text('No activity records logged within selected date range and filter criteria.', margin + 4, y + 2);
+    y += 12;
+  } else {
+    data.rows.forEach((row, rowIndex) => {
+      // Clean up dates & raw strings in row cells
+      const processedCells = row.map((cell, colIdx) => {
+        let str = cell !== undefined ? String(cell) : '';
+        if (colIdx === 0 && str.includes('T')) str = str.split('T')[0]; // Format dates
+        return str;
       });
-      currentX += w;
-    });
 
-    y += rowHeight;
-  });
+      // Wrap text for each cell based on column width
+      const cellLineArrays = processedCells.map((text, colIdx) => {
+        const w = (colWidths[colIdx] || 30) - 4;
+        return doc.splitTextToSize(text, w);
+      });
+
+      // Calculate maximum row height needed based on lines
+      const maxLines = Math.max(...cellLineArrays.map((lines) => lines.length), 1);
+      const rowHeight = Math.max(8, maxLines * 4.2 + 3);
+
+      // Check for page overflow before drawing row
+      if (y + rowHeight > pageHeight - 15) {
+        doc.addPage();
+        y = 18;
+        drawTableHeader(y);
+        y += headerHeight + 3;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(51, 65, 85);
+      }
+
+      // Alternate Row Shading
+      if (rowIndex % 2 === 0) {
+        doc.setFillColor(241, 245, 249); // Slate-100
+        doc.rect(margin, y - 4, contentWidth, rowHeight, 'F');
+      }
+
+      // Render cells in row
+      let currentX = margin;
+      cellLineArrays.forEach((lines, colIdx) => {
+        const w = colWidths[colIdx] || 30;
+        lines.forEach((line: string, lineIdx: number) => {
+          doc.text(line, currentX + 2, y + lineIdx * 4);
+        });
+        currentX += w;
+      });
+
+      y += rowHeight;
+    });
+  }
   
   // Page Numbers Footer
   const pageCount = doc.getNumberOfPages();
@@ -153,7 +177,7 @@ export const exportToPDF = (data: ExportData, filename?: string): void => {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text(`Miklens Bio-Tech Executive Audit • Page ${i} of ${pageCount}`, pageWidth / 2, 290, { align: 'center' });
+    doc.text(`Miklens Bio-Tech Executive Audit • Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
   }
   
   doc.save(filename || `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);

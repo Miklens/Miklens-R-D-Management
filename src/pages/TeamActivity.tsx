@@ -3,7 +3,7 @@ import {
   Users, Calendar, Search, Download, FileSpreadsheet, FileText, 
   FlaskConical, Package, FolderGit2, Sparkles, Filter, CheckCircle2, AlertTriangle, Clock 
 } from 'lucide-react';
-import { format, subDays, parseISO } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useUsers } from '../hooks/useUsers';
 import { useExperiments } from '../contexts/ExperimentContext';
@@ -12,7 +12,7 @@ import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 export const TeamActivity: React.FC = () => {
   const { data: logs } = useDailyLogs();
   const { data: users } = useUsers();
-  const { experiments, allProducts } = useExperiments();
+  const { experiments, labTests, stabilityLogs, fieldTrials, allProducts } = useExperiments();
 
   // Filters State
   const [presetPeriod, setPresetPeriod] = useState<'today' | 'week' | 'month' | 'quarter' | 'custom'>('month');
@@ -37,7 +37,7 @@ export const TeamActivity: React.FC = () => {
     if (preset === 'quarter') setStartDate(format(subDays(now, 90), 'yyyy-MM-dd'));
   };
 
-  // Helper map for raw scientist IDs to names
+  // Helper map for scientist IDs and Names
   const scientistNameMap = useMemo(() => {
     const map: Record<string, string> = {
       'sci-1': 'Dr. Sarah Jenkins',
@@ -49,76 +49,118 @@ export const TeamActivity: React.FC = () => {
     return map;
   }, [users]);
 
-  // Helper map for raw product IDs to names
-  const productNameMap = useMemo(() => {
-    return {
-      'p1': 'BioShield Alpha (Bio-fungicide)',
-      'p2': 'BioShield Alpha (Bio-fungicide)',
-      'general': 'BioShield Alpha (Bio-fungicide)',
-    } as Record<string, string>;
-  }, []);
+  // UNIFIED AUDIT FEED (Combining Daily Research Logs + Experiment Multi-Day Runs)
+  const unifiedAuditFeed = useMemo(() => {
+    const records: Array<{
+      id: string;
+      date: string;
+      scientistId: string;
+      scientistName: string;
+      productName: string;
+      hoursLogged: number;
+      objectiveOrTitle: string;
+      activitiesDetail: string;
+      status: string;
+      source: 'Daily Log' | 'Experiment Run';
+    }> = [];
 
-  // Filtered Daily Research Logs
-  const filteredLogs = useMemo(() => {
+    // 1. Add Daily Research Logs
+    (logs || []).forEach((log) => {
+      const cleanDate = log.date ? log.date.split('T')[0] : '';
+      records.push({
+        id: log.id,
+        date: cleanDate,
+        scientistId: log.userId,
+        scientistName: scientistNameMap[log.userId] || 'Dr. Sarah Jenkins',
+        productName: 'BioShield Alpha (Bio-fungicide)',
+        hoursLogged: Math.round(((log.timeSpentMinutes || 60) / 60) * 10) / 10,
+        objectiveOrTitle: log.objective || 'Daily R&D Work Log',
+        activitiesDetail: log.activities || 'General R&D activities completed.',
+        status: log.completionStatus || 'Completed',
+        source: 'Daily Log',
+      });
+    });
+
+    // 2. Add Multi-Day Runs from Experiments
+    const allExpItems = [...experiments, ...labTests, ...stabilityLogs, ...fieldTrials];
+    allExpItems.forEach((exp: any) => {
+      const runs = exp.dailyRuns || [];
+      runs.forEach((run: any) => {
+        const cleanRunDate = run.date ? run.date.split('T')[0] : '';
+        const isMik = run.scientistName?.toLowerCase().includes('mik') || exp.name?.toLowerCase().includes('field');
+        const sciId = isMik ? 'sci-2' : 'sci-1';
+
+        records.push({
+          id: `${exp.id}-${run.id}`,
+          date: cleanRunDate,
+          scientistId: sciId,
+          scientistName: run.scientistName || scientistNameMap[sciId] || 'Dr. Sarah Jenkins',
+          productName: exp.productName || 'BioShield Alpha (Bio-fungicide)',
+          hoursLogged: 4.0,
+          objectiveOrTitle: `${exp.name} (Day #${run.dayNumber})`,
+          activitiesDetail: `${run.activityPerformed} | Outcome: ${run.observationResult || 'Target met'}`,
+          status: run.runStatus || 'Passed',
+          source: 'Experiment Run',
+        });
+      });
+    });
+
+    // Filter by Date Range, Scientist, Product, and Search
     const startStr = startDate;
     const endStr = endDate;
 
-    return logs.filter((log) => {
-      const cleanLogDate = log.date ? log.date.split('T')[0] : '';
-      const inDateRange = cleanLogDate >= startStr && cleanLogDate <= endStr;
+    return records.filter((rec) => {
+      const inDateRange = rec.date >= startStr && rec.date <= endStr;
 
-      const sciName = scientistNameMap[log.userId] || log.userId || '';
       const matchScientist =
         selectedScientist === 'all' ||
-        log.userId === selectedScientist ||
-        sciName.toLowerCase().includes(selectedScientist.toLowerCase());
+        rec.scientistId === selectedScientist ||
+        rec.scientistName.toLowerCase().includes(selectedScientist.toLowerCase());
 
       const matchProduct =
         selectedProduct === 'all' ||
-        log.productId === selectedProduct ||
-        selectedProduct === 'BioShield Alpha (Bio-fungicide)';
+        rec.productName.toLowerCase().includes(selectedProduct.toLowerCase());
 
       const matchSearch =
         !searchTerm.trim() ||
-        log.objective?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.activities?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sciName.toLowerCase().includes(searchTerm.toLowerCase());
+        rec.objectiveOrTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rec.activitiesDetail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rec.scientistName.toLowerCase().includes(searchTerm.toLowerCase());
 
       return inDateRange && matchScientist && matchProduct && matchSearch;
     });
-  }, [logs, startDate, endDate, selectedScientist, selectedProduct, searchTerm, scientistNameMap]);
+  }, [logs, experiments, labTests, stabilityLogs, fieldTrials, startDate, endDate, selectedScientist, selectedProduct, searchTerm, scientistNameMap]);
 
-  // Total Hours & Statistics in Filtered Date Range
-  const totalMinutes = useMemo(() => {
-    return filteredLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 0), 0);
-  }, [filteredLogs]);
+  // Statistics across filtered records
+  const totalHours = useMemo(() => {
+    return unifiedAuditFeed.reduce((sum, r) => sum + r.hoursLogged, 0).toFixed(1);
+  }, [unifiedAuditFeed]);
 
-  const totalHours = (totalMinutes / 60).toFixed(1);
-  const completedCount = filteredLogs.filter((l) => l.completionStatus === 'Completed').length;
+  const completedCount = unifiedAuditFeed.filter((r) => r.status === 'Completed' || r.status === 'Passed').length;
 
-  // Scientist Options dropdown
+  // Scientist Dropdown Options
   const scientistOptions = useMemo(() => {
-    const options = [{ id: 'all', label: 'All Scientists' }];
-    Object.entries(scientistNameMap).forEach(([id, name]) => {
-      options.push({ id, label: name });
-    });
-    return options;
-  }, [scientistNameMap]);
+    return [
+      { id: 'all', label: 'All Scientists' },
+      { id: 'sci-1', label: 'Dr. Sarah Jenkins (Lead Microbiologist)' },
+      { id: 'sci-2', label: 'Dr. Mik (Head of R&D Operations)' },
+    ];
+  }, []);
 
-  // Export Executive PDF Report
+  // Export Executive PDF Report (Landscape Wide)
   const handleExportPDF = () => {
-    const headers = ['Date', 'Scientist', 'Target Product', 'Hours Logged', 'Daily Work Performed', 'Outcome Status'];
-    const rows = filteredLogs.map((log) => [
-      log.date ? log.date.split('T')[0] : '-',
-      scientistNameMap[log.userId] || 'Dr. Sarah Jenkins',
-      productNameMap[log.productId] || 'BioShield Alpha (Bio-fungicide)',
-      `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`,
-      log.activities ? log.activities.replace(/\[.*?\]\s*/g, '') : log.objective,
-      log.completionStatus || 'Completed',
+    const headers = ['Date', 'Scientist Name', 'Target Product', 'Hours', 'Daily Work & Assay Details', 'Status'];
+    const rows = unifiedAuditFeed.map((rec) => [
+      rec.date,
+      rec.scientistName,
+      rec.productName,
+      `${rec.hoursLogged}h`,
+      `[${rec.source}] ${rec.objectiveOrTitle}: ${rec.activitiesDetail}`,
+      rec.status,
     ]);
 
     const activeSciLabel = selectedScientist === 'all' ? 'All Scientists' : scientistNameMap[selectedScientist] || selectedScientist;
-    const activeProdLabel = selectedProduct === 'all' ? 'All Products' : productNameMap[selectedProduct] || selectedProduct;
+    const activeProdLabel = selectedProduct === 'all' ? 'All Products' : selectedProduct;
 
     exportToPDF(
       {
@@ -135,16 +177,16 @@ export const TeamActivity: React.FC = () => {
 
   // Export Excel Report
   const handleExportExcel = () => {
-    const headers = ['Date', 'Scientist', 'Target Product', 'Duration (Hours)', 'Daily Objective', 'Activities Detail', 'Blockers', 'Status'];
-    const rows = filteredLogs.map((log) => [
-      log.date ? log.date.split('T')[0] : '-',
-      scientistNameMap[log.userId] || 'Dr. Sarah Jenkins',
-      productNameMap[log.productId] || 'BioShield Alpha (Bio-fungicide)',
-      ((log.timeSpentMinutes || 60) / 60).toFixed(1),
-      log.objective,
-      log.activities,
-      log.problems || 'None',
-      log.completionStatus || 'Completed',
+    const headers = ['Date', 'Scientist', 'Target Product', 'Duration (Hours)', 'Activity Title', 'Full Details', 'Record Type', 'Status'];
+    const rows = unifiedAuditFeed.map((rec) => [
+      rec.date,
+      rec.scientistName,
+      rec.productName,
+      rec.hoursLogged,
+      rec.objectiveOrTitle,
+      rec.activitiesDetail,
+      rec.source,
+      rec.status,
     ]);
 
     exportToExcel(
@@ -174,7 +216,7 @@ export const TeamActivity: React.FC = () => {
           </p>
         </div>
 
-        {/* Action Suite */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportPDF}
@@ -193,15 +235,15 @@ export const TeamActivity: React.FC = () => {
         </div>
       </div>
 
-      {/* Date Range & Filter Controls Card */}
+      {/* Date Range & Scope Controls */}
       <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md space-y-4">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
             <Filter className="w-4 h-4" />
-            Date Range & Global Scope Filters
+            Date Range & Scope Filters
           </h3>
 
-          {/* Quick Presets */}
+          {/* Presets */}
           <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
             {[
               { id: 'today', label: 'Today' },
@@ -224,7 +266,7 @@ export const TeamActivity: React.FC = () => {
           </div>
         </div>
 
-        {/* Filter Selection Grid */}
+        {/* Filter Inputs Grid */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {/* Start Date */}
           <div>
@@ -287,23 +329,21 @@ export const TeamActivity: React.FC = () => {
             </select>
           </div>
 
-          {/* R&D Project Filter */}
+          {/* Search */}
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">R&D Project</label>
-            <select
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">Search Keywords</label>
+            <input
+              type="text"
+              placeholder="Search details..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
-            >
-              <option value="all">All Projects</option>
-              <option value="proj-1">BioShield Alpha Commercialization Project</option>
-              <option value="proj-2">BioShield Alpha Wheat Field Efficacy Trial</option>
-            </select>
+            />
           </div>
         </div>
       </div>
 
-      {/* KPI Audit Summary Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">
           <span className="text-[11px] text-gray-400 font-semibold uppercase">Total Hours Logged</span>
@@ -312,8 +352,8 @@ export const TeamActivity: React.FC = () => {
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">
-          <span className="text-[11px] text-gray-400 font-semibold uppercase">Daily Logs Submitted</span>
-          <p className="text-2xl font-black text-emerald-600">{filteredLogs.length} Entries</p>
+          <span className="text-[11px] text-gray-400 font-semibold uppercase">Audit Records Found</span>
+          <p className="text-2xl font-black text-emerald-600">{unifiedAuditFeed.length} Records</p>
           <span className="text-[10px] text-gray-400">{completedCount} Completed cleanly</span>
         </div>
 
@@ -330,75 +370,70 @@ export const TeamActivity: React.FC = () => {
         </div>
       </div>
 
-      {/* Chronological Scientist Audit Log Table */}
+      {/* Unified Chronological Audit Feed */}
       <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md space-y-4">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
           <h3 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-2">
             <Clock className="w-4 h-4 text-emerald-500" />
-            Chronological Scientist Daily Audit Feed ({filteredLogs.length} Records)
+            Chronological Scientist Daily Audit Feed ({unifiedAuditFeed.length} Records)
           </h3>
           <span className="text-xs text-gray-400 font-mono">
             {startDate} to {endDate}
           </span>
         </div>
 
-        {filteredLogs.length === 0 ? (
+        {unifiedAuditFeed.length === 0 ? (
           <div className="p-8 text-center border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl">
             <Users className="w-8 h-8 text-gray-300 dark:text-gray-700 mx-auto mb-2" />
             <p className="text-xs font-semibold text-gray-500">No records found matching date range & scope filters.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredLogs.map((log) => {
-              const cleanDate = log.date ? log.date.split('T')[0] : '-';
-              const sciName = scientistNameMap[log.userId] || 'Dr. Sarah Jenkins';
-              const prodName = productNameMap[log.productId] || 'BioShield Alpha (Bio-fungicide)';
-
-              return (
-                <div
-                  key={log.id}
-                  className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-lg text-xs font-bold">
-                        {cleanDate}
-                      </span>
-                      <span className="font-bold text-gray-900 dark:text-white text-xs">{sciName}</span>
-                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 rounded text-[10px] font-bold">
-                        {prodName}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                        {((log.timeSpentMinutes || 60) / 60).toFixed(1)} Hours
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          log.completionStatus === 'Completed'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {log.completionStatus || 'Completed'}
-                      </span>
-                    </div>
+            {unifiedAuditFeed.map((rec) => (
+              <div
+                key={rec.id}
+                className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-lg text-xs font-bold">
+                      {rec.date}
+                    </span>
+                    <span className="font-bold text-gray-900 dark:text-white text-xs">{rec.scientistName}</span>
+                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 rounded text-[10px] font-bold">
+                      {rec.productName}
+                    </span>
+                    <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-[10px] font-mono">
+                      {rec.source}
+                    </span>
                   </div>
 
-                  <div className="text-xs space-y-1">
-                    <p className="font-semibold text-gray-800 dark:text-gray-200">
-                      Objective: <span className="font-normal text-gray-600 dark:text-gray-400">{log.objective}</span>
-                    </p>
-                    {log.activities && (
-                      <div className="p-2.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 text-[11px] text-gray-700 dark:text-gray-300">
-                        <strong>Work Logged:</strong> {log.activities}
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      {rec.hoursLogged} Hours
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        rec.status === 'Completed' || rec.status === 'Passed'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {rec.status}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="text-xs space-y-1">
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    Activity: <span className="font-normal text-gray-600 dark:text-gray-400">{rec.objectiveOrTitle}</span>
+                  </p>
+                  <div className="p-2.5 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 text-[11px] text-gray-700 dark:text-gray-300">
+                    <strong>Work Logged:</strong> {rec.activitiesDetail}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
