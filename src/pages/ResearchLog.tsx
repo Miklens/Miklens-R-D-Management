@@ -43,7 +43,7 @@ const WORK_TYPE_OPTIONS = [
   { group: '🔬 Lab & R&D', value: 'trials',        label: 'Field Trial / Sampling' },
   { group: '🔬 Lab & R&D', value: 'maintenance',   label: 'Equipment Maintenance & Calibration' },
   { group: '🔬 Lab & R&D', value: 'safety',        label: 'Lab Safety & Protocol Audit' },
-  { group: '🔬 Lab & R&D', value: 'literature',    label: 'Literature Review & Patent Research' },
+  { group: '🔬 Lab & R&D', value: 'literature',    label: 'Research & Literature Review' },
   // --- Software / App ---
   { group: '💻 Software', value: 'app_dev',       label: 'App Development & Coding' },
   { group: '💻 Software', value: 'app_upgrade',   label: 'App Upgradation & Bug Fixes' },
