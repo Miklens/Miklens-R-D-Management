@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
+import { GeminiAIChatbot } from '../components/GeminiAIChatbot';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const DashboardLayout: React.FC = () => {
@@ -27,6 +28,7 @@ export const DashboardLayout: React.FC = () => {
           </AnimatePresence>
         </main>
       </div>
+      <GeminiAIChatbot />
     </div>
   );
 };
