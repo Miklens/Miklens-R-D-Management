@@ -111,22 +111,19 @@ export const calcDurationMinutes = (startTime: string, endTime: string): number 
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DEFAULT SESSIONS
+// BLANK DEFAULT ROW
 // ─────────────────────────────────────────────────────────────────────────────
-const DEFAULT_SESSIONS: DailyActivityRow[] = [
-  {
-    id: 'row-1', category: 'lab', customCategory: '',
-    productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
-    startTime: '09:00', endTime: '12:00', durationMinutes: 180,
-    description: 'Ran fungal pathogen inhibition assays across 6 agar plates for BioShield Alpha. Evaluated colony growth radius.',
-  },
-  {
-    id: 'row-2', category: 'formulation', customCategory: '',
-    productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
-    startTime: '13:00', endTime: '15:30', durationMinutes: 150,
-    description: 'Measured emulsification stability after 54°C heat stress for BioShield Alpha. Recorded phase separation viscosity.',
-  },
-];
+const blankRow = (): DailyActivityRow => ({
+  id: `row-${Date.now()}`,
+  category: 'lab', customCategory: '',
+  productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+  startTime: '', endTime: '',
+  durationMinutes: 0,
+  description: '',
+});
+
+const DEFAULT_SESSIONS: DailyActivityRow[] = [blankRow()];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPONENT
@@ -217,8 +214,12 @@ export const ResearchLog: React.FC = () => {
   };
 
   const removeRow = (id: string) => {
-    if (activities.length <= 1) return;
-    setActivities(p => p.filter(a => a.id !== id));
+    if (activities.length <= 1) {
+      // Reset to a fresh blank row instead of blocking
+      setActivities([blankRow()]);
+    } else {
+      setActivities(p => p.filter(a => a.id !== id));
+    }
     setCollisionError(null);
   };
 
