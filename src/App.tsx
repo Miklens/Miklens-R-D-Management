@@ -31,6 +31,7 @@ import { StabilityTracker } from './pages/StabilityTracker';
 import { ProductPipeline } from './pages/ProductPipeline';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskProvider } from './contexts/TaskContext';
+import { ExperimentProvider } from './contexts/ExperimentContext';
 const queryClient = new QueryClient();
 
 function App() {
@@ -39,8 +40,9 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <TaskProvider>
-            <BrowserRouter>
-              <Routes>
+            <ExperimentProvider>
+              <BrowserRouter>
+                <Routes>
             {/* Public Routes */}
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<Login />} />
@@ -93,8 +95,9 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
-        </TaskProvider>
-      </AuthProvider>
+        </ExperimentProvider>
+      </TaskProvider>
+    </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
