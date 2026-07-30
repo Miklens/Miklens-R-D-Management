@@ -19,6 +19,7 @@ const mockData = [
 ];
 
 import { ScientistHub } from '../components/ScientistHub';
+import { ExecutiveControlTower } from '../components/ExecutiveControlTower';
 import { Plus, Workflow, Pipette, Beaker, MapPin, Sparkles, Clock, Edit3, CheckSquare, CheckCircle2, Circle } from 'lucide-react';
 import { useTasks } from '../contexts/TaskContext';
 
@@ -38,13 +39,22 @@ const StatCard = ({ title, value, change, link }: { title: string; value: string
   return link ? <Link to={link}>{content}</Link> : content;
 };
 
+import { useExperiments } from '../contexts/ExperimentContext';
+
+// Inside Dashboard component:
 export const Dashboard: React.FC = () => {
   const { profile, userRole } = useAuth();
   const { data: users } = useUsers();
   const { data: logs } = useDailyLogs();
   const { tasks, toggleTaskStatus } = useTasks();
+  const { experiments, labTests, stabilityLogs } = useExperiments();
 
   const isManagement = userRole === 'Admin' || userRole === 'Management';
+
+  // Scientific Verdict Stats for Management
+  const passedCount = experiments.filter((e) => e.outcomeStatus === 'Passed').length + labTests.filter((l) => l.outcomeStatus === 'Passed').length;
+  const pendingCount = experiments.filter((e) => e.outcomeStatus === 'Pending' || !e.outcomeStatus).length + labTests.filter((l) => l.outcomeStatus === 'Pending' || !l.outcomeStatus).length;
+  const activeExpCount = experiments.length;
 
   const scientistCount = useMemo(() => users.filter(u => u.role === 'Scientist' && u.isActive).length, [users]);
 
@@ -109,6 +119,9 @@ export const Dashboard: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* Executive Management Control Tower */}
+      <ExecutiveControlTower />
 
       {/* Main Scientist Hub Component */}
       <ScientistHub userId={profile?.id} />

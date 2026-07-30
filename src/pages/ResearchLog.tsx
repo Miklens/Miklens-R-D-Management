@@ -62,9 +62,12 @@ const DEFAULT_INITIAL_ACTIVITIES: DailyActivityRow[] = [
   },
 ];
 
+import { useExperiments } from '../contexts/ExperimentContext';
+
 export const ResearchLog: React.FC = () => {
   const { profile } = useAuth();
   const userId = profile?.id || 'sci-1';
+  const { experiments, addDailyRun } = useExperiments();
 
   const [logDate, setLogDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dayFocus, setDayFocus] = useState('');
@@ -226,6 +229,20 @@ export const ResearchLog: React.FC = () => {
           completionStatus: overallBlockers ? 'Blocked' : 'Completed',
           confidenceLevel: 85,
         });
+
+        // Auto-sync submitted daily log to active Experiment's Multi-Day Execution Traceability Timeline
+        if (experiments.length > 0) {
+          const targetExp = experiments[0];
+          const summaryText = activities.map(a => a.description).join('; ');
+          addDailyRun('exp', targetExp.id, {
+            dayNumber: (targetExp.dailyRuns?.length || 0) + 1,
+            date: logDate,
+            scientistName: profile?.name || 'Dr. Sarah Jenkins',
+            activityPerformed: summaryText,
+            observationResult: overallAchievements || 'Daily R&D activities completed as logged.',
+            runStatus: overallBlockers ? 'Needs Re-Run' : 'Passed',
+          });
+        }
       }
 
       setSubmitSuccess(true);
