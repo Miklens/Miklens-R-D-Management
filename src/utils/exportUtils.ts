@@ -6,36 +6,62 @@ import { format } from 'date-fns';
 // Types for export data
 export interface ExportData {
   title: string;
+  subtitle?: string;
+  dateRangeText?: string;
+  scopeText?: string;
   headers: string[];
   rows: (string | number | boolean | undefined)[][];
   sheetName?: string;
 }
 
-// Generate PDF from data
+// Generate Beautiful Executive PDF from data
 export const exportToPDF = (data: ExportData, filename?: string): void => {
   const doc = new jsPDF();
   
-  // Title
-  doc.setFontSize(18);
-  doc.setTextColor(40, 40, 40);
-  doc.text(data.title, 14, 22);
-  
-  // Date
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 30);
-  
-  // Table
-  let y = 40;
-  const margin = 14;
+  // Page setup
   const pageWidth = doc.internal.pageSize.width;
+  const margin = 14;
+
+  // Header Branding Banner (Miklens Emerald Header)
+  doc.setFillColor(5, 150, 105); // #059669 Emerald-600
+  doc.rect(0, 0, pageWidth, 28, 'F');
+
+  // Company Brand Title
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('MIKLENS R&D MANAGEMENT | EXECUTIVE REPORT', margin, 18);
+
+  // Document Title
+  let y = 38;
+  doc.setFontSize(14);
+  doc.setTextColor(30, 41, 59); // Slate-800
+  doc.text(data.title, margin, y);
+
+  // Subtitle / Scope
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139); // Slate-500
+  doc.text(`Generated: ${format(new Date(), 'PPpp')} • Scope: ${data.scopeText || 'All Scientists & Products'}`, margin, y);
+
+  if (data.dateRangeText) {
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(16, 185, 129); // Emerald-500
+    doc.text(`Reporting Period: ${data.dateRangeText}`, margin, y);
+  }
+
+  y += 10;
+  
+  // Table Setup
   const colWidth = (pageWidth - 2 * margin) / data.headers.length;
   
-  // Headers
-  doc.setFillColor(66, 66, 66);
+  // Table Header Row
+  doc.setFillColor(15, 23, 42); // Slate-900 Header
   doc.rect(margin, y - 5, pageWidth - 2 * margin, 8, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   
   data.headers.forEach((header, i) => {
@@ -44,39 +70,52 @@ export const exportToPDF = (data: ExportData, filename?: string): void => {
   
   y += 10;
   
-  // Rows
+  // Table Rows
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
+  doc.setTextColor(51, 65, 85);
   
   data.rows.forEach((row, rowIndex) => {
-    // Check if we need a new page
+    // Check for page overflow
     if (y > 270) {
       doc.addPage();
       y = 20;
+
+      // Re-draw header on new page
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin, y - 5, pageWidth - 2 * margin, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      data.headers.forEach((header, i) => {
+        doc.text(header, margin + i * colWidth + 2, y);
+      });
+      y += 10;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
     }
     
-    // Alternate row colors
+    // Alternating Row Fill
     if (rowIndex % 2 === 0) {
-      doc.setFillColor(248, 248, 248);
+      doc.setFillColor(241, 245, 249); // Slate-100
       doc.rect(margin, y - 4, pageWidth - 2 * margin, 7, 'F');
     }
     
     row.forEach((cell, colIndex) => {
       const cellValue = cell !== undefined ? String(cell) : '';
-      const truncated = cellValue.length > 30 ? cellValue.substring(0, 27) + '...' : cellValue;
+      const truncated = cellValue.length > 28 ? cellValue.substring(0, 25) + '...' : cellValue;
       doc.text(truncated, margin + colIndex * colWidth + 2, y);
     });
     
     y += 7;
   });
   
-  // Footer
+  // Page Numbers Footer
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, 290, { align: 'center' });
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Miklens Bio-Tech Executive Audit • Page ${i} of ${pageCount}`, pageWidth / 2, 290, { align: 'center' });
   }
   
   doc.save(filename || `${data.title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
@@ -183,61 +222,9 @@ export const formatDashboardStatsForExport = (stats: any, type: 'pdf' | 'excel')
   };
 };
 
-// Employee performance report
-export const formatEmployeeReportForExport = (employee: any, stats: any, entries: any[], type: 'pdf' | 'excel') => {
-  const sheets: ExportData[] = [
-    {
-      title: 'Employee Profile',
-      headers: ['Field', 'Value'],
-      rows: [
-        ['Name', employee.name || ''],
-        ['Designation', employee.designation || ''],
-        ['Department', employee.department || ''],
-        ['Email', employee.email || ''],
-        ['Skills', employee.skills?.join(', ') || '']
-      ],
-      sheetName: 'Profile'
-    },
-    {
-      title: 'Performance Summary',
-      headers: ['Metric', 'Value'],
-      rows: [
-        ['Total Hours', `${stats.totalHoursThisMonth?.toFixed(1) || 0}h`],
-        ['Active Projects', stats.activeProjectsCount?.toString() || '0'],
-        ['Experiments', stats.experimentsWorkedOn?.toString() || '0'],
-        ['Tasks Completed', stats.tasksCompleted?.toString() || '0'],
-        ['Field Days', stats.fieldDaysThisMonth?.toString() || '0'],
-        ['Lab Days', stats.labDaysThisMonth?.toString() || '0'],
-        ['Billable %', `${stats.billablePercentage || 0}%`]
-      ],
-      sheetName: 'Performance'
-    },
-    formatTimeEntriesForExport(entries, type)
-  ];
-  
-  return sheets;
-};
-
-// Project report
-export const formatProjectReportForExport = (project: any, entries: any[], type: 'pdf' | 'excel') => {
-  return {
-    title: `Project Report - ${project.name}`,
-    headers: ['Date', 'Scientist', 'Hours', 'Activity', 'Description', 'Status'],
-    rows: entries.map((entry: any) => [
-      entry.date,
-      entry.scientistName || '',
-      entry.durationMinutes ? `${(entry.durationMinutes / 60).toFixed(1)}h` : '0h',
-      entry.category || '',
-      entry.description || '',
-      entry.completionStatus?.replace('_', ' ') || ''
-    ]),
-    sheetName: project.name.substring(0, 30)
-  };
-};
-
 // Quick export wrapper
-export const quickExport = (data: ExportData, format: 'pdf' | 'excel', customFilename?: string) => {
-  if (format === 'pdf') {
+export const quickExport = (data: ExportData, formatType: 'pdf' | 'excel', customFilename?: string) => {
+  if (formatType === 'pdf') {
     exportToPDF(data, customFilename);
   } else {
     exportToExcel(data, customFilename);
