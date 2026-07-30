@@ -24,8 +24,8 @@ interface DailyActivityRow {
   productId: string;
   productName: string;
   isCustomProduct?: boolean;
-  startTime: string; // HH:mm
-  endTime: string;   // HH:mm
+  startTime: string; // HH:mm (24-hour format)
+  endTime: string;   // HH:mm (24-hour format)
   durationMinutes: number;
   description: string;
 }
@@ -46,15 +46,29 @@ const PRODUCTS_LIST = [
   { id: 'custom', name: '+ Add New / Custom Product...' },
 ];
 
-// Calculate duration in minutes from HH:mm start and end times
+// Helper to format 24h "13:00" to 12h "01:00 PM"
+export const formatTime12h = (time24?: string): string => {
+  if (!time24) return '';
+  const [hStr, mStr] = time24.split(':');
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr || '0', 10);
+  if (isNaN(h)) return time24;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${ampm}`;
+};
+
+// Calculate duration in minutes strictly enforcing End Time > Start Time
 export const calcDurationMinutes = (startTime: string, endTime: string): number => {
-  if (!startTime || !endTime) return 60;
+  if (!startTime || !endTime) return 0;
   const [sh, sm] = startTime.split(':').map(Number);
   const [eh, em] = endTime.split(':').map(Number);
-  let startMins = sh * 60 + sm;
-  let endMins = eh * 60 + em;
-  if (endMins <= startMins) endMins += 24 * 60; // overnight handling
-  return Math.max(15, endMins - startMins);
+  const startMins = sh * 60 + sm;
+  const endMins = eh * 60 + em;
+
+  if (endMins <= startMins) return 0; // End time must be after start time
+  return endMins - startMins;
 };
 
 const DEFAULT_INITIAL_ACTIVITIES: DailyActivityRow[] = [
@@ -123,9 +137,20 @@ export const ResearchLog: React.FC = () => {
 
   const totalHoursLogged = (totalMinutesLogged / 60).toFixed(1);
 
-  // Time slot collision checker to prevent duplicate/overlapping entries
+  // Time slot collision checker enforcing End Time > Start Time and no overlapping
   const validateTimeSlots = (): string | null => {
-    // 1. Check for internal overlap within current activity rows
+    // 1. Check for invalid end times (End <= Start)
+    for (let i = 0; i < activities.length; i++) {
+      const act = activities[i];
+      const sMins = act.startTime.split(':').map(Number)[0] * 60 + act.startTime.split(':').map(Number)[1];
+      const eMins = act.endTime.split(':').map(Number)[0] * 60 + act.endTime.split(':').map(Number)[1];
+
+      if (eMins <= sMins) {
+        return `Session #${i + 1} has an invalid time range (${formatTime12h(act.startTime)} to ${formatTime12h(act.endTime)}). End time must be strictly after Start time.`;
+      }
+    }
+
+    // 2. Check for internal overlap within current activity rows
     for (let i = 0; i < activities.length; i++) {
       for (let j = i + 1; j < activities.length; j++) {
         const a1 = activities[i];
@@ -136,13 +161,14 @@ export const ResearchLog: React.FC = () => {
         const s2 = a2.startTime.split(':').map(Number)[0] * 60 + a2.startTime.split(':').map(Number)[1];
         const e2 = a2.endTime.split(':').map(Number)[0] * 60 + a2.endTime.split(':').map(Number)[1];
 
+        // Interval collision check
         if (s1 < e2 && e1 > s2) {
-          return `Time slot collision between Activity #${i + 1} (${a1.startTime}-${a1.endTime}) and Activity #${j + 1} (${a2.startTime}-${a2.endTime}). Please adjust your session times.`;
+          return `Time slot overlap between Session #${i + 1} (${formatTime12h(a1.startTime)} - ${formatTime12h(a1.endTime)}) and Session #${j + 1} (${formatTime12h(a2.startTime)} - ${formatTime12h(a2.endTime)}). Please adjust your session times.`;
         }
       }
     }
 
-    // 2. Check for overlap with previously submitted logs on logDate
+    // 3. Check for overlap with previously submitted logs on logDate
     for (const act of activities) {
       const s1 = act.startTime.split(':').map(Number)[0] * 60 + act.startTime.split(':').map(Number)[1];
       const e1 = act.endTime.split(':').map(Number)[0] * 60 + act.endTime.split(':').map(Number)[1];
@@ -153,7 +179,7 @@ export const ResearchLog: React.FC = () => {
           const e2 = savedLog.endTime.split(':').map(Number)[0] * 60 + savedLog.endTime.split(':').map(Number)[1];
 
           if (s1 < e2 && e1 > s2) {
-            return `Time slot ${act.startTime} - ${act.endTime} overlaps with an already submitted log (${savedLog.startTime} - ${savedLog.endTime}) for ${logDate}. Duplicate entries are not allowed.`;
+            return `Time slot ${formatTime12h(act.startTime)} - ${formatTime12h(act.endTime)} overlaps with an already submitted log (${formatTime12h(savedLog.startTime)} - ${formatTime12h(savedLog.endTime)}) for ${logDate}. Duplicate time entries are not allowed.`;
           }
         }
       }
@@ -165,7 +191,7 @@ export const ResearchLog: React.FC = () => {
   // Add new activity row
   const handleAddActivityRow = () => {
     // Pick next logical start time (end time of last row)
-    const lastEnd = activities.length > 0 ? activities[activities.length - 1].endTime : '14:00';
+    const lastEnd = activities.length > 0 ? activities[activities.length - 1].endTime : '13:00';
     const [h, m] = lastEnd.split(':').map(Number);
     const endH = (h + 2) % 24;
     const nextStart = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -214,7 +240,7 @@ export const ResearchLog: React.FC = () => {
     e.preventDefault();
     if (activities.length === 0) return;
 
-    // Validate time collision
+    // Validate time collision and End > Start
     const errorMsg = validateTimeSlots();
     if (errorMsg) {
       setCollisionError(errorMsg);
@@ -235,7 +261,7 @@ export const ResearchLog: React.FC = () => {
         timeSpentMinutes: act.durationMinutes,
         startTime: act.startTime,
         endTime: act.endTime,
-        objective: dayFocus.trim() || `R&D Session (${act.startTime} - ${act.endTime})`,
+        objective: dayFocus.trim() || `R&D Session (${formatTime12h(act.startTime)} - ${formatTime12h(act.endTime)})`,
         activities: `[${finalCategory.toUpperCase()}] ${finalProduct}: ${act.description.trim()}`,
         completionStatus: 'Completed',
         confidenceLevel: 90,
@@ -258,7 +284,7 @@ export const ResearchLog: React.FC = () => {
             dayNumber: runNumber,
             date: logDate,
             scientistName: profile?.name || 'Dr. Sarah Jenkins',
-            activityPerformed: `[${act.startTime} - ${act.endTime}] ${act.description.trim()}`,
+            activityPerformed: `[${formatTime12h(act.startTime)} - ${formatTime12h(act.endTime)}] ${act.description.trim()}`,
             observationResult: 'Target met, physical specs verified',
             runStatus: 'Passed',
           });
@@ -356,103 +382,109 @@ export const ResearchLog: React.FC = () => {
                 </button>
               </div>
 
-              {activities.map((act, index) => (
-                <div key={act.id} className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-gray-500">
-                    <span>Session #{index + 1}</span>
-                    {activities.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveActivityRow(act.id)}
-                        className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Remove
-                      </button>
-                    )}
-                  </div>
+              {activities.map((act, index) => {
+                const isValidDuration = act.durationMinutes > 0;
 
-                  {/* Start Time, End Time & Product Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    {/* Start Time */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 block mb-1">Start Time</label>
-                      <input
-                        type="time"
-                        value={act.startTime}
-                        onChange={(e) => handleUpdateActivityRow(act.id, { startTime: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                return (
+                  <div key={act.id} className="p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-gray-500">
+                      <span>Session #{index + 1}</span>
+                      {activities.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveActivityRow(act.id)}
+                          className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Start Time, End Time & Product Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      {/* Start Time */}
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1">Start Time</label>
+                        <input
+                          type="time"
+                          value={act.startTime}
+                          onChange={(e) => handleUpdateActivityRow(act.id, { startTime: e.target.value })}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                        />
+                      </div>
+
+                      {/* End Time */}
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1">End Time</label>
+                        <input
+                          type="time"
+                          value={act.endTime}
+                          onChange={(e) => handleUpdateActivityRow(act.id, { endTime: e.target.value })}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
+                        />
+                      </div>
+
+                      {/* Work Category */}
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1">Work Type</label>
+                        <select
+                          value={act.category}
+                          onChange={(e) => handleUpdateActivityRow(act.id, { category: e.target.value })}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold"
+                        >
+                          {CATEGORY_OPTIONS.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Target Product */}
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-500 block mb-1">Product / Trial</label>
+                        <select
+                          value={act.productId}
+                          onChange={(e) => {
+                            const p = PRODUCTS_LIST.find((item) => item.id === e.target.value);
+                            handleUpdateActivityRow(act.id, {
+                              productId: e.target.value,
+                              productName: p ? p.name : 'BioShield Alpha (Bio-fungicide)',
+                            });
+                          }}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold"
+                        >
+                          {PRODUCTS_LIST.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Calculated Duration & Description */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-semibold text-gray-500">Session Activity Description</label>
+                        <span className={`text-[11px] font-bold ${isValidDuration ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                          {isValidDuration
+                            ? `Duration: ${(act.durationMinutes / 60).toFixed(1)} Hours (${act.durationMinutes} mins)`
+                            : 'Invalid Range (End Time must be after Start Time)'}
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={2}
+                        placeholder="Describe work performed, physical measurements (pH, viscosity), agar growth..."
+                        value={act.description}
+                        onChange={(e) => handleUpdateActivityRow(act.id, { description: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500/30"
                       />
                     </div>
-
-                    {/* End Time */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 block mb-1">End Time</label>
-                      <input
-                        type="time"
-                        value={act.endTime}
-                        onChange={(e) => handleUpdateActivityRow(act.id, { endTime: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold"
-                      />
-                    </div>
-
-                    {/* Work Category */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 block mb-1">Work Type</label>
-                      <select
-                        value={act.category}
-                        onChange={(e) => handleUpdateActivityRow(act.id, { category: e.target.value })}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold"
-                      >
-                        {CATEGORY_OPTIONS.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Target Product */}
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 block mb-1">Product / Trial</label>
-                      <select
-                        value={act.productId}
-                        onChange={(e) => {
-                          const p = PRODUCTS_LIST.find((item) => item.id === e.target.value);
-                          handleUpdateActivityRow(act.id, {
-                            productId: e.target.value,
-                            productName: p ? p.name : 'BioShield Alpha (Bio-fungicide)',
-                          });
-                        }}
-                        className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold"
-                      >
-                        {PRODUCTS_LIST.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                   </div>
-
-                  {/* Calculated Duration & Description */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-semibold text-gray-500">Session Activity Description</label>
-                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                        Duration: {(act.durationMinutes / 60).toFixed(1)} Hours ({act.durationMinutes} mins)
-                      </span>
-                    </div>
-
-                    <textarea
-                      rows={2}
-                      placeholder="Describe work performed, physical measurements (pH, viscosity), agar growth..."
-                      value={act.description}
-                      onChange={(e) => handleUpdateActivityRow(act.id, { description: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500/30"
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Submit Button */}
@@ -467,7 +499,7 @@ export const ResearchLog: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={isSubmitting || activities.some((a) => !a.description.trim())}
+                disabled={isSubmitting || activities.some((a) => !a.description.trim() || a.durationMinutes <= 0)}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl text-xs font-black shadow-lg hover:from-emerald-600 hover:to-teal-700 disabled:opacity-40 transition-all"
               >
                 <Save className="w-4 h-4" /> Save Daily Session Logs
@@ -499,8 +531,8 @@ export const ResearchLog: React.FC = () => {
                 {logsOnSelectedDate.map((log) => (
                   <div key={log.id} className="p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/40 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                        {log.startTime && log.endTime ? `${log.startTime} - ${log.endTime}` : `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`}
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 font-mono">
+                        {log.startTime && log.endTime ? `${formatTime12h(log.startTime)} - ${formatTime12h(log.endTime)}` : `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`}
                       </span>
                       <button
                         onClick={() => deleteLog(log.id)}
