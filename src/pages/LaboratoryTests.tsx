@@ -3,10 +3,8 @@ import { TestTube2, Plus, X, Search, Microscope, CheckCircle2, Clock, AlertTrian
 import { motion, AnimatePresence } from 'framer-motion';
 
 const mockTests = [
-  { id: 1, name: 'Efficacy Analysis - Batch 12', type: 'Efficacy', status: 'InProgress', progress: 60, lab: 'Main Lab', dueDate: '2024-03-20' },
-  { id: 2, name: 'Microbial Count Test', type: 'Quality', status: 'Completed', progress: 100, lab: 'Micro Lab', dueDate: '2024-03-15' },
-  { id: 3, name: 'Stability Testing - Formulation A', type: 'Stability', status: 'Queued', progress: 0, lab: 'Main Lab', dueDate: '2024-04-01' },
-  { id: 4, name: 'Pesticide Residue Analysis', type: 'Safety', status: 'Blocked', progress: 25, lab: 'External', dueDate: '2024-03-10' },
+  { id: 1, name: 'BioShield Alpha - Fungal Spore Efficacy Check', product: 'BioShield Alpha', type: 'Efficacy', status: 'InProgress', progress: 85, lab: 'Main Microbiology Lab', dueDate: '2026-08-05' },
+  { id: 2, name: 'BioShield Alpha - Microbial Colony Count Assay', product: 'BioShield Alpha', type: 'Quality', status: 'Completed', progress: 100, lab: 'Microbiology Lab', dueDate: '2026-07-28' },
 ];
 
 export const LaboratoryTests: React.FC = () => {
@@ -30,6 +28,7 @@ export const LaboratoryTests: React.FC = () => {
     const newTest = {
       id: Date.now(),
       name: nameInput.trim(),
+      product: 'BioShield Alpha',
       type: typeInput,
       status: 'InProgress',
       progress: 10,

@@ -3,10 +3,8 @@ import { Eye, Plus, X, Search, FileText, Calendar, MapPin, AlertCircle } from 'l
 import { motion, AnimatePresence } from 'framer-motion';
 
 const mockObservations = [
-  { id: 1, title: 'Unusual leaf discoloration in Trial A', type: 'Visual', location: 'Field Plot 3', date: '2024-03-15', severity: 'Medium', status: 'Open' },
-  { id: 2, title: 'Increased microbial growth in Sample B', type: 'Measurement', location: 'Lab - Main', date: '2024-03-14', severity: 'Low', status: 'Resolved' },
-  { id: 3, title: 'Weather pattern affecting trial outcomes', type: 'Environmental', location: 'Field Trial Site', date: '2024-03-13', severity: 'High', status: 'Open' },
-  { id: 4, title: 'Equipment calibration needed', type: 'Equipment', location: 'Quality Lab', date: '2024-03-12', severity: 'Medium', status: 'Open' },
+  { id: 1, title: 'BioShield Alpha - High fungal inhibition observed in Trial Plot A', product: 'BioShield Alpha', type: 'Measurement', location: 'Field Plot 3', date: '2026-07-28', severity: 'Low', status: 'Resolved' },
+  { id: 2, title: 'BioShield Alpha - Emulsification viscosity stable after 54°C heat stress', product: 'BioShield Alpha', type: 'Measurement', location: 'Main Lab', date: '2026-07-25', severity: 'Low', status: 'Resolved' },
 ];
 
 export const Observations: React.FC = () => {
@@ -31,6 +29,7 @@ export const Observations: React.FC = () => {
     const newObs = {
       id: Date.now(),
       title: titleInput.trim(),
+      product: 'BioShield Alpha',
       type: typeInput,
       location: locationInput.trim() || 'Field Plot 1',
       date: new Date().toISOString().split('T')[0],

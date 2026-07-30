@@ -19,21 +19,21 @@ interface StabilityBatch {
 const INITIAL_BATCHES: StabilityBatch[] = [
   {
     id: '1',
-    batchNo: 'B-PS-2026-07A',
-    productName: 'Pseudomonas SC Bio-Pesticide',
+    batchNo: 'B-BSA-2026-07A',
+    productName: 'BioShield Alpha (Bio-fungicide)',
     chamberTemp: '54°C (Accelerated)',
-    startDate: '2026-07-05',
+    startDate: '2026-07-15',
     duration: '14 Days',
-    nextTestDate: '2026-07-19', // Today!
+    nextTestDate: '2026-07-29',
     nextInterval: 'Complete',
-    status: 'overdue',
-    activeRetention: 91.5,
-    pH: 6.1
+    status: 'active',
+    activeRetention: 95.8,
+    pH: 6.5
   },
   {
     id: '2',
-    batchNo: 'B-BT-2026-05F',
-    productName: 'Bacillus thuringiensis WP',
+    batchNo: 'B-BSA-2026-05F',
+    productName: 'BioShield Alpha (Bio-fungicide)',
     chamberTemp: '25°C (Ambient)',
     startDate: '2026-05-10',
     duration: '24 Months',
@@ -41,33 +41,7 @@ const INITIAL_BATCHES: StabilityBatch[] = [
     nextInterval: '3 Month',
     status: 'active',
     activeRetention: 98.2,
-    pH: 7.2
-  },
-  {
-    id: '3',
-    batchNo: 'B-TC-2026-06C',
-    productName: 'Trichoderma harzianum granules',
-    chamberTemp: '25°C (Ambient)',
-    startDate: '2026-06-15',
-    duration: '24 Months',
-    nextTestDate: '2026-07-15', // Overdue
-    nextInterval: '3 Month',
-    status: 'overdue',
-    activeRetention: 84.0,
-    pH: 5.4
-  },
-  {
-    id: '4',
-    batchNo: 'B-NE-2026-07K',
-    productName: 'Neem Oil Concentrated Emulsion',
-    chamberTemp: '0°C (Cold)',
-    startDate: '2026-07-16',
-    duration: '7 Days',
-    nextTestDate: '2026-07-23',
-    nextInterval: 'Complete',
-    status: 'active',
-    activeRetention: 99.8,
-    pH: 6.5
+    pH: 6.6
   }
 ];
 

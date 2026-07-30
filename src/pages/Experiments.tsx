@@ -7,10 +7,9 @@ import { FieldTrials } from './FieldTrials';
 import { Observations } from './Observations';
 
 const mockExperiments = [
-  { id: 1, name: 'Lab Testing Phase 1', product: 'BioShield Alpha', type: 'Lab', status: 'InProgress', progress: 65, startDate: '2024-01-15' },
-  { id: 2, name: 'Field Trial Batch A', product: 'NemaKill Pro', type: 'Field', status: 'Completed', progress: 100, startDate: '2024-02-01' },
-  { id: 3, name: 'Validation Studies', product: 'RootBoost X', type: 'Both', status: 'Blocked', progress: 30, startDate: '2024-03-10' },
-  { id: 4, name: 'Efficacy Testing', product: 'AeroSpore V2', type: 'Lab', status: 'InProgress', progress: 80, startDate: '2024-01-20' },
+  { id: 1, name: 'BioShield Efficacy Assay #101', product: 'BioShield Alpha (Bio-fungicide)', type: 'Lab', status: 'InProgress', progress: 85, startDate: '2026-07-15' },
+  { id: 2, name: 'BioShield 54°C Heat Stability Check', product: 'BioShield Alpha (Bio-fungicide)', type: 'Lab', status: 'InProgress', progress: 60, startDate: '2026-07-20' },
+  { id: 3, name: 'BioShield Wheat Field Plot Trial', product: 'BioShield Alpha (Bio-fungicide)', type: 'Field', status: 'Completed', progress: 100, startDate: '2026-06-01' },
 ];
 
 export const Experiments: React.FC = () => {

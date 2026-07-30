@@ -3,9 +3,7 @@ import { MapPin, Plus, X, Search, Calendar, CheckCircle2, Clock, Users } from 'l
 import { motion, AnimatePresence } from 'framer-motion';
 
 const mockTrials = [
-  { id: 1, name: 'Field Trial Batch A - Wheat', location: 'Punjab, India', area: '50 acres', status: 'Active', startDate: '2024-02-01', duration: '90 days' },
-  { id: 2, name: 'Field Trial Batch B - Rice', location: 'Maharashtra, India', area: '30 acres', status: 'Completed', startDate: '2024-01-15', duration: '60 days' },
-  { id: 3, name: 'Demonstration Plot - Cotton', location: 'Gujarat, India', area: '25 acres', status: 'Planned', startDate: '2024-04-01', duration: '45 days' },
+  { id: 1, name: 'BioShield Alpha Wheat Field Efficacy Trial', product: 'BioShield Alpha', location: 'Punjab, India', area: '50 acres', status: 'Active', startDate: '2026-06-01', duration: '90 days' },
 ];
 
 export const FieldTrials: React.FC = () => {
@@ -29,6 +27,7 @@ export const FieldTrials: React.FC = () => {
     const newTrial = {
       id: Date.now(),
       name: nameInput.trim(),
+      product: 'BioShield Alpha',
       location: locationInput.trim() || 'Punjab, India',
       area: areaInput || '30 acres',
       status: 'Active',
