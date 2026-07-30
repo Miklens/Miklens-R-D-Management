@@ -97,6 +97,14 @@ export const Dashboard: React.FC = () => {
         {/* 1-CLICK QUICK ACTION BUTTONS */}
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Link
+            to="/trial-sync"
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-xs font-extrabold shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all active:scale-95"
+          >
+            <MapPin className="w-4 h-4 text-purple-200" />
+            ⚡ Trial Manager Sync
+          </Link>
+
+          <Link
             to="/research-log"
             className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl text-xs font-extrabold shadow-lg hover:from-emerald-600 hover:to-teal-600 transition-all active:scale-95"
           >
@@ -106,10 +114,10 @@ export const Dashboard: React.FC = () => {
 
           <button
             onClick={handleQuickDownloadPDF}
-            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-xs font-extrabold shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-2xl text-xs font-bold border border-gray-700 transition-all active:scale-95"
           >
-            <Download className="w-4 h-4 text-purple-200" />
-            Download Executive PDF
+            <Download className="w-4 h-4 text-gray-400" />
+            PDF Report
           </button>
         </div>
       </div>

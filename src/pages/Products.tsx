@@ -130,20 +130,20 @@ export const Products: React.FC = () => {
               <span>{product.lastUpdate}</span>
             </div>
 
-            {/* Link to testing operations & Linked Tasks */}
+            {/* Link to testing operations, linked tasks & Trial Sync */}
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+                <Link 
+                  to="/trial-sync"
+                  className="font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-1 rounded-lg border border-purple-200 dark:border-purple-800"
+                >
+                  ⚡ Synced Field Trials →
+                </Link>
                 <Link 
                   to="/experiments"
                   className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                 >
-                  View Testing & Stability →
-                </Link>
-                <Link 
-                  to="/tasks"
-                  className="font-medium text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1"
-                >
-                  Linked Tasks →
+                  View Testing →
                 </Link>
               </div>
             </div>
