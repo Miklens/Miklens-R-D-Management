@@ -71,6 +71,8 @@ export const exportToPDF = (data: ExportData, filename?: string): void => {
 
   if (numCols === 6) {
     colWidths = [32, 45, 55, 25, 88, 28];
+  } else if (numCols === 5) {
+    colWidths = [52, 48, 42, 88, 43];
   } else {
     const avg = contentWidth / numCols;
     colWidths = Array(numCols).fill(avg);
