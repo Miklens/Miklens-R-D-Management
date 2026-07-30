@@ -236,19 +236,38 @@ export const getLogsByUser = (userId: string): DailyLog[] =>
     .filter(l => l.userId === userId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-export const addLog = (log: Omit<DailyLog, 'id' | 'createdAt' | 'date'>): DailyLog => {
+export const addLog = (log: Omit<DailyLog, 'id' | 'createdAt' | 'date'> & { date?: string }): DailyLog => {
   const logs = getLogs();
   const now = new Date().toISOString();
   const newLog: DailyLog = {
     ...log,
     id: `log-${Date.now()}`,
-    date: now,
+    date: log.date || now,
     createdAt: now,
   };
   logs.push(newLog);
   writeJson(LOGS_KEY, logs);
   notifyStoreChange();
   return newLog;
+};
+
+export const updateLog = (id: string, updates: Partial<DailyLog>): DailyLog | null => {
+  const logs = getLogs();
+  const idx = logs.findIndex(l => l.id === id);
+  if (idx >= 0) {
+    logs[idx] = { ...logs[idx], ...updates };
+    writeJson(LOGS_KEY, logs);
+    notifyStoreChange();
+    return logs[idx];
+  }
+  return null;
+};
+
+export const deleteLog = (id: string): void => {
+  const logs = getLogs();
+  const filtered = logs.filter(l => l.id !== id);
+  writeJson(LOGS_KEY, filtered);
+  notifyStoreChange();
 };
 
 // Simple event so multiple hook instances in the same tab can react to writes
