@@ -1,6 +1,6 @@
 import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
 import Dexie from 'dexie';
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, limit, query } from 'firebase/firestore';
 
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
@@ -29,6 +29,16 @@ export const saveFirebaseConfig = (config: FirebaseConnectionConfig): void => {
   localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
 };
 
+// Target collections in Miklens Trial Manager 7
+const TARGET_COLLECTIONS = [
+  'trials',
+  'trials-herbicide',
+  'trials-fungicide',
+  'trials-pesticide',
+  'trials-nutrition',
+  'trials-biostimulant'
+];
+
 // ── 1. Read directly from Cloud Firebase Firestore (Cross-Device) ──
 export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionConfig): Promise<ExternalFieldTrial[]> => {
   try {
@@ -42,20 +52,33 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
     }
 
     const firestore = getFirestore(app);
-    console.log('[TrialManagerSync] Querying Firebase Cloud collection "trials"...');
+    console.log('[TrialManagerSync] Querying Firebase Cloud collections...');
 
-    // Query trials collection
-    const trialsRef = collection(firestore, 'trials');
-    const snapshot = await getDocs(query(trialsRef, limit(100)));
+    let allCloudDocs: { id: string; data: any }[] = [];
 
-    if (snapshot.empty) {
-      console.log('[TrialManagerSync] No trials found in cloud collection.');
+    // Query across category-isolated collections
+    for (const colName of TARGET_COLLECTIONS) {
+      try {
+        const trialsRef = collection(firestore, colName);
+        const snapshot = await getDocs(query(trialsRef, limit(100)));
+        if (!snapshot.empty) {
+          snapshot.docs.forEach(doc => {
+            allCloudDocs.push({ id: doc.id, data: doc.data() });
+          });
+        }
+      } catch (colErr) {
+        // Silently skip collections that don't exist or require auth
+      }
+    }
+
+    if (allCloudDocs.length === 0) {
+      console.log('[TrialManagerSync] No cloud trials retrieved.');
       return [];
     }
 
-    const cloudTrials: ExternalFieldTrial[] = snapshot.docs.map(snap => {
-      const data = snap.data();
-      const id = snap.id;
+    const cloudTrials: ExternalFieldTrial[] = allCloudDocs.map(item => {
+      const data = item.data;
+      const id = item.id;
 
       // Parse ratings/observations
       let ratings: any[] = [];
