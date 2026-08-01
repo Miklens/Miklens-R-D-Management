@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, RefreshCw, Database, CheckCircle2, ShieldCheck, Key, Settings as SettingsIcon, AlertCircle } from 'lucide-react';
+import { MapPin, Search, RefreshCw, Database, CheckCircle2, ShieldCheck, Key, AlertCircle, Lock, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FieldTrialCard } from '../components/FieldTrialCard';
 import {
@@ -24,6 +24,8 @@ export const FieldTrials: React.FC = () => {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [projectIdInput, setProjectIdInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,6 +38,9 @@ export const FieldTrials: React.FC = () => {
     if (savedConfig) {
       setApiKeyInput(savedConfig.apiKey);
       setProjectIdInput(savedConfig.projectId);
+      setEmailInput(savedConfig.email || '');
+      setPasswordInput(savedConfig.password || '');
+
       // Auto-fetch from Cloud Firebase on mount if configured
       fetchTrialsFromFirebaseCloud(savedConfig).then(cloudTrials => {
         if (cloudTrials && cloudTrials.length > 0) {
@@ -76,7 +81,8 @@ export const FieldTrials: React.FC = () => {
             return;
           }
         } catch (err: any) {
-          console.warn('Cloud fetch failed, falling back to local DB scan:', err);
+          console.warn('Cloud fetch failed:', err);
+          setSyncNotice(`⚠️ Firebase Cloud fetch failed: ${err?.message || 'Check Email & Password'}`);
         }
       }
 
@@ -90,9 +96,9 @@ export const FieldTrials: React.FC = () => {
         const current = getSyncedTrials();
         setSyncedTrials(current);
         if (!savedConfig) {
-          setSyncNotice(`ℹ️ Running on demo/cached data. Click 'Configure Firebase Key' to sync across different devices.`);
+          setSyncNotice(`ℹ️ Click 'Connect Firebase Credentials' to enter your login email & password to fetch cloud trials.`);
         } else {
-          setSyncNotice(`⚡ Connected to cloud project "${savedConfig.projectId}". 0 unsynced trials found.`);
+          setSyncNotice(`⚡ Connected to project "${savedConfig.projectId}". Ensure Trial Manager user credentials are correct.`);
         }
       }
     } catch (err: any) {
@@ -112,6 +118,8 @@ export const FieldTrials: React.FC = () => {
     const newConfig: FirebaseConnectionConfig = {
       apiKey: apiKeyInput.trim(),
       projectId: projectIdInput.trim(),
+      email: emailInput.trim(),
+      password: passwordInput.trim(),
     };
 
     saveFirebaseConfig(newConfig);
@@ -142,7 +150,7 @@ export const FieldTrials: React.FC = () => {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-emerald-950 font-mono shadow-sm">
-              Cross-Device Cloud Sync
+              Authenticated Cloud Sync Active
             </span>
             <span className="text-xs text-purple-200 font-semibold flex items-center gap-1">
               <Database className="w-3.5 h-3.5 text-purple-400" /> Miklens Herbicide Trial Manager 7
@@ -152,7 +160,7 @@ export const FieldTrials: React.FC = () => {
             Field Trial Manager & Google Drive Cross-Device Sync
           </h2>
           <p className="text-xs text-purple-200/80 leading-relaxed max-w-2xl">
-            Real-time cloud & device synchronization for field trials, plot treatments, efficacy ratings & Google Drive photos. Connect different laptops & mobile phones instantly.
+            Authenticated real-time cloud sync for field trials, plot treatments, efficacy ratings & Google Drive photos. Connect different laptops & mobile phones securely.
           </p>
         </div>
 
@@ -162,7 +170,7 @@ export const FieldTrials: React.FC = () => {
             className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-900/80 hover:bg-purple-800 text-purple-200 rounded-2xl text-xs font-bold border border-purple-700/60 transition-all"
           >
             <Key className="w-4 h-4 text-purple-300" />
-            {getSavedFirebaseConfig() ? '⚙️ Firebase Connected' : '🔑 Connect Firebase (Cross-Device)'}
+            {getSavedFirebaseConfig()?.email ? `🔐 Logged in as ${getSavedFirebaseConfig()?.email?.split('@')[0]}` : '🔑 Connect Firebase Credentials'}
           </button>
 
           <button
@@ -171,7 +179,7 @@ export const FieldTrials: React.FC = () => {
             className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-emerald-950 rounded-2xl text-xs font-black shadow-lg transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Syncing Cloud...' : 'Sync Live Data'}
+            {isSyncing ? 'Authenticating Cloud...' : 'Sync Live Data'}
           </button>
         </div>
       </div>
@@ -230,7 +238,7 @@ export const FieldTrials: React.FC = () => {
             <Database className="w-12 h-12 text-purple-400 mx-auto" />
             <h3 className="text-base font-bold text-gray-900 dark:text-white">No Trials Matched</h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto">
-              Click 'Sync Live Data' or configure Firebase Cloud credentials to pull real-time trials across devices.
+              Click 'Sync Live Data' or configure your Trial Manager Email & Password to pull real-time trials across devices.
             </p>
           </div>
         ) : (
@@ -240,7 +248,7 @@ export const FieldTrials: React.FC = () => {
         )}
       </div>
 
-      {/* Firebase Key Connection Modal */}
+      {/* Firebase Key & Login Connection Modal */}
       <AnimatePresence>
         {showConfigModal && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowConfigModal(false)}>
@@ -254,13 +262,13 @@ export const FieldTrials: React.FC = () => {
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Key className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  <h3 className="text-base font-black text-gray-900 dark:text-white">Connect Firebase Project (Cross-Device)</h3>
+                  <h3 className="text-base font-black text-gray-900 dark:text-white">Connect Firebase & Trial Manager Credentials</h3>
                 </div>
                 <button onClick={() => setShowConfigModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xs">✕</button>
               </div>
 
               <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                Enter the Firebase Project details used by <strong>Miklens Trial Manager 7</strong>. This enables live cross-device streaming between scientist mobile phones and management laptops.
+                Enter your <strong>Trial Manager account login (Email & Password)</strong>. Your Security Rules require login authentication (<code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-purple-600">request.auth != null</code>) to view cloud trial data across devices.
               </p>
 
               <form onSubmit={handleSaveFirebaseConfig} className="space-y-4">
@@ -271,26 +279,61 @@ export const FieldTrials: React.FC = () => {
                   </div>
                 )}
 
-                <div>
-                  <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Firebase Project ID</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. miklens-herbicide-trial-manager-7"
-                    value={projectIdInput}
-                    onChange={e => setProjectIdInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-purple-500/30"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Firebase Project ID</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. miklens-herbicide-trial-manager-7"
+                      value={projectIdInput}
+                      onChange={e => setProjectIdInput(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-purple-500/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Firebase Web API Key</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. AIzaSyD..."
+                      value={apiKeyInput}
+                      onChange={e => setApiKeyInput(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-purple-500/30 font-mono text-[11px]"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Firebase Web API Key</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. AIzaSyD..."
-                    value={apiKeyInput}
-                    onChange={e => setApiKeyInput(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-purple-500/30 font-mono"
-                  />
+                <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/50 space-y-3">
+                  <span className="text-[11px] font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" /> Trial Manager Account Login (Required by Security Rules)
+                  </span>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Trial Manager Email</label>
+                    <div className="relative">
+                      <Mail className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        placeholder="e.g. pavan@miklens.com"
+                        value={emailInput}
+                        onChange={e => setEmailInput(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-medium outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Trial Manager Password</label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        placeholder="Your Trial Manager account password"
+                        value={passwordInput}
+                        onChange={e => setPasswordInput(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-medium outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-2 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
@@ -305,7 +348,7 @@ export const FieldTrials: React.FC = () => {
                     type="submit"
                     className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-black shadow-lg hover:from-purple-700 hover:to-indigo-700"
                   >
-                    Save & Connect Cloud Sync
+                    Authenticate & Connect Live Cloud
                   </button>
                 </div>
               </form>

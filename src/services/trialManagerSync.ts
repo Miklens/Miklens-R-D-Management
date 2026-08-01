@@ -2,6 +2,7 @@ import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
 import Dexie from 'dexie';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, limit, query } from 'firebase/firestore';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
 const FIREBASE_CONFIG_KEY = 'miklens_rnd_firebase_config_v1';
@@ -13,6 +14,8 @@ export interface FirebaseConnectionConfig {
   storageBucket?: string;
   messagingSenderId?: string;
   appId?: string;
+  email?: string;
+  password?: string;
 }
 
 export const getSavedFirebaseConfig = (): FirebaseConnectionConfig | null => {
@@ -29,17 +32,17 @@ export const saveFirebaseConfig = (config: FirebaseConnectionConfig): void => {
   localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
 };
 
-// Target collections in Miklens Trial Manager 7
+// Target collection names exact to user's Firestore Security Rules:
 const TARGET_COLLECTIONS = [
   'trials',
-  'trials-herbicide',
-  'trials-fungicide',
-  'trials-pesticide',
-  'trials-nutrition',
-  'trials-biostimulant'
+  'herbicide_trials',
+  'fungicide_trials',
+  'pesticide_trials',
+  'nutrition_trials',
+  'biostimulant_trials'
 ];
 
-// ── 1. Read directly from Cloud Firebase Firestore (Cross-Device) ──
+// ── 1. Read directly from Cloud Firebase Firestore (Authenticated & Cross-Device) ──
 export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionConfig): Promise<ExternalFieldTrial[]> => {
   try {
     let app;
@@ -51,23 +54,39 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       app = initializeApp(config, `trialManager-${Date.now()}`);
     }
 
+    // Authenticate if email and password are provided
+    if (config.email && config.password) {
+      try {
+        const auth = getAuth(app);
+        if (!auth.currentUser) {
+          console.log(`[TrialManagerSync] Authenticating as ${config.email}...`);
+          await signInWithEmailAndPassword(auth, config.email, config.password);
+          console.log('[TrialManagerSync] Firebase Auth Success!');
+        }
+      } catch (authErr: any) {
+        console.warn('[TrialManagerSync] Auth warning:', authErr?.message);
+        throw new Error(`Firebase Auth Failed: ${authErr?.message || 'Check Email & Password'}`);
+      }
+    }
+
     const firestore = getFirestore(app);
-    console.log('[TrialManagerSync] Querying Firebase Cloud collections...');
+    console.log('[TrialManagerSync] Querying Firebase Cloud collections:', TARGET_COLLECTIONS);
 
     let allCloudDocs: { id: string; data: any }[] = [];
 
-    // Query across category-isolated collections
+    // Query across exact matching collection names
     for (const colName of TARGET_COLLECTIONS) {
       try {
         const trialsRef = collection(firestore, colName);
-        const snapshot = await getDocs(query(trialsRef, limit(100)));
+        const snapshot = await getDocs(query(trialsRef, limit(200)));
         if (!snapshot.empty) {
+          console.log(`[TrialManagerSync] Found ${snapshot.size} records in collection "${colName}"`);
           snapshot.docs.forEach(doc => {
             allCloudDocs.push({ id: doc.id, data: doc.data() });
           });
         }
-      } catch (colErr) {
-        // Silently skip collections that don't exist or require auth
+      } catch (colErr: any) {
+        console.warn(`[TrialManagerSync] Collection "${colName}" fetch status:`, colErr?.message);
       }
     }
 
@@ -133,7 +152,7 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         productName: data.ProductName || data.FormulationCode || 'Goweed Ultra',
         syncedAt: new Date().toISOString(),
         sourceApp: 'Miklens Trial Manager 7',
-        summaryConclusion: data.Conclusion || notesStr || `Cloud synced evaluation. Efficacy recorded at ${latestEfficacy}%.`,
+        summaryConclusion: data.Conclusion || notesStr || `Cloud authenticated evaluation. Efficacy recorded at ${latestEfficacy}%.`,
         treatments: [
           {
             id: 't1',
