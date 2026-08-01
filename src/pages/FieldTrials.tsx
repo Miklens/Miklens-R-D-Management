@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, RefreshCw, Database, CheckCircle2, ShieldCheck, HardDrive, Key } from 'lucide-react';
+import { MapPin, Search, RefreshCw, Database, CheckCircle2, ShieldCheck, Key, Settings as SettingsIcon, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FieldTrialCard } from '../components/FieldTrialCard';
-import { getSyncedTrials, readTrialsFromIndexedDB, saveSyncedTrialsList } from '../services/trialManagerSync';
+import {
+  getSyncedTrials,
+  readTrialsFromIndexedDB,
+  saveSyncedTrialsList,
+  fetchTrialsFromFirebaseCloud,
+  getSavedFirebaseConfig,
+  saveFirebaseConfig,
+  FirebaseConnectionConfig
+} from '../services/trialManagerSync';
 import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
 
 export const FieldTrials: React.FC = () => {
@@ -12,17 +20,39 @@ export const FieldTrials: React.FC = () => {
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'herbicide' | 'fungicide' | 'pesticide'>('all');
 
+  // Firebase Config Modal State
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [projectIdInput, setProjectIdInput] = useState('');
+  const [configError, setConfigError] = useState<string | null>(null);
+
   useEffect(() => {
     // 1. Initial load from local sync storage
     const loaded = getSyncedTrials();
     setSyncedTrials(loaded);
 
-    // 2. Auto-attempt direct IndexedDB scan from local browser
+    // Load saved Firebase config if available
+    const savedConfig = getSavedFirebaseConfig();
+    if (savedConfig) {
+      setApiKeyInput(savedConfig.apiKey);
+      setProjectIdInput(savedConfig.projectId);
+      // Auto-fetch from Cloud Firebase on mount if configured
+      fetchTrialsFromFirebaseCloud(savedConfig).then(cloudTrials => {
+        if (cloudTrials && cloudTrials.length > 0) {
+          setSyncedTrials(cloudTrials);
+          saveSyncedTrialsList(cloudTrials);
+          setSyncNotice(`⚡ Cross-device live sync: Fetched ${cloudTrials.length} real trials from Cloud Firebase!`);
+        }
+      }).catch(err => {
+        console.warn('Auto cloud sync notice:', err);
+      });
+    }
+
+    // 2. Auto-attempt local IndexedDB scan if on same device
     readTrialsFromIndexedDB().then(idbTrials => {
       if (idbTrials && idbTrials.length > 0) {
         setSyncedTrials(idbTrials);
         saveSyncedTrialsList(idbTrials);
-        setSyncNotice(`Synced ${idbTrials.length} live trials from local Miklens Trial Manager IndexedDB database.`);
       }
     });
   }, []);
@@ -31,26 +61,63 @@ export const FieldTrials: React.FC = () => {
     setIsSyncing(true);
     setSyncNotice(null);
 
-    try {
-      // 1. Check local IndexedDB (same browser/device)
-      const idbTrials = await readTrialsFromIndexedDB();
+    const savedConfig = getSavedFirebaseConfig();
 
+    try {
+      // Priority A: Try Cloud Firebase if config is saved
+      if (savedConfig && savedConfig.apiKey && savedConfig.projectId) {
+        try {
+          const cloudTrials = await fetchTrialsFromFirebaseCloud(savedConfig);
+          if (cloudTrials && cloudTrials.length > 0) {
+            setSyncedTrials(cloudTrials);
+            saveSyncedTrialsList(cloudTrials);
+            setSyncNotice(`✅ Cross-device sync success: Pulled ${cloudTrials.length} live trials from Firebase Cloud!`);
+            setIsSyncing(false);
+            return;
+          }
+        } catch (err: any) {
+          console.warn('Cloud fetch failed, falling back to local DB scan:', err);
+        }
+      }
+
+      // Priority B: Local IndexedDB scan
+      const idbTrials = await readTrialsFromIndexedDB();
       if (idbTrials && idbTrials.length > 0) {
         setSyncedTrials(idbTrials);
         saveSyncedTrialsList(idbTrials);
-        setSyncNotice(`✅ Successfully synced ${idbTrials.length} real trials from local device database!`);
+        setSyncNotice(`✅ Local device sync: Pulled ${idbTrials.length} real trials from browser database!`);
       } else {
-        // Fallback to loaded storage
         const current = getSyncedTrials();
         setSyncedTrials(current);
-        setSyncNotice(`⚡ Connected to Trial Manager. IndexedDB scanned — 0 local unsynced trials found.`);
+        if (!savedConfig) {
+          setSyncNotice(`ℹ️ Running on demo/cached data. Click 'Configure Firebase Key' to sync across different devices.`);
+        } else {
+          setSyncNotice(`⚡ Connected to cloud project "${savedConfig.projectId}". 0 unsynced trials found.`);
+        }
       }
-    } catch (err) {
-      console.error('Sync failed:', err);
-      setSyncNotice('Sync completed. Running in cached trial view.');
+    } catch (err: any) {
+      setSyncNotice(`Sync completed: ${err?.message || 'Running in cached view.'}`);
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleSaveFirebaseConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!apiKeyInput.trim() || !projectIdInput.trim()) {
+      setConfigError('Please enter both API Key and Project ID.');
+      return;
+    }
+
+    const newConfig: FirebaseConnectionConfig = {
+      apiKey: apiKeyInput.trim(),
+      projectId: projectIdInput.trim(),
+    };
+
+    saveFirebaseConfig(newConfig);
+    setShowConfigModal(false);
+    setConfigError(null);
+    handleManualSync();
   };
 
   const filteredSynced = syncedTrials.filter(
@@ -75,28 +142,36 @@ export const FieldTrials: React.FC = () => {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-emerald-950 font-mono shadow-sm">
-              Live Bridge Active
+              Cross-Device Cloud Sync
             </span>
             <span className="text-xs text-purple-200 font-semibold flex items-center gap-1">
               <Database className="w-3.5 h-3.5 text-purple-400" /> Miklens Herbicide Trial Manager 7
             </span>
           </div>
           <h2 className="text-xl font-black text-white">
-            Field Trial Manager & Google Drive Direct Data Pipeline
+            Field Trial Manager & Google Drive Cross-Device Sync
           </h2>
           <p className="text-xs text-purple-200/80 leading-relaxed max-w-2xl">
-            Real-time synchronization for field trials, plot treatments, efficacy ratings & Google Drive photos. Direct connection between Agronomists & Management.
+            Real-time cloud & device synchronization for field trials, plot treatments, efficacy ratings & Google Drive photos. Connect different laptops & mobile phones instantly.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => setShowConfigModal(true)}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-900/80 hover:bg-purple-800 text-purple-200 rounded-2xl text-xs font-bold border border-purple-700/60 transition-all"
+          >
+            <Key className="w-4 h-4 text-purple-300" />
+            {getSavedFirebaseConfig() ? '⚙️ Firebase Connected' : '🔑 Connect Firebase (Cross-Device)'}
+          </button>
+
           <button
             onClick={handleManualSync}
             disabled={isSyncing}
             className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-emerald-950 rounded-2xl text-xs font-black shadow-lg transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Scanning Database...' : 'Sync Live Data'}
+            {isSyncing ? 'Syncing Cloud...' : 'Sync Live Data'}
           </button>
         </div>
       </div>
@@ -155,7 +230,7 @@ export const FieldTrials: React.FC = () => {
             <Database className="w-12 h-12 text-purple-400 mx-auto" />
             <h3 className="text-base font-bold text-gray-900 dark:text-white">No Trials Matched</h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto">
-              Click 'Sync Live Data' to scan your device's Miklens Trial Manager database or adjust your filter text.
+              Click 'Sync Live Data' or configure Firebase Cloud credentials to pull real-time trials across devices.
             </p>
           </div>
         ) : (
@@ -164,6 +239,80 @@ export const FieldTrials: React.FC = () => {
           ))
         )}
       </div>
+
+      {/* Firebase Key Connection Modal */}
+      <AnimatePresence>
+        {showConfigModal && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowConfigModal(false)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="max-w-lg w-full bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-200 dark:border-gray-800 shadow-2xl space-y-5"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <Key className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <h3 className="text-base font-black text-gray-900 dark:text-white">Connect Firebase Project (Cross-Device)</h3>
+                </div>
+                <button onClick={() => setShowConfigModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-xs">✕</button>
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Enter the Firebase Project details used by <strong>Miklens Trial Manager 7</strong>. This enables live cross-device streaming between scientist mobile phones and management laptops.
+              </p>
+
+              <form onSubmit={handleSaveFirebaseConfig} className="space-y-4">
+                {configError && (
+                  <div className="p-3 rounded-xl bg-red-50 text-red-600 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{configError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Firebase Project ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. miklens-herbicide-trial-manager-7"
+                    value={projectIdInput}
+                    onChange={e => setProjectIdInput(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-purple-500/30"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1">Firebase Web API Key</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. AIzaSyD..."
+                    value={apiKeyInput}
+                    onChange={e => setApiKeyInput(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-purple-500/30 font-mono"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfigModal(false)}
+                    className="px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs font-black shadow-lg hover:from-purple-700 hover:to-indigo-700"
+                  >
+                    Save & Connect Cloud Sync
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

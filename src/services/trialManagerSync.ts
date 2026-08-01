@@ -1,9 +1,147 @@
 import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
 import Dexie from 'dexie';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, limit, query } from 'firebase/firestore';
 
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
+const FIREBASE_CONFIG_KEY = 'miklens_rnd_firebase_config_v1';
 
-// ── 1. Read directly from browser IndexedDB (MiklensTrialManagerDexieDB) ──
+export interface FirebaseConnectionConfig {
+  apiKey: string;
+  authDomain?: string;
+  projectId: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+}
+
+export const getSavedFirebaseConfig = (): FirebaseConnectionConfig | null => {
+  try {
+    const raw = localStorage.getItem(FIREBASE_CONFIG_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+};
+
+export const saveFirebaseConfig = (config: FirebaseConnectionConfig): void => {
+  localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+};
+
+// ── 1. Read directly from Cloud Firebase Firestore (Cross-Device) ──
+export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionConfig): Promise<ExternalFieldTrial[]> => {
+  try {
+    let app;
+    const existingApps = getApps();
+    const existing = existingApps.find(a => a.options.projectId === config.projectId);
+    if (existing) {
+      app = existing;
+    } else {
+      app = initializeApp(config, `trialManager-${Date.now()}`);
+    }
+
+    const firestore = getFirestore(app);
+    console.log('[TrialManagerSync] Querying Firebase Cloud collection "trials"...');
+
+    // Query trials collection
+    const trialsRef = collection(firestore, 'trials');
+    const snapshot = await getDocs(query(trialsRef, limit(100)));
+
+    if (snapshot.empty) {
+      console.log('[TrialManagerSync] No trials found in cloud collection.');
+      return [];
+    }
+
+    const cloudTrials: ExternalFieldTrial[] = snapshot.docs.map(snap => {
+      const data = snap.data();
+      const id = snap.id;
+
+      // Parse ratings/observations
+      let ratings: any[] = [];
+      try {
+        if (typeof data.Ratings === 'string') ratings = JSON.parse(data.Ratings);
+        else if (Array.isArray(data.Ratings)) ratings = data.Ratings;
+      } catch (e) {
+        ratings = [];
+      }
+
+      // Parse photos
+      let photos: any[] = [];
+      try {
+        if (typeof data.PhotoURLs === 'string') photos = JSON.parse(data.PhotoURLs);
+        else if (Array.isArray(data.PhotoURLs)) photos = data.PhotoURLs;
+      } catch (e) {
+        photos = [];
+      }
+
+      let latestEfficacy = 0;
+      let latestPhytotox = 0;
+      let notesStr = '';
+
+      if (ratings && ratings.length > 0) {
+        const last = ratings[ratings.length - 1];
+        latestEfficacy = parseFloat(last.Efficacy || last.ControlPercent || last.efficacyPercent || '0') || 0;
+        latestPhytotox = parseFloat(last.Phytotoxicity || last.phytotoxicityScore || '0') || 0;
+        notesStr = last.Notes || last.notes || last.Observation || '';
+      }
+
+      const formattedPhotos = photos.map((p: any, idx: number) => ({
+        id: p.id || `photo-${idx}`,
+        url: p.driveUrl || p.url || p.fileData || 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80',
+        thumbnailUrl: p.thumbnailUrl || p.url || p.fileData,
+        caption: p.caption || p.label || `Plot Inspection Photo #${idx + 1}`,
+        takenAt: p.date || data.Date || new Date().toISOString().split('T')[0],
+        treatmentName: p.treatment || data.FormulationCode || 'Treatment Plot',
+      }));
+
+      return {
+        id: String(id),
+        trialCode: data.TrialCode || data.Code || `TR-${id}`,
+        title: data.Title || data.Name || `${data.Crop || 'Crop'} Field Trial - ${data.FormulationCode || 'Treatment'}`,
+        cropName: data.Crop || data.CropName || 'Crop Field',
+        location: data.Location || data.State || 'India Farm Station',
+        state: data.State || 'Punjab',
+        targetWeedOrPathogen: data.TargetWeed || data.TargetDisease || data.WeedSpecies || 'Weed / Pathogen',
+        designType: (data.DesignType || 'RCBD') as any,
+        scientistName: data.EvaluatedBy || data.Scientist || data.User || 'Dr. Mik (Agronomist)',
+        startDate: data.Date || new Date().toISOString().split('T')[0],
+        status: (data.Status || 'Active') as any,
+        productName: data.ProductName || data.FormulationCode || 'Goweed Ultra',
+        syncedAt: new Date().toISOString(),
+        sourceApp: 'Miklens Trial Manager 7',
+        summaryConclusion: data.Conclusion || notesStr || `Cloud synced evaluation. Efficacy recorded at ${latestEfficacy}%.`,
+        treatments: [
+          {
+            id: 't1',
+            name: data.FormulationCode || 'Treatment Arm',
+            productName: data.ProductName || 'Formulation',
+            doseRate: data.DoseRate || '2.5 mL/L',
+            replicationsCount: data.Replications || 4,
+          }
+        ],
+        evaluations: ratings.map((r: any, rIdx: number) => ({
+          id: `eval-${rIdx}`,
+          evalDate: r.Date || r.evalDate || data.Date || new Date().toISOString().split('T')[0],
+          daysAfterTreatment: parseInt(r.DAT || r.daysAfterTreatment || '7', 10),
+          efficacyPercent: parseFloat(r.Efficacy || r.efficacyPercent || '0'),
+          phytotoxicityScore: parseFloat(r.Phytotoxicity || r.phytotoxicityScore || '0'),
+          weedOrPathogenControlPercent: parseFloat(r.Control || r.efficacyPercent || '0'),
+          notes: r.Notes || r.notes || 'Evaluation recorded',
+          evaluatedBy: r.Evaluator || data.Scientist || 'Agronomist',
+        })),
+        photos: formattedPhotos,
+      };
+    });
+
+    return cloudTrials;
+  } catch (err: any) {
+    console.error('[TrialManagerSync] Cloud Firebase fetch error:', err);
+    throw new Error(err?.message || 'Failed to fetch from Cloud Firebase');
+  }
+};
+
+// ── 2. Read directly from browser IndexedDB (Same Device) ──
 export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> => {
   try {
     const dbExists = await IndexedDBDatabaseExists('MiklensTrialManagerDexieDB');
@@ -13,7 +151,6 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
     }
 
     const trialDb = new Dexie('MiklensTrialManagerDexieDB');
-    // Schema definition matching Trial Manager 7
     trialDb.version(1).stores({
       trials: 'ID, ProjectID, Date, LastModified',
       projects: 'ID',
@@ -22,13 +159,9 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
     });
 
     const rawTrials = await trialDb.table('trials').toArray();
-    console.log(`[TrialManagerSync] Read ${rawTrials.length} trials from local IndexedDB.`);
-
     if (!rawTrials || rawTrials.length === 0) return [];
 
-    // Map raw Trial Manager records into R&D Hub clean ExternalFieldTrial format
     const mapped: ExternalFieldTrial[] = rawTrials.map((t: any) => {
-      // Parse ratings/observations
       let ratings: any[] = [];
       try {
         if (typeof t.Ratings === 'string') ratings = JSON.parse(t.Ratings);
@@ -37,7 +170,6 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
         ratings = [];
       }
 
-      // Parse photos
       let photos: any[] = [];
       try {
         if (typeof t.PhotoURLs === 'string') photos = JSON.parse(t.PhotoURLs);
@@ -46,7 +178,6 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
         photos = [];
       }
 
-      // Calculate latest efficacy %
       let latestEfficacy = 0;
       let latestPhytotox = 0;
       let notesStr = '';
@@ -113,11 +244,10 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
   }
 };
 
-// Helper to check if IndexedDB database exists
 function IndexedDBDatabaseExists(dbName: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (!window.indexedDB || !window.indexedDB.databases) {
-      resolve(true); // Fallback: try opening
+      resolve(true);
       return;
     }
     window.indexedDB.databases().then((dbs) => {
@@ -127,7 +257,7 @@ function IndexedDBDatabaseExists(dbName: string): Promise<boolean> {
   });
 }
 
-// ── 2. Pre-seeded Demonstration Data Fallback ──
+// ── 3. Fallback Seeds ──
 const SEED_TRIALS: ExternalFieldTrial[] = [
   {
     id: 'trial-tm-101',
