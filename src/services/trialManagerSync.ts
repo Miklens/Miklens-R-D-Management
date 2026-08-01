@@ -96,6 +96,22 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
     const firestore = getFirestore(app);
     console.log('[TrialManagerSync] Querying Firebase Cloud collections:', TARGET_COLLECTIONS);
 
+    // Build User Directory Lookup Map (UID -> Name/Email)
+    const userMap = new Map<string, { name: string; email: string }>();
+    try {
+      const usersRef = collection(firestore, 'users');
+      const usersSnap = await getDocs(query(usersRef, limit(300)));
+      usersSnap.docs.forEach(uDoc => {
+        const uData = uDoc.data();
+        const uName = uData.Name || uData.name || uData.Username || uData.email || uDoc.id;
+        const uEmail = uData.Username || uData.email || '';
+        userMap.set(uDoc.id, { name: uName, email: uEmail });
+      });
+      console.log(`[TrialManagerSync] Hydrated ${userMap.size} user profile records.`);
+    } catch (uErr) {
+      console.warn('[TrialManagerSync] Could not read user directory:', uErr);
+    }
+
     let allCloudDocs: { id: string; data: any }[] = [];
 
     // Query across exact matching collection names
@@ -129,10 +145,20 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       const location = data.Location || data.location || data.GPS || data.State || 'Research Farm Plot';
       const weedOrPathogen = data.WeedSpecies || data.DiseaseTarget || data.TargetWeed || data.TargetDisease || data.PestTarget || data.TargetWeedOrPathogen || 'Target Disease / Weed';
 
-      // Scientist Ownership Parsing (CreatedBy, Evaluator, User, Scientist)
-      const scientistName = data.Scientist || data.EvaluatedBy || data.User || data.CreatedBy || (authUserEmail ? authUserEmail.split('@')[0] : 'Dr. Mik');
+      // ── Scientist Ownership Resolution ──
       const creatorUid = data.CreatedBy || data.userId || data.UID || data.uid || '';
-      const creatorEmail = data.UserEmail || data.Username || data.User || data.email || (creatorUid === authUserUid ? authUserEmail : '');
+      let resolvedUser = creatorUid ? userMap.get(creatorUid) : null;
+
+      let scientistName = data.Scientist || data.EvaluatedBy || data.User || (resolvedUser ? resolvedUser.name : '');
+      if (!scientistName || scientistName.length > 25) {
+        // If raw UID or placeholder was stored, resolve to clean user profile name
+        scientistName = resolvedUser ? resolvedUser.name : (authUserEmail ? authUserEmail.split('@')[0] : 'Agronomist');
+      }
+
+      let creatorEmail = data.UserEmail || data.Username || data.User || data.email || (resolvedUser ? resolvedUser.email : '');
+      if (!creatorEmail && creatorUid === authUserUid) {
+        creatorEmail = authUserEmail || '';
+      }
 
       const formulationCode = data.FormulationCode || data.productName || data.Product || 'Treatment Formulation';
 
