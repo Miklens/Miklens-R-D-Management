@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, RefreshCw, Database, CheckCircle2, ShieldCheck, Key, AlertCircle, Lock, Mail } from 'lucide-react';
+import { MapPin, Search, RefreshCw, Database, CheckCircle2, ShieldCheck, Key, AlertCircle, Lock, Mail, UserCheck, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FieldTrialCard } from '../components/FieldTrialCard';
 import {
@@ -12,13 +12,16 @@ import {
   FirebaseConnectionConfig
 } from '../services/trialManagerSync';
 import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
+import { useAuth } from '../contexts/AuthContext';
 
 export const FieldTrials: React.FC = () => {
+  const { profile, userRole } = useAuth();
   const [syncedTrials, setSyncedTrials] = useState<ExternalFieldTrial[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'herbicide' | 'fungicide' | 'pesticide'>('all');
+  const [activeCategoryTab, setActiveCategoryTab] = useState<'all' | 'herbicide' | 'fungicide' | 'pesticide'>('all');
+  const [selectedScientistFilter, setSelectedScientistFilter] = useState<string>('my-trials');
 
   // Firebase Config Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -27,6 +30,8 @@ export const FieldTrials: React.FC = () => {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [configError, setConfigError] = useState<string | null>(null);
+
+  const isAdminOrManagement = userRole === 'Admin' || userRole === 'Management';
 
   useEffect(() => {
     // 1. Initial load from local sync storage
@@ -46,7 +51,7 @@ export const FieldTrials: React.FC = () => {
         if (cloudTrials && cloudTrials.length > 0) {
           setSyncedTrials(cloudTrials);
           saveSyncedTrialsList(cloudTrials);
-          setSyncNotice(`⚡ Cross-device live sync: Fetched ${cloudTrials.length} real trials from Cloud Firebase!`);
+          setSyncNotice(`⚡ Live sync: Synced ${cloudTrials.length} trials across scientist accounts.`);
         }
       }).catch(err => {
         console.warn('Auto cloud sync notice:', err);
@@ -69,14 +74,13 @@ export const FieldTrials: React.FC = () => {
     const savedConfig = getSavedFirebaseConfig();
 
     try {
-      // Priority A: Try Cloud Firebase if config is saved
       if (savedConfig && savedConfig.apiKey && savedConfig.projectId) {
         try {
           const cloudTrials = await fetchTrialsFromFirebaseCloud(savedConfig);
           if (cloudTrials && cloudTrials.length > 0) {
             setSyncedTrials(cloudTrials);
             saveSyncedTrialsList(cloudTrials);
-            setSyncNotice(`✅ Cross-device sync success: Pulled ${cloudTrials.length} live trials from Firebase Cloud!`);
+            setSyncNotice(`✅ Cloud sync success: Pulled ${cloudTrials.length} trials from Firebase Cloud!`);
             setIsSyncing(false);
             return;
           }
@@ -86,7 +90,6 @@ export const FieldTrials: React.FC = () => {
         }
       }
 
-      // Priority B: Local IndexedDB scan
       const idbTrials = await readTrialsFromIndexedDB();
       if (idbTrials && idbTrials.length > 0) {
         setSyncedTrials(idbTrials);
@@ -96,9 +99,9 @@ export const FieldTrials: React.FC = () => {
         const current = getSyncedTrials();
         setSyncedTrials(current);
         if (!savedConfig) {
-          setSyncNotice(`ℹ️ Click 'Connect Firebase Credentials' to enter your login email & password to fetch cloud trials.`);
+          setSyncNotice(`ℹ️ Click 'Connect Credentials' to enter your login email to fetch scientist trials.`);
         } else {
-          setSyncNotice(`⚡ Connected to project "${savedConfig.projectId}". Ensure Trial Manager user credentials are correct.`);
+          setSyncNotice(`⚡ Connected to project "${savedConfig.projectId}".`);
         }
       }
     } catch (err: any) {
@@ -128,20 +131,42 @@ export const FieldTrials: React.FC = () => {
     handleManualSync();
   };
 
-  const filteredSynced = syncedTrials.filter(
-    t => {
-      const matchSearch = t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.cropName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.location.toLowerCase().includes(searchTerm.toLowerCase());
+  // Get current user email for filtering
+  const currentUserEmail = getSavedFirebaseConfig()?.email?.toLowerCase() || profile?.email?.toLowerCase() || '';
 
-      if (!matchSearch) return false;
-
-      if (activeTab === 'herbicide') return t.productName.toLowerCase().includes('weed') || t.productName.toLowerCase().includes('herbicide') || t.title.toLowerCase().includes('weed');
-      if (activeTab === 'fungicide') return t.productName.toLowerCase().includes('shield') || t.productName.toLowerCase().includes('fungi');
-      return true;
-    }
+  // Extract unique scientist names for filter dropdown
+  const uniqueScientists = Array.from(
+    new Set(syncedTrials.map(t => t.scientistName).filter(Boolean))
   );
+
+  // Scientist-wise filtering logic
+  const filteredSynced = syncedTrials.filter(trial => {
+    // 1. Text Search Filter
+    const matchSearch = trial.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      trial.cropName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      trial.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      trial.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      trial.scientistName.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!matchSearch) return false;
+
+    // 2. Category Tab Filter
+    if (activeCategoryTab === 'herbicide' && !(trial.productName.toLowerCase().includes('weed') || trial.productName.toLowerCase().includes('herbicide') || trial.title.toLowerCase().includes('weed'))) return false;
+    if (activeCategoryTab === 'fungicide' && !(trial.productName.toLowerCase().includes('shield') || trial.productName.toLowerCase().includes('fungi'))) return false;
+
+    // 3. Scientist-Wise Profile Isolation Filter
+    if (selectedScientistFilter === 'my-trials') {
+      if (currentUserEmail) {
+        const matchesEmail = trial.creatorEmail?.toLowerCase().includes(currentUserEmail.split('@')[0]) ||
+                             trial.scientistName.toLowerCase().includes(currentUserEmail.split('@')[0]);
+        if (!matchesEmail && !isAdminOrManagement) return false;
+      }
+    } else if (selectedScientistFilter !== 'all-scientists') {
+      if (trial.scientistName !== selectedScientistFilter) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -150,7 +175,7 @@ export const FieldTrials: React.FC = () => {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-emerald-950 font-mono shadow-sm">
-              Authenticated Cloud Sync Active
+              Scientist-Wise Profile Sync
             </span>
             <span className="text-xs text-purple-200 font-semibold flex items-center gap-1">
               <Database className="w-3.5 h-3.5 text-purple-400" /> Miklens Herbicide Trial Manager 7
@@ -160,7 +185,7 @@ export const FieldTrials: React.FC = () => {
             Field Trial Manager & Google Drive Cross-Device Sync
           </h2>
           <p className="text-xs text-purple-200/80 leading-relaxed max-w-2xl">
-            Authenticated real-time cloud sync for field trials, plot treatments, efficacy ratings & Google Drive photos. Connect different laptops & mobile phones securely.
+            Scientist-wise data mapping: Each scientist sees their assigned field trials & Google Drive evidence, while Management maintains cumulative pipeline oversight.
           </p>
         </div>
 
@@ -170,7 +195,7 @@ export const FieldTrials: React.FC = () => {
             className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-900/80 hover:bg-purple-800 text-purple-200 rounded-2xl text-xs font-bold border border-purple-700/60 transition-all"
           >
             <Key className="w-4 h-4 text-purple-300" />
-            {getSavedFirebaseConfig()?.email ? `🔐 Logged in as ${getSavedFirebaseConfig()?.email?.split('@')[0]}` : '🔑 Connect Firebase Credentials'}
+            {getSavedFirebaseConfig()?.email ? `🔐 Logged in: ${getSavedFirebaseConfig()?.email?.split('@')[0]}` : '🔑 Connect Credentials'}
           </button>
 
           <button
@@ -201,20 +226,69 @@ export const FieldTrials: React.FC = () => {
         </motion.div>
       )}
 
+      {/* Scientist-Wise Profile Filter Bar */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <UserCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+          <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">
+            Scientist Profile View:
+          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSelectedScientistFilter('my-trials')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                selectedScientistFilter === 'my-trials'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              👤 My Assigned Trials
+            </button>
+            <button
+              onClick={() => setSelectedScientistFilter('all-scientists')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all ${
+                selectedScientistFilter === 'all-scientists'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              🌐 All Scientists ({syncedTrials.length})
+            </button>
+          </div>
+        </div>
+
+        {uniqueScientists.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Filter className="w-3.5 h-3.5 text-gray-400" />
+            <select
+              value={selectedScientistFilter}
+              onChange={e => setSelectedScientistFilter(e.target.value)}
+              className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold outline-none text-gray-800 dark:text-gray-200"
+            >
+              <option value="my-trials">Filter by Scientist Name...</option>
+              <option value="all-scientists">All Scientists</option>
+              {uniqueScientists.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       {/* Filter Tabs & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
           {(['all', 'herbicide', 'fungicide'] as const).map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveCategoryTab(tab)}
               className={`px-4 py-2 rounded-2xl text-xs font-black capitalize transition-all whitespace-nowrap ${
-                activeTab === tab
-                  ? 'bg-purple-600 text-white shadow-md'
+                activeCategoryTab === tab
+                  ? 'bg-emerald-500 text-emerald-950 shadow-md'
                   : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:bg-gray-50'
               }`}
             >
-              {tab === 'all' ? `All Trials (${syncedTrials.length})` : `${tab} Trials`}
+              {tab === 'all' ? `All Categories` : `${tab} Trials`}
             </button>
           ))}
         </div>
@@ -236,9 +310,9 @@ export const FieldTrials: React.FC = () => {
         {filteredSynced.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-3xl p-12 text-center shadow-lg border border-gray-100 dark:border-gray-800 space-y-3">
             <Database className="w-12 h-12 text-purple-400 mx-auto" />
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">No Trials Matched</h3>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">No Trials Matched for Selected Scientist</h3>
             <p className="text-xs text-gray-400 max-w-md mx-auto">
-              Click 'Sync Live Data' or configure your Trial Manager Email & Password to pull real-time trials across devices.
+              Switch Scientist Profile View to 'All Scientists' or select a different scientist from the filter dropdown.
             </p>
           </div>
         ) : (
@@ -313,7 +387,7 @@ export const FieldTrials: React.FC = () => {
                       <Mail className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="email"
-                        placeholder="e.g. pavan@miklens.com"
+                        placeholder="e.g. pavan@miklensbio.com"
                         value={emailInput}
                         onChange={e => setEmailInput(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-medium outline-none"

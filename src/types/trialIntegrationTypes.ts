@@ -39,6 +39,8 @@ export interface ExternalFieldTrial {
   targetWeedOrPathogen: string;
   designType: 'RCBD' | 'CRD' | 'SplitPlot' | 'Demonstration';
   scientistName: string;
+  creatorUid?: string;
+  creatorEmail?: string;
   startDate: string;
   endDate?: string;
   status: 'Planning' | 'Active' | 'EvaluationPhase' | 'Completed' | 'ReportGenerated';

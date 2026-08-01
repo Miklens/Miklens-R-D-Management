@@ -69,14 +69,23 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       app = initializeApp(config, `trialManager-${Date.now()}`);
     }
 
+    let authUserUid: string | null = null;
+    let authUserEmail: string | null = config.email || null;
+
     // Authenticate if email and password are provided
     if (config.email && config.password) {
       try {
         const auth = getAuth(app);
-        if (!auth.currentUser) {
+        let user = auth.currentUser;
+        if (!user) {
           console.log(`[TrialManagerSync] Authenticating as ${config.email}...`);
-          await signInWithEmailAndPassword(auth, config.email, config.password);
+          const cred = await signInWithEmailAndPassword(auth, config.email, config.password);
+          user = cred.user;
           console.log('[TrialManagerSync] Firebase Auth Success!');
+        }
+        if (user) {
+          authUserUid = user.uid;
+          authUserEmail = user.email || config.email;
         }
       } catch (authErr: any) {
         console.warn('[TrialManagerSync] Auth warning:', authErr?.message);
@@ -93,7 +102,7 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
     for (const colName of TARGET_COLLECTIONS) {
       try {
         const trialsRef = collection(firestore, colName);
-        const snapshot = await getDocs(query(trialsRef, limit(200)));
+        const snapshot = await getDocs(query(trialsRef, limit(300)));
         if (!snapshot.empty) {
           console.log(`[TrialManagerSync] Found ${snapshot.size} records in collection "${colName}"`);
           snapshot.docs.forEach(doc => {
@@ -119,7 +128,12 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       const crop = data.Crop || data.crop || data.CropName || 'Crop Field';
       const location = data.Location || data.location || data.GPS || data.State || 'Research Farm Plot';
       const weedOrPathogen = data.WeedSpecies || data.DiseaseTarget || data.TargetWeed || data.TargetDisease || data.PestTarget || data.TargetWeedOrPathogen || 'Target Disease / Weed';
-      const scientist = data.Scientist || data.EvaluatedBy || data.User || data.CreatedBy || 'Dr. Mik (Agronomist)';
+
+      // Scientist Ownership Parsing (CreatedBy, Evaluator, User, Scientist)
+      const scientistName = data.Scientist || data.EvaluatedBy || data.User || data.CreatedBy || (authUserEmail ? authUserEmail.split('@')[0] : 'Dr. Mik');
+      const creatorUid = data.CreatedBy || data.userId || data.UID || data.uid || '';
+      const creatorEmail = data.UserEmail || data.Username || data.User || data.email || (creatorUid === authUserUid ? authUserEmail : '');
+
       const formulationCode = data.FormulationCode || data.productName || data.Product || 'Treatment Formulation';
 
       // Parse ratings/evaluations with full field fallback
@@ -174,7 +188,9 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         state: data.State || 'India',
         targetWeedOrPathogen: weedOrPathogen,
         designType: (data.DesignType || data.Replication ? 'RCBD' : 'CRD') as any,
-        scientistName: scientist,
+        scientistName: scientistName,
+        creatorUid: creatorUid,
+        creatorEmail: creatorEmail,
         startDate: data.Date || data.startDate || new Date().toISOString().split('T')[0],
         status: (data.Status || 'Active') as any,
         productName: formulationCode,
@@ -198,7 +214,7 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
           phytotoxicityScore: parseFloat(r.Phytotoxicity || r.phytotoxicityScore || '0'),
           weedOrPathogenControlPercent: parseFloat(r.Control || r.efficacyPercent || '0'),
           notes: r.Notes || r.notes || 'Evaluation recorded',
-          evaluatedBy: r.Evaluator || scientist,
+          evaluatedBy: r.Evaluator || scientistName,
         })),
         photos: formattedPhotos,
       };
@@ -278,6 +294,8 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
         targetWeedOrPathogen: t.TargetWeed || t.TargetDisease || t.WeedSpecies || 'Weed / Pathogen',
         designType: (t.DesignType || 'RCBD') as any,
         scientistName: t.EvaluatedBy || t.Scientist || t.User || 'Dr. Mik (Agronomist)',
+        creatorUid: t.CreatedBy || t.userId || '',
+        creatorEmail: t.UserEmail || t.Username || '',
         startDate: t.Date || new Date().toISOString().split('T')[0],
         status: (t.Status || 'Active') as any,
         productName: t.ProductName || t.FormulationCode || 'Goweed Ultra',
@@ -301,7 +319,7 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
           phytotoxicityScore: parseFloat(r.Phytotoxicity || r.phytotoxicityScore || '0'),
           weedOrPathogenControlPercent: parseFloat(r.Control || r.efficacyPercent || '0'),
           notes: r.Notes || r.notes || 'Evaluation recorded',
-          evaluatedBy: r.Evaluator || t.Scientist || 'Agronomist',
+          evaluatedBy: r.Evaluator || 'Agronomist',
         })),
         photos: formattedPhotos,
       };
@@ -339,6 +357,7 @@ const SEED_TRIALS: ExternalFieldTrial[] = [
     targetWeedOrPathogen: 'Puccinia striiformis (Yellow Rust) & Phalaris minor',
     designType: 'RCBD',
     scientistName: 'Dr. Sarah Jenkins',
+    creatorEmail: 'sarah@miklensbio.com',
     startDate: '2026-06-15',
     status: 'Completed',
     productName: 'BioShield Alpha (Bio-fungicide)',
@@ -384,6 +403,7 @@ const SEED_TRIALS: ExternalFieldTrial[] = [
     targetWeedOrPathogen: 'Amaranthus viridis & Echinochloa colonum',
     designType: 'CRD',
     scientistName: 'Pavan (Admin)',
+    creatorEmail: 'pavan@miklensbio.com',
     startDate: '2026-07-01',
     status: 'EvaluationPhase',
     productName: 'Goweed Ultra',
