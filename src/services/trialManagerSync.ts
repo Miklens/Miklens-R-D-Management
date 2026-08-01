@@ -42,6 +42,21 @@ const TARGET_COLLECTIONS = [
   'biostimulant_trials'
 ];
 
+// Helper to format Drive image URLs or fallbacks
+const formatDriveImageUrl = (rawUrl?: string): string => {
+  if (!rawUrl || rawUrl === '—') {
+    return 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80';
+  }
+  // Convert Google Drive view/open links into direct thumbnail links
+  if (rawUrl.includes('drive.google.com') || rawUrl.includes('docs.google.com')) {
+    const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://lh3.googleusercontent.com/u/0/d/${match[1]}=w800`;
+    }
+  }
+  return rawUrl;
+};
+
 // ── 1. Read directly from Cloud Firebase Firestore (Authenticated & Cross-Device) ──
 export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionConfig): Promise<ExternalFieldTrial[]> => {
   try {
@@ -99,11 +114,20 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       const data = item.data;
       const id = item.id;
 
-      // Parse ratings/observations
+      // Extract Trial Title & Crop
+      const title = data.Title || data.title || data.Name || data.name || (data.Crop ? `${data.Crop} Field Trial` : 'Crop Field Trial');
+      const crop = data.Crop || data.crop || data.CropName || 'Crop Field';
+      const location = data.Location || data.location || data.GPS || data.State || 'Research Farm Plot';
+      const weedOrPathogen = data.WeedSpecies || data.DiseaseTarget || data.TargetWeed || data.TargetDisease || data.PestTarget || data.TargetWeedOrPathogen || 'Target Disease / Weed';
+      const scientist = data.Scientist || data.EvaluatedBy || data.User || data.CreatedBy || 'Dr. Mik (Agronomist)';
+      const formulationCode = data.FormulationCode || data.productName || data.Product || 'Treatment Formulation';
+
+      // Parse ratings/evaluations with full field fallback
       let ratings: any[] = [];
       try {
         if (typeof data.Ratings === 'string') ratings = JSON.parse(data.Ratings);
         else if (Array.isArray(data.Ratings)) ratings = data.Ratings;
+        else if (Array.isArray(data.evaluations)) ratings = data.evaluations;
       } catch (e) {
         ratings = [];
       }
@@ -113,64 +137,68 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       try {
         if (typeof data.PhotoURLs === 'string') photos = JSON.parse(data.PhotoURLs);
         else if (Array.isArray(data.PhotoURLs)) photos = data.PhotoURLs;
+        else if (Array.isArray(data.photos)) photos = data.photos;
       } catch (e) {
         photos = [];
       }
 
       let latestEfficacy = 0;
       let latestPhytotox = 0;
-      let notesStr = '';
+      let notesStr = data.Conclusion || data.conclusion || data.Notes || '';
 
       if (ratings && ratings.length > 0) {
         const last = ratings[ratings.length - 1];
-        latestEfficacy = parseFloat(last.Efficacy || last.ControlPercent || last.efficacyPercent || '0') || 0;
+        latestEfficacy = parseFloat(last.WCE || last.Efficacy || last.ControlPercent || last.efficacyPercent || last.Control || '0') || 0;
         latestPhytotox = parseFloat(last.Phytotoxicity || last.phytotoxicityScore || '0') || 0;
-        notesStr = last.Notes || last.notes || last.Observation || '';
+        notesStr = last.Notes || last.notes || last.Observation || notesStr;
       }
 
-      const formattedPhotos = photos.map((p: any, idx: number) => ({
-        id: p.id || `photo-${idx}`,
-        url: p.driveUrl || p.url || p.fileData || 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80',
-        thumbnailUrl: p.thumbnailUrl || p.url || p.fileData,
-        caption: p.caption || p.label || `Plot Inspection Photo #${idx + 1}`,
-        takenAt: p.date || data.Date || new Date().toISOString().split('T')[0],
-        treatmentName: p.treatment || data.FormulationCode || 'Treatment Plot',
-      }));
+      const formattedPhotos = photos.map((p: any, idx: number) => {
+        const rawUrl = p.driveUrl || p.url || p.fileData || p.PhotoURL;
+        return {
+          id: p.id || `photo-${idx}`,
+          url: formatDriveImageUrl(rawUrl),
+          thumbnailUrl: formatDriveImageUrl(p.thumbnailUrl || rawUrl),
+          caption: p.caption || p.label || p.fileName || `Field Photo ${p.date || idx + 1}`,
+          takenAt: p.date || data.Date || new Date().toISOString().split('T')[0],
+          treatmentName: p.treatment || formulationCode || 'Treatment Plot',
+        };
+      });
 
       return {
         id: String(id),
-        trialCode: data.TrialCode || data.Code || `TR-${id}`,
-        title: data.Title || data.Name || `${data.Crop || 'Crop'} Field Trial - ${data.FormulationCode || 'Treatment'}`,
-        cropName: data.Crop || data.CropName || 'Crop Field',
-        location: data.Location || data.State || 'India Farm Station',
-        state: data.State || 'Punjab',
-        targetWeedOrPathogen: data.TargetWeed || data.TargetDisease || data.WeedSpecies || 'Weed / Pathogen',
-        designType: (data.DesignType || 'RCBD') as any,
-        scientistName: data.EvaluatedBy || data.Scientist || data.User || 'Dr. Mik (Agronomist)',
-        startDate: data.Date || new Date().toISOString().split('T')[0],
+        trialCode: data.TrialCode || data.Code || `TR-${id.slice(0, 8)}`,
+        title: title,
+        cropName: crop,
+        location: location,
+        state: data.State || 'India',
+        targetWeedOrPathogen: weedOrPathogen,
+        designType: (data.DesignType || data.Replication ? 'RCBD' : 'CRD') as any,
+        scientistName: scientist,
+        startDate: data.Date || data.startDate || new Date().toISOString().split('T')[0],
         status: (data.Status || 'Active') as any,
-        productName: data.ProductName || data.FormulationCode || 'Goweed Ultra',
+        productName: formulationCode,
         syncedAt: new Date().toISOString(),
         sourceApp: 'Miklens Trial Manager 7',
-        summaryConclusion: data.Conclusion || notesStr || `Cloud authenticated evaluation. Efficacy recorded at ${latestEfficacy}%.`,
+        summaryConclusion: notesStr || `Trial evaluated. Observed control efficacy: ${latestEfficacy}%.`,
         treatments: [
           {
             id: 't1',
-            name: data.FormulationCode || 'Treatment Arm',
-            productName: data.ProductName || 'Formulation',
+            name: formulationCode,
+            productName: formulationCode,
             doseRate: data.DoseRate || '2.5 mL/L',
-            replicationsCount: data.Replications || 4,
+            replicationsCount: data.Replication || 4,
           }
         ],
         evaluations: ratings.map((r: any, rIdx: number) => ({
           id: `eval-${rIdx}`,
           evalDate: r.Date || r.evalDate || data.Date || new Date().toISOString().split('T')[0],
           daysAfterTreatment: parseInt(r.DAT || r.daysAfterTreatment || '7', 10),
-          efficacyPercent: parseFloat(r.Efficacy || r.efficacyPercent || '0'),
+          efficacyPercent: parseFloat(r.WCE || r.Efficacy || r.efficacyPercent || '0'),
           phytotoxicityScore: parseFloat(r.Phytotoxicity || r.phytotoxicityScore || '0'),
           weedOrPathogenControlPercent: parseFloat(r.Control || r.efficacyPercent || '0'),
           notes: r.Notes || r.notes || 'Evaluation recorded',
-          evaluatedBy: r.Evaluator || data.Scientist || 'Agronomist',
+          evaluatedBy: r.Evaluator || scientist,
         })),
         photos: formattedPhotos,
       };
@@ -233,8 +261,8 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
 
       const formattedPhotos = photos.map((p: any, idx: number) => ({
         id: p.id || `photo-${idx}`,
-        url: p.driveUrl || p.url || p.fileData || 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80',
-        thumbnailUrl: p.thumbnailUrl || p.url || p.fileData,
+        url: formatDriveImageUrl(p.driveUrl || p.url || p.fileData),
+        thumbnailUrl: formatDriveImageUrl(p.thumbnailUrl || p.url || p.fileData),
         caption: p.caption || p.label || `Plot Inspection Photo #${idx + 1}`,
         takenAt: p.date || t.Date || new Date().toISOString().split('T')[0],
         treatmentName: p.treatment || t.FormulationCode || 'Treatment Plot',
