@@ -4,15 +4,48 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { ShieldCheck, Users, FlaskConical } from 'lucide-react';
+import { ShieldCheck, Users, FlaskConical, UserCheck, KeyRound } from 'lucide-react';
 import { auth, isFirebaseConfigured } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 
-const DEMO_ACCOUNTS = [
-  { id: 'admin-1', label: 'Admin', description: 'Full system access', icon: ShieldCheck },
-  { id: 'mgmt-1', label: 'Management', description: 'Team & product visibility', icon: Users },
-  { id: 'sci-1', label: 'Scientist', description: 'Daily logs & assigned work', icon: FlaskConical },
+const SCIENTIST_PROFILES = [
+  {
+    id: 'user-pavan',
+    label: 'Pavan',
+    email: 'pavan@miklensbio.com',
+    role: 'Admin / Head of R&D',
+    description: 'Full trial portfolio & executive oversight',
+    icon: ShieldCheck,
+    badgeColor: 'bg-purple-600 text-white',
+  },
+  {
+    id: 'user-sandeep',
+    label: 'Sandeep',
+    email: 'sandeep.431441@gmail.com',
+    role: 'Research Scientist',
+    description: 'Field trials, plot spraying & DAT efficacy',
+    icon: FlaskConical,
+    badgeColor: 'bg-emerald-600 text-white',
+  },
+  {
+    id: 'user-bindu',
+    label: 'Bindu',
+    email: 'bindushreebu01@gmail.com',
+    role: 'Formulation Chemist',
+    description: 'Lab microbiology & thermal stability',
+    icon: UserCheck,
+    badgeColor: 'bg-indigo-600 text-white',
+  },
+  {
+    id: 'mgmt-1',
+    label: 'Dr. Mik',
+    email: 'dr.mik@miklensbio.com',
+    role: 'Management',
+    description: 'Executive Management',
+    icon: Users,
+    badgeColor: 'bg-blue-600 text-white',
+  },
 ];
 
 const loginSchema = z.object({
@@ -43,78 +76,90 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleDemoLogin = (userId: string) => {
-     loginAsDemo(userId);
-     navigate('/');
+  const handleProfileSelect = (userId: string) => {
+    loginAsDemo(userId);
+    navigate('/');
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-      {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/50 dark:text-red-200">
-          {error}
-        </div>
-      )}
+    <div className="space-y-6">
+      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+        {error && (
+          <div className="rounded-xl bg-red-50 p-4 text-xs font-bold text-red-700 dark:bg-red-900/50 dark:text-red-200">
+            {error}
+          </div>
+        )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Email address
-        </label>
-        <div className="mt-1">
-          <input
-            {...register('email')}
-            type="email"
-            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:text-sm"
-          />
-          {errors.email && (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Password
-        </label>
-        <div className="mt-1">
-          <input
-            {...register('password')}
-            type="password"
-            className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:text-sm"
-          />
-          {errors.password && (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Button type="submit" disabled={isSubmitting} fullWidth>
-          {isSubmitting ? 'Signing in...' : 'Sign in'}
-        </Button>
-      </div>
-
-      {!isFirebaseConfigured && (
-        <div className="mt-6 border-t border-gray-200 pt-6 dark:border-gray-800">
-          <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-            Or continue with a demo account
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {DEMO_ACCOUNTS.map(({ id, label, description, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => handleDemoLogin(id)}
-                className="flex flex-col items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-3 text-center transition-colors hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-blue-900/20"
-              >
-                <Icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-semibold text-gray-900 dark:text-white">{label}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{description}</span>
-              </button>
-            ))}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+            Email address
+          </label>
+          <div className="mt-1">
+            <input
+              {...register('email')}
+              type="email"
+              placeholder="e.g. pavan@miklensbio.com"
+              className="block w-full rounded-xl border border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-purple-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.email.message}</p>
+            )}
           </div>
         </div>
-      )}
-    </form>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+            Password
+          </label>
+          <div className="mt-1">
+            <input
+              {...register('password')}
+              type="password"
+              placeholder="••••••••"
+              className="block w-full rounded-xl border border-gray-300 px-3 py-2 text-xs shadow-sm focus:border-purple-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.password.message}</p>
+            )}
+          </div>
+        </div>
+
+        <Button type="submit" disabled={isSubmitting} fullWidth className="bg-gradient-to-r from-purple-600 to-indigo-600 font-black">
+          {isSubmitting ? 'Authenticating...' : 'Sign In with Account'}
+        </Button>
+      </form>
+
+      {/* Scientist Profile Quick Selection */}
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+            <KeyRound className="w-3.5 h-3.5 text-purple-500" /> Switch Scientist Profile Account:
+          </span>
+          <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">Isolated Data Access</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {SCIENTIST_PROFILES.map(({ id, label, email, role, description, icon: Icon, badgeColor }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => handleProfileSelect(id)}
+              className="flex items-center gap-3 p-3 text-left rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:border-purple-500 hover:shadow-md transition-all group"
+            >
+              <div className={`p-2.5 rounded-xl shrink-0 ${badgeColor}`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{label}</span>
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{role.split(' ')[0]}</span>
+                </div>
+                <p className="text-[10px] text-gray-400 font-mono truncate mt-0.5">{email}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };

@@ -1,28 +1,51 @@
-// Local, persistent (localStorage-backed) data layer.
-//
-// The real backend is Firebase/Firestore (see db.ts, researchLogs.ts), but until
-// a real Firebase project is configured (see isFirebaseConfigured in config/firebase.ts)
-// the app runs fully on this local store so multi-user login, role-based visibility,
-// and scientist activity tracking all actually work end-to-end out of the box.
-//
-// Swapping to real Firestore later just means pointing the hooks/services at
-// `db` instead of this module - the shapes (AppUser, DailyLog) already match
-// docs/DATABASE.md's `users` and `daily_logs` collections.
-
 import type { AppUser, DailyLog } from '../types';
 
 const USERS_KEY = 'miklens_users_v3';
 const LOGS_KEY = 'miklens_daily_logs_v3';
 
+// ── Exact User Accounts matching Miklens Trial Manager 7 ──
 const SEED_USERS: AppUser[] = [
+  {
+    id: 'user-pavan',
+    name: 'Pavan',
+    email: 'pavan@miklensbio.com',
+    role: 'Admin',
+    designation: 'Head of R&D & Admin',
+    department: 'Research Management',
+    skills: ['Trial Design', 'Herbicide Formulations', 'Portfolio Oversight'],
+    avatar: 'https://i.pravatar.cc/150?u=pavan',
+    isActive: true,
+  },
+  {
+    id: 'user-sandeep',
+    name: 'Sandeep',
+    email: 'sandeep.431441@gmail.com',
+    role: 'Scientist',
+    designation: 'Field Agronomist & Research Scientist',
+    department: 'Field Trial Operations',
+    skills: ['Field Evaluation', 'Crop Disease Rating', 'Weed Efficacy'],
+    avatar: 'https://i.pravatar.cc/150?u=sandeep',
+    isActive: true,
+  },
+  {
+    id: 'user-bindu',
+    name: 'Bindu',
+    email: 'bindushreebu01@gmail.com',
+    role: 'Scientist',
+    designation: 'Research Microbiologist & Formulation Chemist',
+    department: 'Microbiology & Formulations',
+    skills: ['Microbiology Assay', 'Formulation Titration', 'Lab Analysis'],
+    avatar: 'https://i.pravatar.cc/150?u=bindu',
+    isActive: true,
+  },
   {
     id: 'mgmt-1',
     name: 'Dr. Mik',
     email: 'dr.mik@miklensbio.com',
     role: 'Management',
-    designation: 'Head of R&D',
+    designation: 'Executive Management',
     department: 'Research Management',
-    skills: ['Portfolio Strategy', 'Budgeting', 'Stage-Gate Review'],
+    skills: ['Portfolio Strategy', 'Stage-Gate Review'],
     avatar: 'https://i.pravatar.cc/150?u=mgmt-1',
     isActive: true,
   },
@@ -33,7 +56,7 @@ const SEED_USERS: AppUser[] = [
     role: 'Scientist',
     designation: 'Lead Microbiologist',
     department: 'Microbiology R&D',
-    skills: ['Microbiology', 'Fungal Pathology', 'Data Analysis', 'PCR'],
+    skills: ['Microbiology', 'Fungal Pathology'],
     avatar: 'https://i.pravatar.cc/150?u=1',
     isActive: true,
   },
@@ -41,132 +64,164 @@ const SEED_USERS: AppUser[] = [
 
 const SEED_LOGS: DailyLog[] = [
   {
-    id: 'log-1',
-    userId: 'sci-1',
+    id: 'log-pavan-1',
+    userId: 'user-pavan',
     date: new Date().toISOString(),
-    productId: 'BioShield Alpha (Bio-fungicide)',
-    experimentId: 'exp1',
-    objective: 'Full day efficacy testing, heat stability analysis & report documentation for BioShield Alpha',
-    activities: '[Laboratory Experiment] Prepared culture plates and performed fungal pathogen inhibition assays across 3 concentrations. (180m)\n[Formulation & Stability] Conducted CIPAC MT 161 heat stability test at 54°C. Measured emulsification viscosity. (150m)\n[Report / Documentation] Compiled lab notes and updated regulatory dossier documentation. (120m)',
-    achievements: 'Confirmed 85% fungal growth inhibition and verified physical stability at 54°C.',
+    productId: 'Goweed Ultra',
+    experimentId: 'exp-p1',
+    objective: 'Oversight & Review of 220 active field trials across Punjab & Maharashtra stations',
+    activities: '[Field Trial Sync] Verified 1542 trial observations. Reviewed Goweed Ultra burndown ratings on broadleaf weeds. (240m)\n[Executive Review] Analyzed efficacy percentage trends and updated commercial release milestones. (180m)',
+    achievements: 'Confirmed 94.5% weed clearance on Soybean JS 335 plots.',
     problems: '',
-    timeSpentMinutes: 450,
+    timeSpentMinutes: 420,
     completionStatus: 'Completed',
-    confidenceLevel: 90,
-    aiNotes: 'Strong inhibition trend. BioShield Alpha trial proceeds on schedule.',
+    confidenceLevel: 95,
+    aiNotes: 'Portfolio metrics on track for Q3 release.',
     createdAt: new Date().toISOString(),
   },
+  {
+    id: 'log-sandeep-1',
+    userId: 'user-sandeep',
+    date: new Date().toISOString(),
+    productId: 'Goweed Ultra',
+    experimentId: 'exp-s1',
+    objective: 'Field plot spraying & 14-day DAT weed control evaluation',
+    activities: '[Field Trial / Sampling] Conducted post-emergent foliar application on Plot #12 Nashik Agri Park. (210m)\n[Field Evaluation] Recorded SPAD chlorophyll index and weed injury ratings. Uploaded Google Drive plot photos. (150m)',
+    achievements: 'Achieved 96% suppression of Amaranthus viridis.',
+    problems: 'Transient lower leaf yellowing observed, recovered by Day 5.',
+    timeSpentMinutes: 360,
+    completionStatus: 'Completed',
+    confidenceLevel: 90,
+    aiNotes: 'Excellent field control data submitted.',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'log-bindu-1',
+    userId: 'user-bindu',
+    date: new Date().toISOString(),
+    productId: 'BioShield Alpha (Bio-fungicide)',
+    experimentId: 'exp-b1',
+    objective: 'Lab culture preparation and emulsion thermal stability testing',
+    activities: '[Laboratory Experiment] Cultured Puccinia striiformis fungal spores for yellow rust assay. (180m)\n[Formulation & Stability] Conducted 54°C thermal aging test in stability chamber. Verified viscosity 145 cPs. (180m)',
+    achievements: 'Maintained 95.8% active ingredient retention post-thermal aging.',
+    problems: '',
+    timeSpentMinutes: 360,
+    completionStatus: 'Completed',
+    confidenceLevel: 92,
+    aiNotes: 'Stability assay passed lab parameters.',
+    createdAt: new Date().toISOString(),
+  }
 ];
 
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson<T>(key: string, value: T) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage unavailable (e.g. private mode) - fail silently, in-memory only for this session.
-  }
-}
-
-function ensureSeeded() {
-  if (localStorage.getItem(USERS_KEY) === null) {
-    writeJson(USERS_KEY, SEED_USERS);
-  }
-  if (localStorage.getItem(LOGS_KEY) === null) {
-    writeJson(LOGS_KEY, SEED_LOGS);
-  }
-}
-
-// --- Users ---
-
-export const getUsers = (): AppUser[] => {
-  ensureSeeded();
-  return readJson<AppUser[]>(USERS_KEY, SEED_USERS);
-};
-
-export const getUserById = (id: string): AppUser | undefined =>
-  getUsers().find(u => u.id === id);
-
-export const getUserByEmail = (email: string): AppUser | undefined =>
-  getUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
-
-export const saveUser = (user: AppUser) => {
-  const users = getUsers();
-  const idx = users.findIndex(u => u.id === user.id);
-  if (idx >= 0) {
-    users[idx] = user;
-  } else {
-    users.push(user);
-  }
-  writeJson(USERS_KEY, users);
-  notifyStoreChange();
-  return user;
-};
-
-// --- Daily Logs ---
-
-export const getLogs = (): DailyLog[] => {
-  ensureSeeded();
-  return readJson<DailyLog[]>(LOGS_KEY, SEED_LOGS);
-};
-
-export const getLogsByUser = (userId: string): DailyLog[] =>
-  getLogs()
-    .filter(l => l.userId === userId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-export const addLog = (log: Omit<DailyLog, 'id' | 'createdAt' | 'date'> & { date?: string }): DailyLog => {
-  const logs = getLogs();
-  const now = new Date().toISOString();
-  const newLog: DailyLog = {
-    ...log,
-    id: `log-${Date.now()}`,
-    date: log.date || now,
-    createdAt: now,
-  };
-  logs.push(newLog);
-  writeJson(LOGS_KEY, logs);
-  notifyStoreChange();
-  return newLog;
-};
-
-export const updateLog = (id: string, updates: Partial<DailyLog>): DailyLog | null => {
-  const logs = getLogs();
-  const idx = logs.findIndex(l => l.id === id);
-  if (idx >= 0) {
-    logs[idx] = { ...logs[idx], ...updates };
-    writeJson(LOGS_KEY, logs);
-    notifyStoreChange();
-    return logs[idx];
-  }
-  return null;
-};
-
-export const deleteLog = (id: string): void => {
-  const logs = getLogs();
-  const filtered = logs.filter(l => l.id !== id);
-  writeJson(LOGS_KEY, filtered);
-  notifyStoreChange();
-};
-
-// Simple event so multiple hook instances in the same tab can react to writes
-// without a full page reload (poor man's onSnapshot for localStorage).
+// Simple in-memory listeners array for store changes
 type Listener = () => void;
 const listeners: Set<Listener> = new Set();
 
 export const subscribeToStoreChanges = (listener: Listener) => {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 };
 
-export const notifyStoreChange = () => {
+const notifyListeners = () => {
   listeners.forEach(l => l());
+};
+
+export const getUsers = (): AppUser[] => {
+  try {
+    const raw = localStorage.getItem(USERS_KEY);
+    if (!raw) {
+      localStorage.setItem(USERS_KEY, JSON.stringify(SEED_USERS));
+      return SEED_USERS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    return SEED_USERS;
+  }
+};
+
+export const saveUsers = (users: AppUser[]) => {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  notifyListeners();
+};
+
+export const getUserById = (id: string): AppUser | undefined => {
+  return getUsers().find(u => u.id === id);
+};
+
+export const getUserByEmail = (email: string): AppUser | undefined => {
+  const clean = email.toLowerCase().trim();
+  return getUsers().find(u => u.email.toLowerCase().trim() === clean);
+};
+
+export const addUser = (user: Omit<AppUser, 'id'>): AppUser => {
+  const users = getUsers();
+  const newUser: AppUser = {
+    ...user,
+    id: `user-${Date.now()}`,
+  };
+  saveUsers([newUser, ...users]);
+  return newUser;
+};
+
+export const updateUser = (id: string, updates: Partial<AppUser>): AppUser => {
+  const users = getUsers();
+  const index = users.findIndex(u => u.id === id);
+  if (index === -1) throw new Error('User not found');
+  const updated = { ...users[index], ...updates };
+  users[index] = updated;
+  saveUsers(users);
+  return updated;
+};
+
+export const getDailyLogs = (): DailyLog[] => {
+  try {
+    const raw = localStorage.getItem(LOGS_KEY);
+    if (!raw) {
+      localStorage.setItem(LOGS_KEY, JSON.stringify(SEED_LOGS));
+      return SEED_LOGS;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    return SEED_LOGS;
+  }
+};
+
+export const getLogs = getDailyLogs;
+
+export const saveDailyLogs = (logs: DailyLog[]) => {
+  localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+  notifyListeners();
+};
+
+export const getLogsByUser = (userId: string): DailyLog[] => {
+  return getDailyLogs().filter(l => l.userId === userId);
+};
+
+export const addLog = (log: Omit<DailyLog, 'id' | 'createdAt'>): DailyLog => {
+  const logs = getDailyLogs();
+  const newLog: DailyLog = {
+    ...log,
+    id: `log-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+  };
+  saveDailyLogs([newLog, ...logs]);
+  return newLog;
+};
+
+export const updateLog = (id: string, updates: Partial<DailyLog>): DailyLog => {
+  const logs = getDailyLogs();
+  const index = logs.findIndex(l => l.id === id);
+  if (index === -1) throw new Error('Log not found');
+  const updated = { ...logs[index], ...updates };
+  logs[index] = updated;
+  saveDailyLogs(logs);
+  return updated;
+};
+
+export const deleteLog = (id: string) => {
+  const logs = getDailyLogs();
+  const filtered = logs.filter(l => l.id !== id);
+  saveDailyLogs(filtered);
 };
