@@ -1,52 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { ShieldCheck, Users, FlaskConical, UserCheck, KeyRound } from 'lucide-react';
+import { ShieldCheck, Users, FlaskConical, UserCheck, KeyRound, Database, RefreshCw } from 'lucide-react';
 import { auth, isFirebaseConfigured } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
-
-const SCIENTIST_PROFILES = [
-  {
-    id: 'user-pavan',
-    label: 'Pavan',
-    email: 'pavan@miklensbio.com',
-    role: 'Admin / Head of R&D',
-    description: 'Full trial portfolio & executive oversight',
-    icon: ShieldCheck,
-    badgeColor: 'bg-purple-600 text-white',
-  },
-  {
-    id: 'user-sandeep',
-    label: 'Sandeep',
-    email: 'sandeep.431441@gmail.com',
-    role: 'Research Scientist',
-    description: 'Field trials, plot spraying & DAT efficacy',
-    icon: FlaskConical,
-    badgeColor: 'bg-emerald-600 text-white',
-  },
-  {
-    id: 'user-bindu',
-    label: 'Bindu',
-    email: 'bindushreebu01@gmail.com',
-    role: 'Formulation Chemist',
-    description: 'Lab microbiology & thermal stability',
-    icon: UserCheck,
-    badgeColor: 'bg-indigo-600 text-white',
-  },
-  {
-    id: 'mgmt-1',
-    label: 'Dr. Mik',
-    email: 'dr.mik@miklensbio.com',
-    role: 'Management',
-    description: 'Executive Management',
-    icon: Users,
-    badgeColor: 'bg-blue-600 text-white',
-  },
-];
+import { getUsers } from '../services/localStore';
+import { AppUser } from '../types';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -58,12 +21,19 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+  const [syncedUsers, setSyncedUsers] = useState<AppUser[]>([]);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
 
   const { loginAsDemo } = useAuth();
+
+  useEffect(() => {
+    // Load dynamically registered users from localStore (populated live from Firestore)
+    const loaded = getUsers();
+    setSyncedUsers(loaded);
+  }, []);
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
@@ -129,37 +99,37 @@ export const Login: React.FC = () => {
         </Button>
       </form>
 
-      {/* Scientist Profile Quick Selection */}
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-            <KeyRound className="w-3.5 h-3.5 text-purple-500" /> Switch Scientist Profile Account:
-          </span>
-          <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">Isolated Data Access</span>
-        </div>
+      {/* Dynamic Registered Users from Trial Manager Firestore */}
+      {syncedUsers.length > 0 && (
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-emerald-500" /> Active Users (Live Synced from Trial Manager):
+            </span>
+            <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400">Isolated Data Access</span>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {SCIENTIST_PROFILES.map(({ id, label, email, role, description, icon: Icon, badgeColor }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => handleProfileSelect(id)}
-              className="flex items-center gap-3 p-3 text-left rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:border-purple-500 hover:shadow-md transition-all group"
-            >
-              <div className={`p-2.5 rounded-xl shrink-0 ${badgeColor}`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{label}</span>
-                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{role.split(' ')[0]}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {syncedUsers.map(user => (
+              <button
+                key={user.id}
+                type="button"
+                onClick={() => handleProfileSelect(user.id)}
+                className="flex items-center gap-3 p-3 text-left rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/80 hover:border-purple-500 hover:shadow-md transition-all group"
+              >
+                <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-purple-200 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">{user.name}</span>
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300">{user.role}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-mono truncate mt-0.5">{user.email}</p>
                 </div>
-                <p className="text-[10px] text-gray-400 font-mono truncate mt-0.5">{email}</p>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

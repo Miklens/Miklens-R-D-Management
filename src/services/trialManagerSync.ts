@@ -3,6 +3,8 @@ import Dexie from 'dexie';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, limit, query } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getUsers, saveUsers } from './localStore';
+import { AppUser } from '../types';
 
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
 const FIREBASE_CONFIG_KEY = 'miklens_rnd_firebase_config_v1';
@@ -96,20 +98,58 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
     const firestore = getFirestore(app);
     console.log('[TrialManagerSync] Querying Firebase Cloud collections:', TARGET_COLLECTIONS);
 
-    // Build User Directory Lookup Map (UID -> Name/Email)
-    const userMap = new Map<string, { name: string; email: string }>();
+    // Dynamic Live User Directory Sync (Firestore users collection -> App Users)
+    const userMap = new Map<string, { name: string; email: string; role: string }>();
     try {
       const usersRef = collection(firestore, 'users');
       const usersSnap = await getDocs(query(usersRef, limit(300)));
-      usersSnap.docs.forEach(uDoc => {
-        const uData = uDoc.data();
-        const uName = uData.Name || uData.name || uData.Username || uData.email || uDoc.id;
-        const uEmail = uData.Username || uData.email || '';
-        userMap.set(uDoc.id, { name: uName, email: uEmail });
-      });
-      console.log(`[TrialManagerSync] Hydrated ${userMap.size} user profile records.`);
+      if (!usersSnap.empty) {
+        const fetchedAppUsers: AppUser[] = [];
+
+        usersSnap.docs.forEach(uDoc => {
+          const uData = uDoc.data();
+          const uName = uData.Name || uData.name || uData.Username || uData.email || uDoc.id;
+          const uEmail = uData.Username || uData.email || '';
+          const uRole = uData.Role || uData.role || 'Scientist';
+          const isActive = uData.IsActive !== false;
+
+          userMap.set(uDoc.id, { name: uName, email: uEmail, role: uRole });
+
+          if (uEmail && isActive) {
+            fetchedAppUsers.push({
+              id: uDoc.id,
+              name: uName,
+              email: uEmail,
+              role: (uRole.toLowerCase().includes('admin') ? 'Admin' : uRole.toLowerCase().includes('viewer') ? 'Management' : 'Scientist') as any,
+              designation: `${uRole} (Synced from Trial Manager)`,
+              department: 'Field Operations',
+              skills: ['Trial Management', 'Field Efficacy'],
+              avatar: `https://i.pravatar.cc/150?u=${uDoc.id}`,
+              isActive: true,
+            });
+          }
+        });
+
+        // Merge fetched cloud users into active localStore so no hardcoding exists
+        if (fetchedAppUsers.length > 0) {
+          const currentUsers = getUsers();
+          const mergedUsers = [...currentUsers];
+
+          fetchedAppUsers.forEach(nu => {
+            const existingIdx = mergedUsers.findIndex(u => u.email.toLowerCase() === nu.email.toLowerCase() || u.id === nu.id);
+            if (existingIdx !== -1) {
+              mergedUsers[existingIdx] = { ...mergedUsers[existingIdx], ...nu };
+            } else {
+              mergedUsers.push(nu);
+            }
+          });
+
+          saveUsers(mergedUsers);
+          console.log(`[TrialManagerSync] Dynamically registered ${fetchedAppUsers.length} users from Trial Manager Firestore!`);
+        }
+      }
     } catch (uErr) {
-      console.warn('[TrialManagerSync] Could not read user directory:', uErr);
+      console.warn('[TrialManagerSync] Could not fetch live user directory:', uErr);
     }
 
     let allCloudDocs: { id: string; data: any }[] = [];
@@ -139,19 +179,17 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       const data = item.data;
       const id = item.id;
 
-      // Extract Trial Title & Crop
       const title = data.Title || data.title || data.Name || data.name || (data.Crop ? `${data.Crop} Field Trial` : 'Crop Field Trial');
       const crop = data.Crop || data.crop || data.CropName || 'Crop Field';
       const location = data.Location || data.location || data.GPS || data.State || 'Research Farm Plot';
       const weedOrPathogen = data.WeedSpecies || data.DiseaseTarget || data.TargetWeed || data.TargetDisease || data.PestTarget || data.TargetWeedOrPathogen || 'Target Disease / Weed';
 
-      // ── Scientist Ownership Resolution ──
+      // ── Dynamic Scientist Ownership Resolution ──
       const creatorUid = data.CreatedBy || data.userId || data.UID || data.uid || '';
       let resolvedUser = creatorUid ? userMap.get(creatorUid) : null;
 
       let scientistName = data.Scientist || data.EvaluatedBy || data.User || (resolvedUser ? resolvedUser.name : '');
       if (!scientistName || scientistName.length > 25) {
-        // If raw UID or placeholder was stored, resolve to clean user profile name
         scientistName = resolvedUser ? resolvedUser.name : (authUserEmail ? authUserEmail.split('@')[0] : 'Agronomist');
       }
 
@@ -162,7 +200,6 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
 
       const formulationCode = data.FormulationCode || data.productName || data.Product || 'Treatment Formulation';
 
-      // Parse ratings/evaluations with full field fallback
       let ratings: any[] = [];
       try {
         if (typeof data.Ratings === 'string') ratings = JSON.parse(data.Ratings);
@@ -172,7 +209,6 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         ratings = [];
       }
 
-      // Parse photos
       let photos: any[] = [];
       try {
         if (typeof data.PhotoURLs === 'string') photos = JSON.parse(data.PhotoURLs);
@@ -371,103 +407,13 @@ function IndexedDBDatabaseExists(dbName: string): Promise<boolean> {
   });
 }
 
-// ── 3. Fallback Seeds ──
-const SEED_TRIALS: ExternalFieldTrial[] = [
-  {
-    id: 'trial-tm-101',
-    trialCode: 'TR-PB-2026-WHEAT-01',
-    title: 'Punjab Wheat Yellow Rust & Weed Control Field Trial',
-    cropName: 'Wheat (PBW 725)',
-    location: 'Ludhiana Research Station, Plot #4B',
-    state: 'Punjab',
-    targetWeedOrPathogen: 'Puccinia striiformis (Yellow Rust) & Phalaris minor',
-    designType: 'RCBD',
-    scientistName: 'Dr. Sarah Jenkins',
-    creatorEmail: 'sarah@miklensbio.com',
-    startDate: '2026-06-15',
-    status: 'Completed',
-    productName: 'BioShield Alpha (Bio-fungicide)',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    summaryConclusion: 'Foliar application of BioShield Alpha at 3.0 mL/L achieved 91.4% control of yellow rust with zero phytotoxicity. SPAD chlorophyll index increased by +14.2%. Approved for commercial scale-up.',
-    treatments: [
-      { id: 't1', name: 'Control (Untreated Check)', productName: 'Water Spray', doseRate: '0 mL/L', replicationsCount: 4 },
-      { id: 't2', name: 'BioShield T1 Standard', productName: 'BioShield Alpha', doseRate: '1.5 mL/L', replicationsCount: 4 },
-      { id: 't3', name: 'BioShield T2 High Dose', productName: 'BioShield Alpha', doseRate: '3.0 mL/L', replicationsCount: 4 },
-    ],
-    evaluations: [
-      { id: 'e1', evalDate: '2026-06-25', daysAfterTreatment: 7, efficacyPercent: 68.5, phytotoxicityScore: 0, weedOrPathogenControlPercent: 65.0, notes: 'Initial spore inhibition observed. No leaf scorching.', evaluatedBy: 'Dr. Sarah Jenkins' },
-      { id: 'e2', evalDate: '2026-07-05', daysAfterTreatment: 14, efficacyPercent: 88.2, phytotoxicityScore: 0, weedOrPathogenControlPercent: 86.0, notes: 'Strong systemic defense response.', evaluatedBy: 'Dr. Sarah Jenkins' },
-      { id: 'e3', evalDate: '2026-07-20', daysAfterTreatment: 28, efficacyPercent: 93.8, phytotoxicityScore: 0, weedOrPathogenControlPercent: 91.4, notes: 'Final evaluation. Zero lesion expansion.', evaluatedBy: 'Dr. Sarah Jenkins' },
-    ],
-    photos: [
-      {
-        id: 'p1',
-        url: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=200&q=80',
-        caption: 'Plot #4B Wheat Foliar Assessment - Day 14 Post Treatment',
-        takenAt: '2026-07-05',
-        treatmentName: 'BioShield T2 High Dose'
-      },
-      {
-        id: 'p2',
-        url: 'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=800&q=80',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=200&q=80',
-        caption: 'Root & Canopy Health Inspection - Day 28',
-        takenAt: '2026-07-20',
-        treatmentName: 'BioShield T2 High Dose'
-      }
-    ]
-  },
-  {
-    id: 'trial-tm-102',
-    trialCode: 'TR-MH-2026-SOYA-04',
-    title: 'Maharashtra Soybean Broad-Leaf Herbicide & Bio-Stimulant Evaluation',
-    cropName: 'Soybean (JS 335)',
-    location: 'Nashik Agri Park, Plot #12',
-    state: 'Maharashtra',
-    targetWeedOrPathogen: 'Amaranthus viridis & Echinochloa colonum',
-    designType: 'CRD',
-    scientistName: 'Pavan (Admin)',
-    creatorEmail: 'pavan@miklensbio.com',
-    startDate: '2026-07-01',
-    status: 'EvaluationPhase',
-    productName: 'Goweed Ultra',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    summaryConclusion: 'Goweed Ultra combination tank-mix demonstrated rapid 48-hour burndown of broadleaf weeds without crop stunting.',
-    treatments: [
-      { id: 't1', name: 'Commercial Standard (Check)', productName: 'Standard Herbicide', doseRate: '2.0 mL/L', replicationsCount: 3 },
-      { id: 't2', name: 'Goweed Ultra Bio-Mix', productName: 'Goweed Ultra', doseRate: '2.5 mL/L', replicationsCount: 3 },
-    ],
-    evaluations: [
-      { id: 'e1', evalDate: '2026-07-10', daysAfterTreatment: 3, efficacyPercent: 78.0, phytotoxicityScore: 1, weedOrPathogenControlPercent: 82.0, notes: 'Slight transient yellowing on lower leaves, recovered by day 5.', evaluatedBy: 'Pavan' },
-      { id: 'e2', evalDate: '2026-07-22', daysAfterTreatment: 14, efficacyPercent: 94.5, phytotoxicityScore: 0, weedOrPathogenControlPercent: 96.0, notes: 'Complete weed suppression.', evaluatedBy: 'Pavan' },
-    ],
-    photos: [
-      {
-        id: 'p3',
-        url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=200&q=80',
-        caption: 'Post-emergent Weed Clearance - Plot #12',
-        takenAt: '2026-07-22',
-        treatmentName: 'Goweed Ultra Bio-Mix'
-      }
-    ]
-  }
-];
-
 export const getSyncedTrials = (): ExternalFieldTrial[] => {
   try {
     const raw = localStorage.getItem(SYNC_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(SEED_TRIALS));
-      return SEED_TRIALS;
-    }
+    if (!raw) return [];
     return JSON.parse(raw);
   } catch (err) {
-    console.error('Failed to load synced trials:', err);
-    return SEED_TRIALS;
+    return [];
   }
 };
 
