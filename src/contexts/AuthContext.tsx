@@ -2,19 +2,14 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db, isFirebaseConfigured } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import type { AppUser, Role } from '../types';
-import { getUserById } from '../services/localStore';
-
-const DEMO_SESSION_KEY = 'miklens_demo_user_id';
 
 interface AuthContextType {
   currentUser: User | null;
   profile: AppUser | null;
   userRole: Role | null;
   loading: boolean;
-  isDemoMode: boolean;
-  loginAsDemo: (userId: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -23,8 +18,6 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   userRole: null,
   loading: true,
-  isDemoMode: false,
-  loginAsDemo: () => {},
   logout: async () => {},
 });
 
@@ -34,97 +27,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Real Firebase user - resolve role/profile from Firestore `users/{uid}`
-        // as documented in docs/DATABASE.md. Falls back to Scientist if the
-        // profile document hasn't been provisioned yet.
-        setCurrentUser(user);
-        setIsDemoMode(false);
         try {
+          // Strict Security Alignment: Query Trial Manager's exact `users/{uid}` collection
           const snap = await getDoc(doc(db, 'users', user.uid));
           if (snap.exists()) {
-            setProfile({ id: user.uid, ...(snap.data() as Omit<AppUser, 'id'>) });
-          } else {
+            const data = snap.data();
+            
+            // Check IsActive status exact to Trial Manager (IsActive === false -> Revoke Session)
+            if (data.IsActive === false || data.isActive === false) {
+              console.warn('[Security] User account is disabled in Trial Manager. Signing out.');
+              await firebaseSignOut(auth);
+              setCurrentUser(null);
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
+
+            const rawRole = (data.Role || data.role || 'Scientist').toString();
+            let parsedRole: Role = 'Scientist';
+            if (rawRole.toLowerCase().includes('admin') || rawRole.toLowerCase().includes('developer')) {
+              parsedRole = 'Admin';
+            } else if (rawRole.toLowerCase().includes('viewer') || rawRole.toLowerCase().includes('mgmt') || rawRole.toLowerCase().includes('management')) {
+              parsedRole = 'Management';
+            }
+
+            setCurrentUser(user);
             setProfile({
               id: user.uid,
-              name: user.displayName || user.email || 'User',
-              email: user.email || '',
-              role: 'Scientist',
-              designation: '',
-              department: '',
-              skills: [],
+              name: data.Name || data.name || data.Username || user.email || 'User',
+              email: data.Username || data.email || user.email || '',
+              role: parsedRole,
+              designation: data.Designation || `${data.Role || 'User'} (Trial Manager)`,
+              department: data.Department || 'Research & Development',
+              skills: Array.isArray(data.Skills) ? data.Skills : ['Trial Operations'],
+              avatar: data.Avatar || `https://i.pravatar.cc/150?u=${user.uid}`,
               isActive: true,
             });
+          } else {
+            // If user exists in Firebase Auth but has no registered doc in `users/{uid}` in Trial Manager -> Deny Access
+            console.warn('[Security] No user document in Trial Manager users collection. Signing out.');
+            await firebaseSignOut(auth);
+            setCurrentUser(null);
+            setProfile(null);
           }
         } catch (err) {
-          console.error('Failed to load user profile from Firestore', err);
+          console.error('[Security] Failed to verify user profile from Trial Manager Firestore', err);
+          setCurrentUser(null);
           setProfile(null);
         }
         setLoading(false);
         return;
       }
 
-      // No real Firebase user - check for an active local demo session.
-      const demoUserId = sessionStorage.getItem(DEMO_SESSION_KEY) || 'mgmt-1';
-      if (demoUserId) {
-        const demoProfile = getUserById(demoUserId);
-        if (demoProfile) {
-          setCurrentUser({ email: demoProfile.email, uid: demoProfile.id } as User);
-          setProfile(demoProfile);
-          setIsDemoMode(true);
-          setLoading(false);
-          return;
-        }
-      }
-
+      // No active Firebase user
       setCurrentUser(null);
       setProfile(null);
-      setIsDemoMode(false);
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  // Log in as one of the seeded demo accounts (Admin / Management / Scientist).
-  // Used when Firebase isn't configured yet, so multi-role behavior can still
-  // be exercised end-to-end.
-  const loginAsDemo = (userId: string) => {
-    const demoProfile = getUserById(userId);
-    if (!demoProfile) return;
-    sessionStorage.setItem(DEMO_SESSION_KEY, userId);
-    setCurrentUser({ email: demoProfile.email, uid: demoProfile.id } as User);
-    setProfile(demoProfile);
-    setIsDemoMode(true);
-  };
-
   const logout = async () => {
-    sessionStorage.removeItem(DEMO_SESSION_KEY);
+    await firebaseSignOut(auth);
     setCurrentUser(null);
     setProfile(null);
-    setIsDemoMode(false);
-    if (isFirebaseConfigured) {
-      try {
-        await firebaseSignOut(auth);
-      } catch (err) {
-        console.error('Failed to sign out', err);
-      }
-    }
   };
+
+  const userRole = profile?.role || null;
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         profile,
-        userRole: profile?.role ?? null,
+        userRole,
         loading,
-        isDemoMode,
-        loginAsDemo,
         logout,
       }}
     >
