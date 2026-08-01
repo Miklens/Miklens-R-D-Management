@@ -1,8 +1,133 @@
 import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
+import Dexie from 'dexie';
 
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
 
-// Pre-seeded high-fidelity demonstration field trials from Miklens Trial Manager
+// ── 1. Read directly from browser IndexedDB (MiklensTrialManagerDexieDB) ──
+export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> => {
+  try {
+    const dbExists = await IndexedDBDatabaseExists('MiklensTrialManagerDexieDB');
+    if (!dbExists) {
+      console.log('[TrialManagerSync] MiklensTrialManagerDexieDB not found on this device.');
+      return [];
+    }
+
+    const trialDb = new Dexie('MiklensTrialManagerDexieDB');
+    // Schema definition matching Trial Manager 7
+    trialDb.version(1).stores({
+      trials: 'ID, ProjectID, Date, LastModified',
+      projects: 'ID',
+      formulations: 'ID',
+      trialPhotos: 'ID',
+    });
+
+    const rawTrials = await trialDb.table('trials').toArray();
+    console.log(`[TrialManagerSync] Read ${rawTrials.length} trials from local IndexedDB.`);
+
+    if (!rawTrials || rawTrials.length === 0) return [];
+
+    // Map raw Trial Manager records into R&D Hub clean ExternalFieldTrial format
+    const mapped: ExternalFieldTrial[] = rawTrials.map((t: any) => {
+      // Parse ratings/observations
+      let ratings: any[] = [];
+      try {
+        if (typeof t.Ratings === 'string') ratings = JSON.parse(t.Ratings);
+        else if (Array.isArray(t.Ratings)) ratings = t.Ratings;
+      } catch (e) {
+        ratings = [];
+      }
+
+      // Parse photos
+      let photos: any[] = [];
+      try {
+        if (typeof t.PhotoURLs === 'string') photos = JSON.parse(t.PhotoURLs);
+        else if (Array.isArray(t.PhotoURLs)) photos = t.PhotoURLs;
+      } catch (e) {
+        photos = [];
+      }
+
+      // Calculate latest efficacy %
+      let latestEfficacy = 0;
+      let latestPhytotox = 0;
+      let notesStr = '';
+
+      if (ratings && ratings.length > 0) {
+        const last = ratings[ratings.length - 1];
+        latestEfficacy = parseFloat(last.Efficacy || last.ControlPercent || last.efficacyPercent || '0') || 0;
+        latestPhytotox = parseFloat(last.Phytotoxicity || last.phytotoxicityScore || '0') || 0;
+        notesStr = last.Notes || last.notes || last.Observation || '';
+      }
+
+      const formattedPhotos = photos.map((p: any, idx: number) => ({
+        id: p.id || `photo-${idx}`,
+        url: p.driveUrl || p.url || p.fileData || 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80',
+        thumbnailUrl: p.thumbnailUrl || p.url || p.fileData,
+        caption: p.caption || p.label || `Plot Inspection Photo #${idx + 1}`,
+        takenAt: p.date || t.Date || new Date().toISOString().split('T')[0],
+        treatmentName: p.treatment || t.FormulationCode || 'Treatment Plot',
+      }));
+
+      return {
+        id: String(t.ID || t.id || `trial-${Date.now()}`),
+        trialCode: t.TrialCode || t.Code || `TR-${t.ID || '2026'}`,
+        title: t.Title || t.Name || `${t.Crop || 'Crop'} Field Trial - ${t.FormulationCode || 'Treatment'}`,
+        cropName: t.Crop || t.CropName || 'Crop Field',
+        location: t.Location || t.State || 'India Farm Station',
+        state: t.State || 'Punjab',
+        targetWeedOrPathogen: t.TargetWeed || t.TargetDisease || t.WeedSpecies || 'Weed / Pathogen',
+        designType: (t.DesignType || 'RCBD') as any,
+        scientistName: t.EvaluatedBy || t.Scientist || t.User || 'Dr. Mik (Agronomist)',
+        startDate: t.Date || new Date().toISOString().split('T')[0],
+        status: (t.Status || 'Active') as any,
+        productName: t.ProductName || t.FormulationCode || 'Goweed Ultra',
+        syncedAt: new Date().toISOString(),
+        sourceApp: 'Miklens Trial Manager 7',
+        summaryConclusion: t.Conclusion || notesStr || `Field evaluation conducted. Efficacy recorded at ${latestEfficacy}%.`,
+        treatments: [
+          {
+            id: 't1',
+            name: t.FormulationCode || 'Treatment Arm',
+            productName: t.ProductName || 'Formulation',
+            doseRate: t.DoseRate || '2.5 mL/L',
+            replicationsCount: t.Replications || 4,
+          }
+        ],
+        evaluations: ratings.map((r: any, rIdx: number) => ({
+          id: `eval-${rIdx}`,
+          evalDate: r.Date || r.evalDate || t.Date || new Date().toISOString().split('T')[0],
+          daysAfterTreatment: parseInt(r.DAT || r.daysAfterTreatment || '7', 10),
+          efficacyPercent: parseFloat(r.Efficacy || r.efficacyPercent || '0'),
+          phytotoxicityScore: parseFloat(r.Phytotoxicity || r.phytotoxicityScore || '0'),
+          weedOrPathogenControlPercent: parseFloat(r.Control || r.efficacyPercent || '0'),
+          notes: r.Notes || r.notes || 'Evaluation recorded',
+          evaluatedBy: r.Evaluator || t.Scientist || 'Agronomist',
+        })),
+        photos: formattedPhotos,
+      };
+    });
+
+    return mapped;
+  } catch (err) {
+    console.warn('[TrialManagerSync] Could not read IndexedDB:', err);
+    return [];
+  }
+};
+
+// Helper to check if IndexedDB database exists
+function IndexedDBDatabaseExists(dbName: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!window.indexedDB || !window.indexedDB.databases) {
+      resolve(true); // Fallback: try opening
+      return;
+    }
+    window.indexedDB.databases().then((dbs) => {
+      const exists = dbs.some((db) => db.name === dbName);
+      resolve(exists);
+    }).catch(() => resolve(true));
+  });
+}
+
+// ── 2. Pre-seeded Demonstration Data Fallback ──
 const SEED_TRIALS: ExternalFieldTrial[] = [
   {
     id: 'trial-tm-101',
@@ -58,7 +183,7 @@ const SEED_TRIALS: ExternalFieldTrial[] = [
     state: 'Maharashtra',
     targetWeedOrPathogen: 'Amaranthus viridis & Echinochloa colonum',
     designType: 'CRD',
-    scientistName: 'Dr. Mik (Management)',
+    scientistName: 'Pavan (Admin)',
     startDate: '2026-07-01',
     status: 'EvaluationPhase',
     productName: 'Goweed Ultra',
@@ -70,8 +195,8 @@ const SEED_TRIALS: ExternalFieldTrial[] = [
       { id: 't2', name: 'Goweed Ultra Bio-Mix', productName: 'Goweed Ultra', doseRate: '2.5 mL/L', replicationsCount: 3 },
     ],
     evaluations: [
-      { id: 'e1', evalDate: '2026-07-10', daysAfterTreatment: 3, efficacyPercent: 78.0, phytotoxicityScore: 1, weedOrPathogenControlPercent: 82.0, notes: 'Slight transient yellowing on lower leaves, recovered by day 5.', evaluatedBy: 'Dr. Mik' },
-      { id: 'e2', evalDate: '2026-07-22', daysAfterTreatment: 14, efficacyPercent: 94.5, phytotoxicityScore: 0, weedOrPathogenControlPercent: 96.0, notes: 'Complete weed suppression.', evaluatedBy: 'Dr. Mik' },
+      { id: 'e1', evalDate: '2026-07-10', daysAfterTreatment: 3, efficacyPercent: 78.0, phytotoxicityScore: 1, weedOrPathogenControlPercent: 82.0, notes: 'Slight transient yellowing on lower leaves, recovered by day 5.', evaluatedBy: 'Pavan' },
+      { id: 'e2', evalDate: '2026-07-22', daysAfterTreatment: 14, efficacyPercent: 94.5, phytotoxicityScore: 0, weedOrPathogenControlPercent: 96.0, notes: 'Complete weed suppression.', evaluatedBy: 'Pavan' },
     ],
     photos: [
       {
@@ -100,23 +225,10 @@ export const getSyncedTrials = (): ExternalFieldTrial[] => {
   }
 };
 
-export const saveSyncedTrial = (trial: ExternalFieldTrial): ExternalFieldTrial[] => {
-  const current = getSyncedTrials();
-  const existingIdx = current.findIndex(t => t.id === trial.id);
-  let updated: ExternalFieldTrial[];
-  if (existingIdx >= 0) {
-    updated = [...current];
-    updated[existingIdx] = { ...trial, syncedAt: new Date().toISOString() };
-  } else {
-    updated = [trial, ...current];
+export const saveSyncedTrialsList = (trials: ExternalFieldTrial[]): void => {
+  try {
+    localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(trials));
+  } catch (e) {
+    console.error('Failed to cache synced trials:', e);
   }
-  localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(updated));
-  return updated;
-};
-
-export const deleteSyncedTrial = (trialId: string): ExternalFieldTrial[] => {
-  const current = getSyncedTrials();
-  const updated = current.filter(t => t.id !== trialId);
-  localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(updated));
-  return updated;
 };
