@@ -15,16 +15,19 @@ export const ExecutiveControlTower: React.FC = () => {
   const pendingCount = experiments.filter((e) => e.outcomeStatus === 'Pending' || !e.outcomeStatus).length;
   const activeExpCount = experiments.length;
 
-  const activeScientists = (users || []).map(u => ({
-    id: u.id,
-    name: u.name || u.email?.split('@')[0] || 'User',
-    role: u.designation || (u as any).trialManagerRole || 'R&D Scientist',
-    product: u.department || 'Active Field Operations',
-    hoursLogged: 'Active Today',
-    activeExp: 'Field Operations & Research',
-    latestRun: 'Active Session Synchronized',
-    status: 'Active Now',
-  }));
+  const activeScientists = (users || []).map(u => {
+    const displayName = u.name && u.name !== 'User' ? u.name : (u.email ? u.email.split('@')[0] : 'Scientist');
+    return {
+      id: u.id,
+      name: displayName,
+      role: u.designation || (u as any).trialManagerRole || 'R&D Scientist',
+      product: u.department || 'Active Field Operations',
+      hoursLogged: 'Active Today',
+      activeExp: 'Field Operations & Research',
+      latestRun: 'Active Session Synchronized',
+      status: 'Active Now',
+    };
+  });
 
   return (
     <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-950 text-white shadow-2xl border border-emerald-900/40 space-y-6">

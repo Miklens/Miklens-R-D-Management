@@ -287,10 +287,22 @@ export const getWeeklySummary = async (
 
   const totalHours = activities.reduce((sum, a) => sum + (a.durationMinutes || 0), 0) / 60;
 
-  // AI Summary (placeholder - could integrate with real AI)
-  const aiWeeklySummary = `This week you worked ${totalHours.toFixed(1)} hours across ${activities.length} activities. ` +
-    `Your primary focus was on ${Object.entries(hoursByCategory).sort((a, b) => b[1] - a[1])[0]?.[0] || 'various activities'}. ` +
-    `You made progress on ${projectsUpdated.size} project(s) and completed ${tasksCompleted} task(s).`;
+  // Dynamic AI Weekly Summary based on live logged activities
+  let aiWeeklySummary = '';
+  if (activities.length > 0) {
+    aiWeeklySummary = `This week you recorded ${totalHours.toFixed(1)} hours across ${activities.length} activity session(s). ` +
+      `Your work included ${fieldHours.toFixed(1)}h of field trials, ${labHours.toFixed(1)}h of lab testing, and ${officeHours.toFixed(1)}h of research/documentation. ` +
+      (projectsUpdated.size > 0 ? `Active progress registered on ${projectsUpdated.size} project(s): ${Array.from(projectsUpdated).slice(0, 3).join(', ')}. ` : '') +
+      (tasksCompleted > 0 ? `Successfully completed ${tasksCompleted} task milestone(s).` : '');
+  } else {
+    aiWeeklySummary = 'No activity logged for this week yet. Start recording your daily research logs, lab assays, or field trials to generate dynamic AI productivity summaries.';
+  }
+
+  const topAchievements: string[] = [];
+  if (tasksCompleted > 0) topAchievements.push(`Completed ${tasksCompleted} task milestone(s)`);
+  if (projectsUpdated.size > 0) topAchievements.push(`Advanced ${projectsUpdated.size} R&D project(s)`);
+  if (fieldHours > 0 || labHours > 0) topAchievements.push(`${fieldHours.toFixed(1)}h field work, ${labHours.toFixed(1)}h lab testing`);
+  if (totalHours > 0) topAchievements.push(`Logged ${totalHours.toFixed(1)} total research hours`);
 
   return {
     weekStart: startStr,
@@ -311,13 +323,9 @@ export const getWeeklySummary = async (
     tasksCompleted,
     tasksCreated,
     aiWeeklySummary,
-    topAchievements: [
-      `Completed ${tasksCompleted} tasks`,
-      `Worked on ${projectsUpdated.size} projects`,
-      `${fieldHours.toFixed(1)}h in field, ${labHours.toFixed(1)}h in lab`
-    ],
+    topAchievements,
     areasForImprovement: [
-      totalHours < 40 ? 'Consider increasing weekly hours' : null,
+      totalHours < 40 && totalHours > 0 ? 'Consider increasing weekly logged research hours' : null,
       tasksPending > 5 ? 'Follow up on pending tasks' : null
     ].filter(Boolean) as string[]
   };
