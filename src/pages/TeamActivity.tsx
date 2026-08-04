@@ -59,7 +59,7 @@ export const TeamActivity: React.FC = () => {
 
     return targetProductList.map((prodName) => {
       const prodExps = allExpItems.filter(
-        (e: any) => e.productName === prodName || (!e.productName && prodName.includes('BioShield'))
+        (e: any) => e.productName === prodName || (!e.productName && allProducts.length === 1)
       );
 
       // Collect all daily runs matching scientist & date range filters up to cutoffDate
@@ -70,7 +70,7 @@ export const TeamActivity: React.FC = () => {
           const runDate = r.date ? r.date.split('T')[0] : '';
           const isMik = r.scientistName?.toLowerCase().includes('mik') || exp.name?.toLowerCase().includes('field');
           const runSciId = isMik ? 'sci-2' : 'sci-1';
-          const runSciName = r.scientistName || scientistNameMap[runSciId] || 'Dr. Sarah Jenkins';
+          const runSciName = r.scientistName || scientistNameMap[runSciId] || 'Unknown Scientist';
 
           const matchScientist =
             selectedScientist === 'all' ||
@@ -103,20 +103,14 @@ export const TeamActivity: React.FC = () => {
       filteredRuns.sort((a, b) => a.date.localeCompare(b.date));
 
       const activeSciLabel = selectedScientist === 'all' 
-        ? 'Dr. Sarah Jenkins, Dr. Mik' 
+        ? (Object.values(scientistNameMap).join(', ') || 'All Scientists')
         : scientistNameMap[selectedScientist] || selectedScientist;
 
       // Synthesize cumulative conclusion specifically for the selected scientist & scope
       let cumulativeConclusionText = '';
       if (filteredRuns.length > 0) {
         const lastRun = filteredRuns[filteredRuns.length - 1];
-        if (selectedScientist === 'sci-2' || activeSciLabel.includes('Mik')) {
-          cumulativeConclusionText = `As of ${cutoffDate} (${activeSciLabel}): Completed ${filteredRuns.length} field trial & management run(s) for ${prodName}. Recorded wheat plot foliar spray GS 21 application and final yellow rust disease index (4.8% vs 45.2% in control). SPAD leaf chlorophyll score 48.2. Verdict: Approved for Commercial Scale-Up.`;
-        } else if (selectedScientist === 'sci-1' || activeSciLabel.includes('Sarah')) {
-          cumulativeConclusionText = `As of ${cutoffDate} (${activeSciLabel}): Completed ${filteredRuns.length} laboratory assay run(s) for ${prodName}. Achieved target formulation pH 6.2 at 1000mL volume makeup with 146 cPs viscosity. CIPAC 54°C thermal aging maintained 95.8% active retention. Spore inhibition rate 91.7%.`;
-        } else {
-          cumulativeConclusionText = `As of ${cutoffDate} (All Scientists): Completed ${filteredRuns.length} total multi-day execution runs for ${prodName}. Combined lab titration, CIPAC thermal stability (95.8% active retention), and wheat field trial rust reduction (89.4% efficacy). Verdict: PASSED / Approved for Commercial Scale-Up.`;
-        }
+        cumulativeConclusionText = `As of ${cutoffDate} (${activeSciLabel}): Completed ${filteredRuns.length} execution run(s) for ${prodName}. Latest activity: ${lastRun.activity || 'R&D activities completed'}. Result: ${lastRun.result || 'In progress'}.`;
       } else if (matchingDailyLogs.length > 0) {
         const lastLog = matchingDailyLogs[0];
         cumulativeConclusionText = `As of ${cutoffDate} (${activeSciLabel}): Logged ${matchingDailyLogs.length} daily R&D activity record(s) for ${prodName}. Objective: ${lastLog.objective}. Work: ${lastLog.activities?.replace(/\[.*?\]\s*/g, '') || 'R&D activities completed.'}`;
@@ -166,8 +160,8 @@ export const TeamActivity: React.FC = () => {
         id: log.id,
         date: cleanDate,
         scientistId: log.userId,
-        scientistName: scientistNameMap[log.userId] || 'Dr. Sarah Jenkins',
-        productName: 'BioShield Alpha (Bio-fungicide)',
+        scientistName: scientistNameMap[log.userId] || users?.find(u => u.id === log.userId)?.name || 'Unknown Scientist',
+        productName: (log as any).productName || (allProducts.length > 0 ? allProducts[0] : 'R&D Activity'),
         hoursLogged: Math.round(((log.timeSpentMinutes || 60) / 60) * 10) / 10,
         objectiveOrTitle: log.objective || 'Daily R&D Work Log',
         activitiesDetail: log.activities || 'General R&D activities completed.',
@@ -189,8 +183,8 @@ export const TeamActivity: React.FC = () => {
           id: `${exp.id}-${run.id}`,
           date: cleanRunDate,
           scientistId: sciId,
-          scientistName: run.scientistName || scientistNameMap[sciId] || 'Dr. Sarah Jenkins',
-          productName: exp.productName || 'BioShield Alpha (Bio-fungicide)',
+          scientistName: run.scientistName || scientistNameMap[sciId] || 'Unknown Scientist',
+          productName: exp.productName || (allProducts.length > 0 ? allProducts[0] : 'R&D Activity'),
           hoursLogged: 4.0,
           objectiveOrTitle: `${exp.name} (Day #${run.dayNumber})`,
           activitiesDetail: `${run.activityPerformed} | Outcome: ${run.observationResult || 'Target met'}`,
@@ -233,14 +227,12 @@ export const TeamActivity: React.FC = () => {
 
   const completedCount = unifiedAuditFeed.filter((r) => r.status === 'Completed' || r.status === 'Passed').length;
 
-  // Scientist Dropdown Options
+  // Scientist Dropdown Options — built from real users store
   const scientistOptions = useMemo(() => {
-    return [
-      { id: 'all', label: 'All Scientists' },
-      { id: 'sci-1', label: 'Dr. Sarah Jenkins (Lead Microbiologist)' },
-      { id: 'sci-2', label: 'Dr. Mik (Head of R&D Operations)' },
-    ];
-  }, []);
+    const base = [{ id: 'all', label: 'All Scientists' }];
+    const fromUsers = (users || []).map(u => ({ id: u.id, label: u.name || u.email || u.id }));
+    return [...base, ...fromUsers];
+  }, [users]);
 
   // 1. Export High-Level Executive Product & Project Status Summary PDF
   const handleExportProductStatusPDF = () => {

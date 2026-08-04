@@ -6,11 +6,13 @@ import { StabilityTracker } from './StabilityTracker';
 import { FieldTrials } from './FieldTrials';
 import { Observations } from './Observations';
 import { useExperiments } from '../contexts/ExperimentContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ScientificWorkbenchModal } from '../components/ScientificWorkbenchModal';
 import type { ExperimentType } from '../types/experimentTypes';
 
 export const Experiments: React.FC = () => {
-  const { experiments, addExperiment, deleteExperiment } = useExperiments();
+  const { experiments, addExperiment, deleteExperiment, allProducts } = useExperiments();
+  const { profile } = useAuth();
 
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,17 +23,16 @@ export const Experiments: React.FC = () => {
 
   // Creation Modal State
   const [expName, setExpName] = useState('');
-  const [productName, setProductName] = useState('BioShield Alpha (Bio-fungicide)');
+  const [productName, setProductName] = useState('');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductName, setCustomProductName] = useState('');
   const [expType, setExpType] = useState<ExperimentType>('Lab');
   const [hypothesis, setHypothesis] = useState('');
   const [initialActivity, setInitialActivity] = useState('');
 
-  const PRODUCTS = [
-    'BioShield Alpha (Bio-fungicide)',
-    '+ Add Custom Product...',
-  ];
+  const PRODUCTS = allProducts && allProducts.length > 0
+    ? [...allProducts, '+ Add Custom Product...']
+    : ['+ Add Custom Product...'];
 
   const handleCreateExperiment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ export const Experiments: React.FC = () => {
           id: `run-${Date.now()}`,
           dayNumber: 1,
           date: new Date().toISOString().split('T')[0],
-          scientistName: 'Dr. Sarah Jenkins',
+          scientistName: profile?.name || 'Scientist',
           activityPerformed: initialActivity.trim() || 'Initial experiment setup & baseline parameter measurement.',
           observationResult: 'Sample prepared, initial parameters recorded.',
           runStatus: 'In Progress',

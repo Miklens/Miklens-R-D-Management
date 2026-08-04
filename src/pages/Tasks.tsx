@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTasks } from '../contexts/TaskContext';
+import { useExperiments } from '../contexts/ExperimentContext';
 import type { GlobalTask, TaskPriority, TaskType, TaskEntityType } from '../types/taskTypes';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,13 +25,15 @@ export const Tasks: React.FC = () => {
   const [priority, setPriority] = useState<TaskPriority>('Medium');
   const [type, setType] = useState<TaskType>('Task');
   const [entityType, setEntityType] = useState<TaskEntityType>('product');
-  const [entityName, setEntityName] = useState('BioShield Alpha');
-  const [assignedToName, setAssignedToName] = useState(profile?.name || 'Dr. Sarah Jenkins');
+  const [entityName, setEntityName] = useState('');
+  const [assignedToName, setAssignedToName] = useState(profile?.name || '');
   const [dueDate, setDueDate] = useState('');
 
-  const PRODUCTS = ['BioShield Alpha (Bio-fungicide)'];
-  const PROJECTS = ['BioShield Commercialization Project'];
-  const EXPERIMENTS = ['BioShield Efficacy & Heat Stability Assay #101'];
+  // Use live products/experiments from context if available, otherwise empty
+  const { allProducts } = useExperiments();
+  const PRODUCTS = allProducts && allProducts.length > 0 ? allProducts : [];
+  const PROJECTS: string[] = [];
+  const EXPERIMENTS: string[] = [];
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();

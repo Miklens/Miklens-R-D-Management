@@ -67,9 +67,8 @@ const WORK_TYPE_OPTIONS = [
  * This captures WHICH product it was done ON.
  */
 const SCOPE_OPTIONS = [
-  { group: '🧪 Products',   id: 'p1',          name: 'BioShield Alpha (Bio-fungicide)' },
-  { group: '🧪 Products',   id: 'new_product', name: '➕ Add New / Custom Product...' },
   { group: '⚙️ Non-Product', id: 'non_product', name: '🏢 N/A — Non-Product Work' },
+  { group: '🧪 Products',   id: 'new_product', name: '➕ Add New / Custom Product...' },
 ];
 
 /** IDs that require a custom text input below */
@@ -116,7 +115,7 @@ export const calcDurationMinutes = (startTime: string, endTime: string): number 
 const blankRow = (): DailyActivityRow => ({
   id: `row-${Date.now()}`,
   category: 'lab', customCategory: '',
-  productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+  productId: 'non_product', productName: '', customProductName: '',
   startTime: '', endTime: '',
   durationMinutes: 0,
   description: '',
@@ -281,15 +280,14 @@ export const ResearchLog: React.FC = () => {
         ? (act.customCategory || 'Custom R&D')
         : (WORK_TYPE_OPTIONS.find(c => c.value === act.category)?.label || act.category);
 
-      // Build the scope title
+      // Build the scope title from the selected product
       let scopeTitle: string;
-      if (act.productId === 'p1') {
-        scopeTitle = 'BioShield Alpha (Bio-fungicide)';
-      } else if (act.productId === 'new_product') {
+      if (act.productId === 'new_product') {
         scopeTitle = act.customProductName.trim() || 'New Product';
-      } else {
-        // non_product — scope is captured by Work Type
+      } else if (act.productId === 'non_product') {
         scopeTitle = 'Non-Product Work';
+      } else {
+        scopeTitle = act.productName || act.customProductName.trim() || 'R&D Activity';
       }
 
       const logData: Partial<DailyLog> = {
@@ -303,14 +301,17 @@ export const ResearchLog: React.FC = () => {
 
       editingLogId ? updateLog(editingLogId, logData) : addLog(logData as Omit<DailyLog,'id'|'createdAt'|'updatedAt'>);
 
-      // Auto-sync only BioShield product to experiments timeline
-      if (act.productId === 'p1' && experiments.length > 0) {
-        const exp = experiments.find(e => e.name?.includes('BioShield') || e.productName?.includes('BioShield')) ?? experiments[0];
-        if (exp) {
-          addDailyRun('exp', exp.id, {
-            dayNumber: (exp.dailyRuns?.length ?? 0) + 1,
+      // Auto-sync log activity to experiments timeline if a matching experiment exists
+      if (experiments.length > 0) {
+        const matchingExp = act.productName
+          ? experiments.find(e => e.productName === act.productName || e.productName?.includes(act.productName || ''))
+          : null;
+        const expToSync = matchingExp ?? null;
+        if (expToSync) {
+          addDailyRun('exp', expToSync.id, {
+            dayNumber: (expToSync.dailyRuns?.length ?? 0) + 1,
             date: logDate,
-            scientistName: profile?.name ?? 'Dr. Sarah Jenkins',
+            scientistName: profile?.name ?? 'Scientist',
             activityPerformed: `[${formatTime12h(act.startTime)}-${formatTime12h(act.endTime)}] ${act.description.trim()}`,
             observationResult: 'Target met, physical specs verified',
             runStatus: 'Passed',

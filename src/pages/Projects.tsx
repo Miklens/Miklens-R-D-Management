@@ -2,37 +2,16 @@ import React, { useState } from 'react';
 import { FolderGit2, Plus, X, Search, Users, Trash2, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const INITIAL_PROJECTS = [
-  { 
-    id: 1, 
-    name: 'BioShield Alpha Commercialization Project', 
-    product: 'BioShield Alpha (Bio-fungicide)', 
-    stage: 'Lab Testing & CIPAC Stability', 
-    progress: 75, 
-    team: 4, 
-    status: 'active' 
-  },
-  { 
-    id: 2, 
-    name: 'BioShield Alpha Wheat Field Efficacy Trial', 
-    product: 'BioShield Alpha (Bio-fungicide)', 
-    stage: 'Field Trial Phase 1', 
-    progress: 50, 
-    team: 3, 
-    status: 'active' 
-  },
-];
-
 export const Projects: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [nameInput, setNameInput] = useState('');
-  const [productInput, setProductInput] = useState('BioShield Alpha (Bio-fungicide)');
+  const [productInput, setProductInput] = useState('');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductInput, setCustomProductInput] = useState('');
   const [stageInput, setStageInput] = useState('Lab Testing');
-  const [projectList, setProjectList] = useState(INITIAL_PROJECTS);
+  const [projectList, setProjectList] = useState<Array<{id: number; name: string; product: string; stage: string; progress: number; team: number; status: string}>>([]);
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();

@@ -4,10 +4,6 @@ import { CheckCircle2, AlertCircle, Clock, Plus, X, Building2, Search } from 'lu
 import { useProducts } from '../hooks/useProducts';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const mockProducts = [
-  { id: 'p1', name: 'BioShield Alpha', category: 'Bio-fungicide', stage: 'Lab Testing', status: 'Active', progress: 65, teamSize: 2, lastUpdate: 'Just now' },
-];
-
 export const Products: React.FC = () => {
   const { data: realProducts } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,9 +11,10 @@ export const Products: React.FC = () => {
   const [nameInput, setNameInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('Bio-fungicide');
   const [stageInput, setStageInput] = useState('Lab Testing');
-  const [productList, setProductList] = useState(mockProducts);
+  const [productList, setProductList] = useState<Array<{id: string; name: string; category?: string; stage?: string; status?: string; progress?: number; teamSize?: number; lastUpdate?: string}>>([]);
 
-  const products = realProducts && realProducts.length > 0 ? realProducts : productList;
+  // Only use real products — no mock/seed data
+  const products = (realProducts && realProducts.length > 0 ? realProducts : productList) ?? [];
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

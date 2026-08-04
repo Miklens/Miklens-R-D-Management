@@ -16,14 +16,6 @@ const INITIAL_REPORTS = [
     size: '2.4 MB'
   },
   {
-    id: 'r2',
-    title: 'BioShield Alpha Monthly Formulation Progress',
-    type: 'Product',
-    date: 'Jul 15, 2026',
-    status: 'Generated',
-    size: '5.1 MB'
-  },
-  {
     id: 'r3',
     title: 'Q3 Research Department Stability Analysis',
     type: 'Department',
