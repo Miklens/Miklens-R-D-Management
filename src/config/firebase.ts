@@ -1,42 +1,102 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { logger } from '../utils/logger';
 
-// Your web app's Firebase configuration
-// For this environment, we provide placeholder values that can be replaced later.
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "mock-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mock-auth-domain",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mock-project-id",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mock-storage-bucket",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "mock-sender-id",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "mock-app-id"
+/**
+ * FIREBASE CONFIGURATION
+ * Load credentials from environment variables.
+ * See .env.example for required variables.
+ */
+
+interface FirebaseConfigType {
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+}
+
+const firebaseConfig: FirebaseConfigType = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Whether real Firebase credentials have been provided via env vars.
-// When false, the app runs on a local, persistent demo data layer instead
-// (see src/services/*Store.ts) so the UI is fully functional out of the box.
-export const isFirebaseConfigured =
-  !!import.meta.env.VITE_FIREBASE_API_KEY &&
-  import.meta.env.VITE_FIREBASE_API_KEY !== 'mock-api-key';
+/**
+ * Validate Firebase configuration
+ */
+const checkFirebaseConfigured = (): boolean => {
+  const requiredKeys = [
+    'apiKey',
+    'authDomain',
+    'projectId',
+    'storageBucket',
+    'messagingSenderId',
+    'appId',
+  ] as const;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+  const configured = requiredKeys.every(key => !!firebaseConfig[key]);
+  
+  if (!configured) {
+    logger.warn(
+      'Firebase not properly configured. Some features may be disabled.',
+      { module: 'Firebase', action: 'init' }
+    );
+  }
+  
+  return configured;
+};
 
-// Enable offline persistence
-// This handles the prompt requirement: "Offline Support" and "Realtime Sync"
-// In a real environment, this might fail if multiple tabs are open, so we catch it.
-try {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('The current browser does not support all of the features required to enable persistence');
-    }
-  });
-} catch (error) {
-  // Catch any sync errors during mock config execution
-  console.warn('Could not enable persistence (likely mock config)');
+// Pre-compute configuration status at module load time
+export const isFirebaseConfigured = checkFirebaseConfigured();
+
+// Initialize Firebase only if configured
+let app: ReturnType<typeof initializeApp> | null = null;
+let auth: any = null;
+let db: any = null;
+
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+
+    // Enable offline persistence
+    enableIndexedDbPersistence(db)
+      .then(() => {
+        logger.info('Firestore offline persistence enabled', { module: 'Firebase' });
+      })
+      .catch((err) => {
+        if (err.code === 'failed-precondition') {
+          logger.warn(
+            'Multiple tabs open, persistence enabled in one tab only',
+            { module: 'Firebase' }
+          );
+        } else if (err.code === 'unimplemented') {
+          logger.warn(
+            'Browser does not support all features required for persistence',
+            { module: 'Firebase' }
+          );
+        } else {
+          logger.error('Failed to enable persistence', err, { module: 'Firebase' });
+        }
+      });
+
+    logger.info('Firebase initialized successfully', { module: 'Firebase' });
+  } catch (error) {
+    logger.error('Failed to initialize Firebase', error, { module: 'Firebase' });
+  }
+} else {
+  logger.warn(
+    'Firebase not configured. Running in offline-only mode. See .env.example for setup.',
+    { module: 'Firebase' }
+  );
 }
+
+export { auth, db };
+export const isFirebaseReady = isFirebaseConfigured;

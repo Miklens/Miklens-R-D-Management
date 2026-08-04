@@ -11,11 +11,11 @@ import type { AppUser } from '../types';
  * activity, employee directory) work without a Firebase project.
  */
 export const useUsers = () => {
-  const [data, setData] = useState<AppUser[]>(isFirebaseConfigured ? [] : getUsers());
-  const [isLoading, setIsLoading] = useState(isFirebaseConfigured);
+  const [data, setData] = useState<AppUser[]>(!isFirebaseConfigured ? [] : getUsers());
+  const [isLoading, setIsLoading] = useState(!isFirebaseConfigured);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (isFirebaseConfigured) {
       const unsubscribe = subscribeToStoreChanges(() => setData(getUsers()));
       return unsubscribe;
     }
