@@ -61,92 +61,105 @@ export const Products: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* Header Banner */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Product Catalog</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Active R&D products and formulation portfolio</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              Formulation & Product Portfolio
+            </span>
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 dark:text-white">Active Product Catalog</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Enterprise R&D formulation pipeline & active commercialization products</p>
         </div>
+
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/20"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl font-bold text-xs shadow-md transition-all active:scale-95 shrink-0"
         >
-          <Plus className="w-5 h-5" />
-          New Product
+          <Plus className="w-4 h-4" />
+          + New Product
         </button>
       </div>
 
       {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
-          placeholder="Search products..."
+          placeholder="Filter products by name or category..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+          className="w-full pl-10 pr-4 py-2.5 text-xs font-semibold bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
         />
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProducts.map((product: any, index: number) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-800 hover:shadow-xl transition-shadow"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-white" />
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
-                {product.status}
-              </span>
-            </div>
-            <h3 className="font-bold text-gray-900 dark:text-white text-lg">{product.name}</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{product.category}</p>
-            
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-gray-500">Progress</span>
-                <span className="font-medium text-gray-900 dark:text-white">{product.progress}%</span>
-              </div>
-              <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2">
-                <div 
-                  className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
-                  style={{ width: `${product.progress}%` }}
-                />
-              </div>
-            </div>
-            
-            <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-              <span className="font-semibold text-gray-700 dark:text-gray-300">{product.stage}</span>
-              <span>{product.lastUpdate}</span>
-            </div>
+      {filteredProducts.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredProducts.map((product: any, index: number) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04 }}
+              className="group bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-xl border border-gray-100 dark:border-gray-800 hover:border-emerald-500/40 hover:-translate-y-1 transition-all space-y-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-black text-lg shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                  <Building2 className="w-6 h-6" />
+                </div>
 
-            {/* Link to testing operations, linked tasks & Trial Sync */}
-            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
-              <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-                <Link 
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(product.status || 'Active')}`}>
+                  {product.status || 'Active'}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-gray-900 dark:text-white group-hover:text-emerald-600 transition-colors">{product.name}</h3>
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">{product.category || 'General Formulation'}</p>
+              </div>
+
+              {/* Progress bar */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                  <span>Development Stage</span>
+                  <span className="font-mono text-gray-900 dark:text-white font-extrabold">{product.stage || 'Lab Testing'}</span>
+                </div>
+                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${product.progress || 45}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-50 dark:border-gray-800/80 text-[11px] font-bold text-gray-400">
+                <Link
                   to="/trial-sync"
-                  className="font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-1 rounded-lg border border-purple-200 dark:border-purple-800"
+                  className="font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 bg-purple-50 dark:bg-purple-950/50 px-2.5 py-1 rounded-xl border border-purple-100 dark:border-purple-900/50"
                 >
-                  ⚡ Synced Field Trials →
+                  ⚡ Synced Trials →
                 </Link>
-                <Link 
+                <Link
                   to="/experiments"
-                  className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-extrabold"
                 >
                   View Testing →
                 </Link>
               </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl space-y-3">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 flex items-center justify-center">
+            <Building2 className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">No Products Registered Yet</h3>
+          <p className="text-xs text-gray-400 max-w-sm mx-auto">Click "+ New Product" above to create and manage your R&D formulation catalog.</p>
+        </div>
+      )}
 
       {/* Add Product Modal */}
       <AnimatePresence>
