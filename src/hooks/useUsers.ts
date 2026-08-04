@@ -23,10 +23,10 @@ export const useUsers = () => {
     const unsubscribe = onSnapshot(
       collection(db, 'users'),
       (snapshot) => {
-        setData(snapshot.docs.map(d => {
+        const rawUsers = snapshot.docs.map(d => {
           const raw = d.data() as any;
           const name = raw.Name || raw.name || raw.Username || (raw.email ? raw.email.split('@')[0] : '') || d.id;
-          const email = raw.Username || raw.email || '';
+          const email = (raw.Username || raw.email || '').trim().toLowerCase();
           const role = raw.Role || raw.role || 'Scientist';
           return {
             id: d.id,
@@ -39,7 +39,28 @@ export const useUsers = () => {
             avatar: raw.Avatar || `https://i.pravatar.cc/150?u=${d.id}`,
             isActive: raw.IsActive !== false && raw.isActive !== false,
           } as AppUser;
-        }));
+        });
+
+        // Deduplicate & Merge by normalized email address or ID
+        const mergedMap = new Map<string, AppUser>();
+        rawUsers.forEach(u => {
+          const key = u.email ? u.email.toLowerCase() : u.id;
+          if (mergedMap.has(key)) {
+            const existing = mergedMap.get(key)!;
+            mergedMap.set(key, {
+              ...existing,
+              ...u,
+              // Prefer richer/non-generic names and active flags
+              name: (u.name && u.name !== 'User') ? u.name : existing.name,
+              email: u.email || existing.email,
+              isActive: existing.isActive || u.isActive,
+            });
+          } else {
+            mergedMap.set(key, u);
+          }
+        });
+
+        setData(Array.from(mergedMap.values()));
         setIsLoading(false);
       },
       (error) => {
