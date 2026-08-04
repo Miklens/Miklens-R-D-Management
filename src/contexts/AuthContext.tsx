@@ -70,17 +70,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               isActive: true,
             } as any);
           } else {
-            console.warn('[Security] User document missing in Trial Manager users collection.');
-            await firebaseSignOut(auth);
-            setCurrentUser(null);
-            setProfile(null);
-            setTrialManagerRole(null);
+            // Default user profile fallback for any valid Firebase Auth account (e.g. Bindu)
+            setCurrentUser(user);
+            setTrialManagerRole('User');
+            setProfile({
+              id: user.uid,
+              name: user.email?.split('@')[0] || 'User',
+              email: user.email || '',
+              role: 'Scientist',
+              trialManagerRole: 'User',
+              designation: 'R&D Scientist',
+              department: 'Research & Development',
+              skills: ['Field Operations', 'R&D Research'],
+              avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
+              isActive: true,
+            } as any);
           }
         } catch (err) {
-          console.error('[Security] Error reading Trial Manager user profile:', err);
-          setCurrentUser(null);
-          setProfile(null);
-          setTrialManagerRole(null);
+          console.error('[Auth] Error setting up user profile:', err);
+          // Still permit authenticated session
+          setCurrentUser(user);
+          setTrialManagerRole('User');
+          setProfile({
+            id: user.uid,
+            name: user.email?.split('@')[0] || 'User',
+            email: user.email || '',
+            role: 'Scientist',
+            trialManagerRole: 'User',
+            designation: 'R&D Scientist',
+            department: 'Research & Development',
+            skills: ['Field Operations'],
+            avatar: `https://i.pravatar.cc/150?u=${user.uid}`,
+            isActive: true,
+          } as any);
         }
         setLoading(false);
         return;

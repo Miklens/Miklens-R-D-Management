@@ -39,10 +39,7 @@ export const TeamActivity: React.FC = () => {
 
   // Helper map for scientist IDs and Names
   const scientistNameMap = useMemo(() => {
-    const map: Record<string, string> = {
-      'sci-1': 'Dr. Sarah Jenkins',
-      'sci-2': 'Dr. Mik (Head of R&D Operations)',
-    };
+    const map: Record<string, string> = {};
     (users || []).forEach((u) => {
       if (u.id) map[u.id] = u.name;
     });

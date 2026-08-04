@@ -3,37 +3,28 @@ import { Users, FlaskConical, Award, ShieldCheck, Clock, ChevronRight, Activity,
 import { Link } from 'react-router-dom';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { useDailyLogs } from '../hooks/useDailyLogs';
+import { useUsers } from '../hooks/useUsers';
 
 export const ExecutiveControlTower: React.FC = () => {
   const { experiments, labTests, stabilityLogs } = useExperiments();
   const { data: logs } = useDailyLogs();
 
+  const { data: users } = useUsers();
+
   const passedCount = experiments.filter((e) => e.outcomeStatus === 'Passed').length + labTests.filter((l) => l.outcomeStatus === 'Passed').length;
   const pendingCount = experiments.filter((e) => e.outcomeStatus === 'Pending' || !e.outcomeStatus).length;
   const activeExpCount = experiments.length;
 
-  const activeScientists = [
-    {
-      id: 'sci-1',
-      name: 'Dr. Sarah Jenkins',
-      role: 'Lead Microbiologist',
-      product: 'BioShield Alpha (Bio-fungicide)',
-      hoursLogged: '5.5 hrs today',
-      activeExp: 'BioShield Alpha - Volume & pH Titration Adjustment',
-      latestRun: 'Day #3: 24-hour post-titration thermal stability check (Passed)',
-      status: 'Active Now',
-    },
-    {
-      id: 'sci-2',
-      name: 'Dr. Mik (Management & R&D Lead)',
-      role: 'Head of R&D Operations',
-      product: 'BioShield Alpha (Bio-fungicide)',
-      hoursLogged: '4.0 hrs today',
-      activeExp: 'BioShield Wheat Field Plot Trial',
-      latestRun: 'Day #45: Recorded final leaf rust disease severity index (Passed)',
-      status: 'In Review',
-    },
-  ];
+  const activeScientists = (users || []).map(u => ({
+    id: u.id,
+    name: u.name,
+    role: u.designation || (u as any).trialManagerRole || 'R&D Scientist',
+    product: u.department || 'Active Field Operations',
+    hoursLogged: 'Active Today',
+    activeExp: 'Field Operations & Research',
+    latestRun: 'Active Session Synchronized',
+    status: 'Active Now',
+  }));
 
   return (
     <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-950 text-white shadow-2xl border border-emerald-900/40 space-y-6">

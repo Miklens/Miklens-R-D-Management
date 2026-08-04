@@ -17,7 +17,7 @@ export interface DailyLogData {
 }
 
 export const createDailyLog = async (userId: string, data: DailyLogData) => {
-  const logsRef = collection(db, 'daily_logs');
+  const logsRef = collection(db, 'rnd_daily_logs');
 
   // The Firebase trigger in Phase 9 will pick up this document creation
   // and append `aiNotes` automatically.

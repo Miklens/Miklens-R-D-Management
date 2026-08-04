@@ -20,7 +20,7 @@ export const useDailyLogs = () => {
       return unsubscribe;
     }
 
-    const q = query(collection(db, 'daily_logs'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'rnd_daily_logs'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
