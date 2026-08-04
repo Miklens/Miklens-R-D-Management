@@ -44,22 +44,19 @@ export const Dashboard: React.FC = () => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     exportToPDF(
       {
-        title: 'EXECUTIVE PRODUCT & PROJECT PIPELINE LATEST STATUS SUMMARY REPORT',
+        title: 'MIKLENS R&D PIPELINE STATUS REPORT',
         subtitle: 'Cumulative Scientific State Conclusions & Verdicts',
         dateRangeText: `Generated on: ${todayStr}`,
         scopeText: 'Scope: All Active R&D Products & Commercialization Projects',
-        headers: ['Product / Project Name', 'Current R&D Stage', 'Scientific Verdict', 'Current State Executive Conclusion (as of Report Date)', 'Progress & Team'],
+        headers: ['Metric', 'Value', 'Status'],
         rows: [
-          [
-            'BioShield Alpha (Bio-fungicide)',
-            'Lab Testing & Titration Assay',
-            'PASSED / Approved for Scale-Up',
-            `As of ${todayStr}: Completed 3 multi-day execution runs. Lab titration achieved target pH 6.2 at 1000mL volume makeup with 146 cPs viscosity. CIPAC 54°C thermal aging maintained 95.8% active retention. Field plot trial confirmed 89.4% fungal disease reduction with zero crop toxicity.`,
-            '85% Complete (Dr. Sarah Jenkins, Dr. Mik)',
-          ],
+          ['Total Experiments', activeExpCount.toString(), activeExpCount > 0 ? 'Active' : 'None'],
+          ['Passed Verdicts', passedCount.toString(), passedCount > 0 ? 'Approved' : 'Pending'],
+          ['Active Scientists', scientistCount.toString(), '100% Active'],
+          ['Report Generated', todayStr, 'Latest'],
         ],
       },
-      `Miklens_Executive_Report_${todayStr}.pdf`
+      `Miklens_RnD_Report_${todayStr}.pdf`
     );
   };
 
@@ -133,7 +130,7 @@ export const Dashboard: React.FC = () => {
         <StatCard
           title="Active Experiments"
           value={activeExpCount.toString()}
-          change="BioShield Testing"
+          change={activeExpCount > 0 ? `${activeExpCount} In Progress` : 'None Yet'}
           link="/experiments"
         />
         <StatCard
