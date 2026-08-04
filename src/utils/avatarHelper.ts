@@ -25,6 +25,17 @@ export const setUserCustomAvatar = (userIdOrEmail: string, base64Data: string): 
   }
 };
 
+export const removeUserCustomAvatar = (userIdOrEmail?: string): void => {
+  if (!userIdOrEmail) return;
+  try {
+    const key = `${AVATAR_PREFIX}${userIdOrEmail.trim().toLowerCase()}`;
+    localStorage.removeItem(key);
+    window.dispatchEvent(new Event('storage'));
+  } catch (err) {
+    console.error('Failed to remove user avatar:', err);
+  }
+};
+
 export const getEffectiveAvatar = (userId?: string, userEmail?: string, fallbackUrl?: string): string | null => {
   if (userEmail) {
     const custom = getUserCustomAvatar(userEmail);

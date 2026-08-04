@@ -13,7 +13,8 @@ import { getEntriesByScientist } from '../services/timeTracking';
 import type { TimeMotionEntry } from '../types/timeTracking';
 import { format, subDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar } from 'lucide-react';
+import { Calendar, Camera, Trash2 } from 'lucide-react';
+import { getEffectiveAvatar, setUserCustomAvatar, removeUserCustomAvatar } from '../utils/avatarHelper';
 
 const buildMonthlyTrend = (logs: { createdAt: string; completionStatus: string; confidenceLevel: number }[]) => {
   const months: { key: string; label: string }[] = [];
@@ -51,9 +52,30 @@ export const EmployeeProfile: React.FC = () => {
   const targetId = userId || currentProfile?.id;
   const isSelf = targetId === currentProfile?.id;
 
+  const [avatarTick, setAvatarTick] = useState(0);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      if (currentProfile?.email) setUserCustomAvatar(currentProfile.email, base64);
+      if (currentProfile?.id) setUserCustomAvatar(currentProfile.id, base64);
+      setAvatarTick(t => t + 1);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePhotoDelete = () => {
+    if (currentProfile?.email) removeUserCustomAvatar(currentProfile.email);
+    if (currentProfile?.id) removeUserCustomAvatar(currentProfile.id);
+    setAvatarTick(t => t + 1);
+  };
+
   const person = useMemo(
     () => users.find(u => u.id === targetId) || (isSelf ? currentProfile : undefined),
-    [users, targetId, isSelf, currentProfile]
+    [users, targetId, isSelf, currentProfile, avatarTick]
   );
 
   const personLogs = useMemo(
@@ -389,17 +411,32 @@ export const EmployeeProfile: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-start gap-6">
             {/* Avatar */}
             <div className="flex-shrink-0">
-              <div className="relative">
+              <div className="relative group">
                 <div className="w-28 h-28 md:w-32 md:h-32 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-500 p-1 shadow-2xl shadow-emerald-500/25">
                   <img 
                     className="w-full h-full rounded-3xl object-cover" 
-                    src={person.avatar || `https://i.pravatar.cc/150?u=${person.id}`} 
+                    src={getEffectiveAvatar(person.id, person.email, person.avatar) || `https://i.pravatar.cc/150?u=${person.id}`} 
                     alt={person.name}
                   />
                 </div>
                 {isSelf && (
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg">
-                    You
+                  <div className="mt-3 flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95">
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>{getEffectiveAvatar(person.id, person.email) ? 'Change Photo' : 'Upload Photo'}</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                    </label>
+
+                    {getEffectiveAvatar(person.id, person.email) && (
+                      <button
+                        onClick={handlePhotoDelete}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-950 dark:text-red-300 rounded-xl text-xs font-bold transition-all active:scale-95"
+                        title="Remove custom photo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

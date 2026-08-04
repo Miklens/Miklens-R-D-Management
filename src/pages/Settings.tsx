@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { User, Bell, Shield, Database, Upload } from 'lucide-react';
-import { getUserCustomAvatar, setUserCustomAvatar } from '../utils/avatarHelper';
+import { User, Bell, Shield, Database, Upload, Trash2 } from 'lucide-react';
+import { getUserCustomAvatar, setUserCustomAvatar, removeUserCustomAvatar } from '../utils/avatarHelper';
 
 export const Settings: React.FC = () => {
   const { userRole, profile } = useAuth();
@@ -32,6 +32,14 @@ export const Settings: React.FC = () => {
     if (avatarPreview && profile?.id) {
       setUserCustomAvatar(profile.id, avatarPreview);
     }
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleDeletePhoto = () => {
+    if (profile?.email) removeUserCustomAvatar(profile.email);
+    if (profile?.id) removeUserCustomAvatar(profile.id);
+    setAvatarPreview(null);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -95,12 +103,23 @@ export const Settings: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                        className="block w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-950 dark:file:text-emerald-300 cursor-pointer"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                          className="block w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 dark:file:bg-emerald-950 dark:file:text-emerald-300 cursor-pointer"
+                        />
+                        {(getUserCustomAvatar(profile?.email) || getUserCustomAvatar(profile?.id)) && (
+                          <button
+                            type="button"
+                            onClick={handleDeletePhoto}
+                            className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-950 dark:text-red-300 rounded-xl text-xs font-bold transition-all active:scale-95 whitespace-nowrap"
+                          >
+                            Delete Photo
+                          </button>
+                        )}
+                      </div>
                       <p className="text-[11px] text-gray-400 mt-1">PNG, JPG or WebP up to 5MB. Photo reflects globally across app.</p>
                     </div>
                   </div>
