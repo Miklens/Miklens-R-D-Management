@@ -14,13 +14,27 @@ import {
   CheckSquare, CheckCircle2, Circle, FileText, Download, Award, ArrowRight 
 } from 'lucide-react';
 
-const StatCard = ({ title, value, change, link }: { title: string; value: string; change: string; link?: string }) => {
+const StatCard = ({ title, value, change, link, icon: Icon, color = 'emerald' }: { title: string; value: string; change: string; link?: string; icon?: any; color?: 'emerald' | 'purple' | 'amber' | 'blue' }) => {
+  const colorMap = {
+    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50',
+    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400 border-purple-100 dark:border-purple-900/50',
+    amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 border-amber-100 dark:border-amber-900/50',
+    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 border-blue-100 dark:border-blue-900/50',
+  };
+
   const content = (
-    <div className="rounded-2xl border border-gray-200/80 bg-white/80 p-5 shadow-sm backdrop-blur-xl transition-all hover:shadow-md dark:border-gray-800/80 dark:bg-gray-900/80">
-      <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{title}</dt>
-      <dd className="mt-2 flex items-baseline gap-x-2">
-        <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">{value}</span>
-        <span className={`text-xs font-semibold ${change.includes('+') || change.includes('active') || change.includes('Passed') ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+    <div className="group relative overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+      <div className="flex items-center justify-between">
+        <dt className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{title}</dt>
+        {Icon && (
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${colorMap[color]} group-hover:scale-110 transition-transform`}>
+            <Icon className="w-5 h-5" />
+          </div>
+        )}
+      </div>
+      <dd className="mt-4 flex items-baseline justify-between">
+        <span className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{value}</span>
+        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-900/40">
           {change}
         </span>
       </dd>
@@ -126,24 +140,32 @@ export const Dashboard: React.FC = () => {
           value={`${relevantLogs.reduce((s, l) => s + (l.timeSpentMinutes || 60), 0) / 60}h`}
           change="Updated Today"
           link="/research-log"
+          icon={Clock}
+          color="emerald"
         />
         <StatCard
           title="Active Experiments"
           value={activeExpCount.toString()}
           change={activeExpCount > 0 ? `${activeExpCount} In Progress` : 'None Yet'}
           link="/experiments"
+          icon={Beaker}
+          color="amber"
         />
         <StatCard
-          title="Passed Scientific Verdicts"
+          title="Passed Verdicts"
           value={passedCount.toString()}
-          change="Approved for Scale-Up"
+          change="Scale-Up Approved"
           link="/experiments"
+          icon={Award}
+          color="purple"
         />
         <StatCard
-          title="Active R&D Scientists"
+          title="Active Scientists"
           value={scientistCount.toString()}
           change="100% Active"
-          link="/employees"
+          link="/team-activity"
+          icon={Workflow}
+          color="blue"
         />
       </div>
 
