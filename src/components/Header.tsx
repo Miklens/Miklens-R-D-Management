@@ -214,24 +214,24 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors max-w-[200px] md:max-w-[240px]"
           >
             {getEffectiveAvatar(profile?.id, profile?.email, profile?.avatar) ? (
               <img
                 src={getEffectiveAvatar(profile?.id, profile?.email, profile?.avatar)!}
                 alt="Avatar"
-                className="w-9 h-9 rounded-xl object-cover border-2 border-emerald-500 shadow-md"
+                className="w-9 h-9 rounded-xl object-cover border-2 border-emerald-500 shadow-md shrink-0"
               />
             ) : (
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/20 shrink-0">
                 {profile?.name?.charAt(0) || 'U'}
               </div>
             )}
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">{profile?.name || 'User'}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{userRole}</p>
+            <div className="hidden md:block text-left min-w-0 flex-1">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile?.name || 'User'}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole}</p>
             </div>
-            <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block" />
+            <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block shrink-0" />
           </button>
 
           <AnimatePresence>
@@ -241,34 +241,34 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden z-50"
+                className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden z-[9999]"
               >
-                <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-                  <p className="font-semibold text-gray-900 dark:text-white">{profile?.name || 'User'}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{profile?.email}</p>
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+                  <p className="font-bold text-gray-900 dark:text-white truncate text-sm">{profile?.name || 'User'}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{profile?.email}</p>
                 </div>
-                <div className="p-2">
+                <div className="p-2 space-y-1">
                   <button
                     onClick={() => { navigate('/profile'); setShowDropdown(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300 transition-colors"
                   >
-                    <UserIcon className="w-4 h-4" />
+                    <UserIcon className="w-4 h-4 text-emerald-500" />
                     My Profile
                   </button>
                   <button
                     onClick={() => { navigate('/settings'); setShowDropdown(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300 transition-colors"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-4 h-4 text-emerald-500" />
                     Settings
                   </button>
                 </div>
                 <div className="p-2 border-t border-gray-100 dark:border-gray-800">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-4 h-4 text-red-500" />
                     Sign out
                   </button>
                 </div>
