@@ -1,7 +1,7 @@
 import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
 import Dexie from 'dexie';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, limit, query } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { getUsers, saveUsers } from './localStore';
 import { AppUser } from '../types';
@@ -152,18 +152,35 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       console.warn('[TrialManagerSync] Could not fetch live user directory:', uErr);
     }
 
-    let allCloudDocs: { id: string; data: any }[] = [];
+    let allCloudDocs: { id: string; data: any; collection: string }[] = [];
 
-    // Query across exact matching collection names
+    // Query across exact matching collection names — filtered by logged-in user UID
     for (const colName of TARGET_COLLECTIONS) {
       try {
         const trialsRef = collection(firestore, colName);
-        const snapshot = await getDocs(query(trialsRef, limit(300)));
-        if (!snapshot.empty) {
-          console.log(`[TrialManagerSync] Found ${snapshot.size} records in collection "${colName}"`);
-          snapshot.docs.forEach(doc => {
-            allCloudDocs.push({ id: doc.id, data: doc.data() });
-          });
+        let snapshot;
+        if (authUserUid) {
+          // Strict user isolation: only fetch trials created by the logged-in user
+          const q = query(trialsRef, where('CreatedBy', '==', authUserUid), limit(300));
+          const q2 = query(trialsRef, where('createdBy', '==', authUserUid), limit(300));
+          const [snap1, snap2] = await Promise.all([getDocs(q), getDocs(q2)]);
+          const seenIds = new Set<string>();
+          const docs: { id: string; data: any; collection: string }[] = [];
+          snap1.docs.forEach(d => { if (!seenIds.has(d.id)) { seenIds.add(d.id); docs.push({ id: d.id, data: d.data(), collection: colName }); } });
+          snap2.docs.forEach(d => { if (!seenIds.has(d.id)) { seenIds.add(d.id); docs.push({ id: d.id, data: d.data(), collection: colName }); } });
+          if (docs.length > 0) {
+            console.log(`[TrialManagerSync] Found ${docs.length} records for user ${authUserUid} in "${colName}"`);
+            allCloudDocs.push(...docs);
+          }
+        } else {
+          // No UID — fall back to all (admin use)
+          snapshot = await getDocs(query(trialsRef, limit(300)));
+          if (!snapshot.empty) {
+            console.log(`[TrialManagerSync] Found ${snapshot.size} records in collection "${colName}"`);
+            snapshot.docs.forEach(doc => {
+              allCloudDocs.push({ id: doc.id, data: doc.data(), collection: colName });
+            });
+          }
         }
       } catch (colErr: any) {
         console.warn(`[TrialManagerSync] Collection "${colName}" fetch status:`, colErr?.message);

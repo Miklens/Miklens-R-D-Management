@@ -6,11 +6,20 @@ import type {
   ObservationItem 
 } from '../types/experimentTypes';
 
-const EXP_KEY = 'miklens_experiments_v4';
-const LAB_KEY = 'miklens_lab_tests_v4';
-const STABILITY_KEY = 'miklens_stability_v4';
-const FIELD_KEY = 'miklens_field_trials_v4';
-const OBS_KEY = 'miklens_observations_v4';
+// v5: Purged all BioShield demo seed data. Bumping keys forces clean localStorage reset across all browsers.
+const EXP_KEY = 'miklens_experiments_v5';
+const LAB_KEY = 'miklens_lab_tests_v5';
+const STABILITY_KEY = 'miklens_stability_v5';
+const FIELD_KEY = 'miklens_field_trials_v5';
+const OBS_KEY = 'miklens_observations_v5';
+
+// Clear out all legacy v4 seed keys on first load
+const LEGACY_KEYS = [
+  'miklens_experiments_v4', 'miklens_lab_tests_v4',
+  'miklens_stability_v4', 'miklens_field_trials_v4',
+  'miklens_observations_v4'
+];
+try { LEGACY_KEYS.forEach(k => localStorage.removeItem(k)); } catch { /* ignore */ }
 
 const SEED_EXPERIMENTS: ExperimentItem[] = [];
 const SEED_LAB_TESTS: LabTestItem[] = [];
