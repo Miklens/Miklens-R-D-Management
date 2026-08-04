@@ -172,72 +172,67 @@ export const ScientistHub: React.FC<ScientistHubProps> = memo(({ userId }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-8">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-green-500 to-blue-500 rounded-full blur-3xl" />
-        </div>
-
+      <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl p-6 sm:p-8">
         <div className="relative z-10">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center">
-                <GreetingIcon className="w-8 h-8" />
+              <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl flex items-center justify-center shadow-lg">
+                <GreetingIcon className="w-7 h-7" />
               </div>
               <div>
-                <p className="text-white/70 font-medium">{greeting.text}!</p>
-                <h2 className="text-3xl font-bold">Welcome to Your Hub</h2>
-                <p className="text-white/60 text-sm mt-1">Here's everything about your work today</p>
+                <p className="text-emerald-600 dark:text-emerald-400 font-extrabold text-xs uppercase tracking-wider">{greeting.text}!</p>
+                <h2 className="text-2xl font-black text-gray-900 dark:text-white">Welcome to Your Scientist Hub</h2>
+                <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">Here's your live research activity trace and work summary</p>
               </div>
             </div>
 
             {/* Today's Progress Circle */}
-            <div className="text-center">
-              <div className="relative w-24 h-24">
-                <svg className="w-24 h-24 transform -rotate-90">
-                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-white/10" />
-                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="none" 
-                    strokeDasharray={251.2} 
-                    strokeDashoffset={251.2 - (251.2 * todayProgress) / 100}
-                    className="text-green-400" 
+            <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 self-start sm:self-auto">
+              <div className="relative w-14 h-14 shrink-0">
+                <svg className="w-14 h-14 transform -rotate-90">
+                  <circle cx="28" cy="28" r="23" stroke="currentColor" strokeWidth="5" fill="none" className="text-gray-200 dark:text-gray-700" />
+                  <circle cx="28" cy="28" r="23" stroke="currentColor" strokeWidth="5" fill="none" 
+                    strokeDasharray={144.5} 
+                    strokeDashoffset={144.5 - (144.5 * todayProgress) / 100}
+                    className="text-emerald-500" 
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div>
-                    <p className="text-2xl font-bold">{Math.round(todayProgress)}%</p>
-                    <p className="text-xs text-white/60">of 8h</p>
-                  </div>
+                  <span className="text-xs font-black text-gray-900 dark:text-white">{Math.round(todayProgress)}%</span>
                 </div>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-gray-400 uppercase block">Daily Progress</span>
+                <span className="text-xs font-extrabold text-gray-900 dark:text-white">{formatDuration(todayMinutes)} / 8h</span>
               </div>
             </div>
           </div>
 
           {/* Quick Stats Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-            <div className="bg-white/5 backdrop-blur rounded-xl p-4">
-              <div className="flex items-center gap-2 text-white/70 text-sm">
-                <Clock className="w-4 h-4" /> Today
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mt-6">
+            <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-2xl p-4">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs font-bold">
+                <Clock className="w-4 h-4 text-emerald-500" /> Today Logged
               </div>
-              <p className="text-2xl font-bold mt-1">{formatDuration(todayMinutes)}</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{formatDuration(todayMinutes)}</p>
             </div>
-            <div className="bg-white/5 backdrop-blur rounded-xl p-4">
-              <div className="flex items-center gap-2 text-white/70 text-sm">
-                <Activity className="w-4 h-4" /> Activities
+            <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-2xl p-4">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs font-bold">
+                <Activity className="w-4 h-4 text-blue-500" /> Activities
               </div>
-              <p className="text-2xl font-bold mt-1">{todayActivities.length}</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{todayActivities.length}</p>
             </div>
-            <div className="bg-white/5 backdrop-blur rounded-xl p-4">
-              <div className="flex items-center gap-2 text-white/70 text-sm">
-                <FolderOpen className="w-4 h-4" /> Projects
+            <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-2xl p-4">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs font-bold">
+                <FolderOpen className="w-4 h-4 text-purple-500" /> Projects
               </div>
-              <p className="text-2xl font-bold mt-1">{stats?.activeProjectsCount || 0}</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{stats?.activeProjectsCount || 0}</p>
             </div>
-            <div className="bg-white/5 backdrop-blur rounded-xl p-4">
-              <div className="flex items-center gap-2 text-white/70 text-sm">
-                <CheckCircle className="w-4 h-4" /> Tasks Done
+            <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 rounded-2xl p-4">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs font-bold">
+                <CheckCircle className="w-4 h-4 text-teal-500" /> Tasks Done
               </div>
-              <p className="text-2xl font-bold mt-1">{stats?.tasksCompleted || 0}</p>
+              <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{stats?.tasksCompleted || 0}</p>
             </div>
           </div>
         </div>

@@ -184,20 +184,20 @@ export const FieldTrials: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white shadow-2xl border border-purple-900/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-6 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-emerald-950 font-mono shadow-sm">
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
               Scientist-Wise Profile Sync
             </span>
-            <span className="text-xs text-purple-200 font-semibold flex items-center gap-1">
-              <Database className="w-3.5 h-3.5 text-purple-400" /> Miklens Herbicide Trial Manager 7
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold flex items-center gap-1">
+              <Database className="w-3.5 h-3.5 text-purple-500" /> Miklens Herbicide Trial Manager 7
             </span>
           </div>
-          <h2 className="text-xl font-black text-white">
+          <h2 className="text-xl font-black text-gray-900 dark:text-white">
             Field Trial Manager & Google Drive Cross-Device Sync
           </h2>
-          <p className="text-xs text-purple-200/80 leading-relaxed max-w-2xl">
+          <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-2xl font-medium">
             Scientist-wise data mapping: Each scientist sees their assigned field trials & Google Drive evidence, while Management maintains cumulative pipeline oversight.
           </p>
         </div>
@@ -205,16 +205,16 @@ export const FieldTrials: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
           <button
             onClick={() => setShowConfigModal(true)}
-            className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-900/80 hover:bg-purple-800 text-purple-200 rounded-2xl text-xs font-bold border border-purple-700/60 transition-all"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl text-xs font-bold border border-gray-200 dark:border-gray-700 transition-all active:scale-95"
           >
-            <Key className="w-4 h-4 text-purple-300" />
+            <Key className="w-4 h-4 text-purple-500" />
             {getSavedFirebaseConfig()?.email ? `🔐 Logged in: ${getSavedFirebaseConfig()?.email?.split('@')[0]}` : '🔑 Connect Credentials'}
           </button>
 
           <button
             onClick={handleManualSync}
             disabled={isSyncing}
-            className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-emerald-950 rounded-2xl text-xs font-black shadow-lg transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-xs font-black shadow-md transition-all disabled:opacity-50 active:scale-95"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Authenticating Cloud...' : 'Sync Live Data'}

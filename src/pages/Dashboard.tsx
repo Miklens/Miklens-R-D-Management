@@ -80,22 +80,22 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Welcome Banner with 1-Click Quick Actions */}
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-gray-900 to-purple-950 text-white shadow-2xl border border-purple-900/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="p-6 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
             {isManagement ? 'Management Portal' : 'Scientist Workbench'}
           </span>
-          <h2 className="text-2xl font-black text-white mt-1">
+          <h2 className="text-2xl font-black text-gray-900 dark:text-white mt-1.5">
             {isManagement ? 'Executive Control Center' : `Welcome back, ${profile?.name?.split(' ')[0] || 'Scientist'}`}
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">Miklens Bio-Tech Enterprise Research & Development Platform</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Miklens Bio-Tech Enterprise Research & Development Platform</p>
         </div>
 
         {/* 1-CLICK QUICK ACTION BUTTONS */}
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Link
             to="/trial-sync"
-            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl text-xs font-extrabold shadow-lg hover:from-purple-700 hover:to-indigo-700 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-extrabold shadow-md transition-all active:scale-95"
           >
             <MapPin className="w-4 h-4 text-purple-200" />
             ⚡ Trial Manager Sync
@@ -103,7 +103,7 @@ export const Dashboard: React.FC = () => {
 
           <Link
             to="/research-log"
-            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl text-xs font-extrabold shadow-lg hover:from-emerald-600 hover:to-teal-600 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-xs font-extrabold shadow-md transition-all active:scale-95"
           >
             <Edit3 className="w-4 h-4" />
             + Log Today's Work
@@ -111,7 +111,7 @@ export const Dashboard: React.FC = () => {
 
           <button
             onClick={handleQuickDownloadPDF}
-            className="flex items-center gap-2 px-4 py-3 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-2xl text-xs font-bold border border-gray-700 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl text-xs font-bold border border-gray-200 dark:border-gray-700 transition-all active:scale-95"
           >
             <Download className="w-4 h-4 text-gray-400" />
             PDF Report
