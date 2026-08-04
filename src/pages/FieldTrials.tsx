@@ -154,12 +154,13 @@ export const FieldTrials: React.FC = () => {
     if (activeCategoryTab === 'herbicide' && !(trial.productName.toLowerCase().includes('weed') || trial.productName.toLowerCase().includes('herbicide') || trial.title.toLowerCase().includes('weed'))) return false;
     if (activeCategoryTab === 'fungicide' && !(trial.productName.toLowerCase().includes('shield') || trial.productName.toLowerCase().includes('fungi'))) return false;
 
-    // 3. Scientist-Wise Profile Isolation Filter
+    // 3. Strict Logged-In User Trial Isolation Filter
     if (selectedScientistFilter === 'my-trials') {
       if (currentUserEmail) {
-        const matchesEmail = trial.creatorEmail?.toLowerCase().includes(currentUserEmail.split('@')[0]) ||
-                             trial.scientistName.toLowerCase().includes(currentUserEmail.split('@')[0]);
-        if (!matchesEmail && !isAdminOrManagement) return false;
+        const userHandle = currentUserEmail.split('@')[0].toLowerCase();
+        const matchesEmail = (trial.creatorEmail && trial.creatorEmail.toLowerCase().includes(userHandle)) ||
+                             (trial.scientistName && trial.scientistName.toLowerCase().includes(userHandle));
+        if (!matchesEmail) return false;
       }
     } else if (selectedScientistFilter !== 'all-scientists') {
       if (trial.scientistName !== selectedScientistFilter) return false;
