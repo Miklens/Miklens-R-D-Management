@@ -14,30 +14,55 @@ import {
   CheckSquare, CheckCircle2, Circle, FileText, Download, Award, ArrowRight 
 } from 'lucide-react';
 
-const StatCard = ({ title, value, change, link, icon: Icon, color = 'emerald' }: { title: string; value: string; change: string; link?: string; icon?: any; color?: 'emerald' | 'purple' | 'amber' | 'blue' }) => {
+const StatCard = ({ title, value, change, link, icon: Icon, color = 'emerald', sparklineData = [10, 15, 8, 22, 14, 28, 20] }: { title: string; value: string; change: string; link?: string; icon?: any; color?: 'emerald' | 'purple' | 'amber' | 'blue'; sparklineData?: number[] }) => {
   const colorMap = {
-    emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50',
-    purple: 'bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400 border-purple-100 dark:border-purple-900/50',
-    amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 border-amber-100 dark:border-amber-900/50',
-    blue: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 border-blue-100 dark:border-blue-900/50',
+    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900/50', stroke: '#10b981' },
+    purple: { bg: 'bg-purple-50 dark:bg-purple-950/40', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-100 dark:border-purple-900/50', stroke: '#a855f7' },
+    amber: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-900/50', stroke: '#f59e0b' },
+    blue: { bg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-100 dark:border-blue-900/50', stroke: '#3b82f6' },
   };
 
+  const style = colorMap[color];
+
+  // SVG path generator for smooth sparkline
+  const max = Math.max(...sparklineData);
+  const min = Math.min(...sparklineData);
+  const points = sparklineData.map((val, idx) => {
+    const x = (idx / (sparklineData.length - 1)) * 120;
+    const y = 30 - ((val - min) / (max - min || 1)) * 24;
+    return `${x},${y}`;
+  }).join(' L ');
+  const pathD = `M ${points}`;
+
   const content = (
-    <div className="group relative overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+    <div className="group relative overflow-hidden rounded-3xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between">
       <div className="flex items-center justify-between">
-        <dt className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{title}</dt>
+        <dt className="text-[11px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">{title}</dt>
         {Icon && (
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${colorMap[color]} group-hover:scale-110 transition-transform`}>
-            <Icon className="w-5 h-5" />
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center border ${style.bg} ${style.text} ${style.border}`}>
+            <Icon className="w-4 h-4" />
           </div>
         )}
       </div>
-      <dd className="mt-4 flex items-baseline justify-between">
-        <span className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{value}</span>
-        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-900/40">
+
+      <div className="mt-4 flex items-end justify-between gap-2">
+        <div>
+          <span className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{value}</span>
+        </div>
+
+        {/* Sparkline Mini Chart */}
+        <div className="w-24 h-8 shrink-0">
+          <svg className="w-full h-full overflow-visible" viewBox="0 0 120 30">
+            <path d={pathD} fill="none" stroke={style.stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between pt-2 border-t border-gray-50 dark:border-gray-800/60">
+        <span className={`text-[10px] font-extrabold ${style.text} ${style.bg} px-2.5 py-0.5 rounded-full border ${style.border}`}>
           {change}
         </span>
-      </dd>
+      </div>
     </div>
   );
 

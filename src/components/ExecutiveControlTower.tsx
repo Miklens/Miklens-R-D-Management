@@ -96,33 +96,49 @@ export const ExecutiveControlTower: React.FC = () => {
       {/* Live Scientist Activity & Progress List */}
       <div className="space-y-3">
         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center justify-between">
-          <span>Scientists Directory & Status</span>
+          <span>Scientists Directory & Live Status</span>
           <span className="text-[11px] font-normal text-gray-400">Updated Real-Time</span>
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {activeScientists.map((sci) => (
+          {activeScientists.map((sci, idx) => (
             <div
               key={sci.id}
-              className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 hover:border-emerald-500/50 transition-all space-y-3"
+              className="p-5 rounded-3xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 hover:border-emerald-500/50 transition-all space-y-4 shadow-sm hover:shadow-md"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800 flex items-center justify-center font-extrabold text-xs">
-                    {(sci.name || 'U').split(' ')[1]?.[0] || (sci.name || 'U')[0] || 'S'}
+                  <div className="relative">
+                    <img
+                      src={`https://i.pravatar.cc/150?u=${sci.id || idx}`}
+                      alt={sci.name}
+                      className="w-11 h-11 rounded-2xl object-cover border-2 border-white dark:border-gray-800 shadow-sm"
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-gray-800 rounded-full" />
                   </div>
                   <div>
-                    <h5 className="font-bold text-gray-900 dark:text-white text-sm">{sci.name}</h5>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{sci.role}</p>
+                    <h5 className="font-black text-gray-900 dark:text-white text-sm">{sci.name}</h5>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{sci.role}</p>
                   </div>
                 </div>
 
-                <span className="px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  {sci.hoursLogged}
+                <span className="px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Active Today
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 space-y-1 text-xs">
+              {/* Progress bar matching reference card 1 */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                  <span>Activity Trace & Output</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono">100% Synced</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full w-full" />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 space-y-1 text-xs">
                 <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-[11px]">
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                     <Beaker className="w-3.5 h-3.5" />
