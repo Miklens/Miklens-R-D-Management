@@ -15,7 +15,7 @@ import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
 import { useAuth } from '../contexts/AuthContext';
 
 export const FieldTrials: React.FC = () => {
-  const { profile, userRole } = useAuth();
+  const { profile, userRole, currentUser } = useAuth();
   const [syncedTrials, setSyncedTrials] = useState<ExternalFieldTrial[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -131,8 +131,13 @@ export const FieldTrials: React.FC = () => {
     handleManualSync();
   };
 
-  // Get current user email for filtering
-  const currentUserEmail = getSavedFirebaseConfig()?.email?.toLowerCase() || profile?.email?.toLowerCase() || '';
+  // Get current user email — always use the logged-in R&D app user's email first
+  // Do NOT use getSavedFirebaseConfig()?.email because that is the Trial Manager account
+  // (e.g. Pavan's email), NOT the currently logged-in R&D user (e.g. Bindu)
+  const currentUserEmail = profile?.email?.toLowerCase() || '';
+  // Firebase Auth UID is the most reliable match for CreatedBy field in Firestore
+  const currentUserUid = currentUser?.uid || profile?.id || '';
+
 
   // Extract unique scientist names for filter dropdown
   const uniqueScientists = Array.from(
@@ -158,8 +163,15 @@ export const FieldTrials: React.FC = () => {
     if (selectedScientistFilter === 'my-trials') {
       if (currentUserEmail) {
         const userHandle = currentUserEmail.split('@')[0].toLowerCase();
-        const matchesEmail = (trial.creatorEmail && trial.creatorEmail.toLowerCase().includes(userHandle)) ||
-                             (trial.scientistName && trial.scientistName.toLowerCase().includes(userHandle));
+        const trialEmail = (trial.creatorEmail || '').toLowerCase();
+        const trialScientist = (trial.scientistName || '').toLowerCase();
+        const trialUid = (trial.creatorUid || '').toLowerCase();
+
+        // Match by email, email handle (prefix before @), or UID
+        const matchesEmail = trialEmail.includes(currentUserEmail) ||
+                             trialEmail.includes(userHandle) ||
+                             trialScientist.includes(userHandle) ||
+                             (currentUserUid && trialUid === currentUserUid);
         if (!matchesEmail) return false;
       }
     } else if (selectedScientistFilter !== 'all-scientists') {

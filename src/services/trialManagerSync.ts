@@ -44,18 +44,20 @@ const TARGET_COLLECTIONS = [
   'biostimulant_trials'
 ];
 
-// Helper to format Drive image URLs or fallbacks
+// Helper to format Drive image URLs — returns empty string if no real URL is available
 const formatDriveImageUrl = (rawUrl?: string): string => {
-  if (!rawUrl || rawUrl === '—') {
-    return 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=800&q=80';
+  if (!rawUrl || rawUrl === '—' || rawUrl.trim() === '') {
+    // No placeholder fallback — we only show real photos from Google Drive or Firebase Storage
+    return '';
   }
-  // Convert Google Drive view/open links into direct thumbnail links
+  // Convert Google Drive view/open links into direct embeddable thumbnail links
   if (rawUrl.includes('drive.google.com') || rawUrl.includes('docs.google.com')) {
     const match = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
       return `https://lh3.googleusercontent.com/u/0/d/${match[1]}=w800`;
     }
   }
+  // Firebase Storage URLs, direct image URLs — pass through as-is
   return rawUrl;
 };
 
@@ -246,17 +248,21 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         notesStr = last.Notes || last.notes || last.Observation || notesStr;
       }
 
-      const formattedPhotos = photos.map((p: any, idx: number) => {
-        const rawUrl = p.driveUrl || p.url || p.fileData || p.PhotoURL;
-        return {
-          id: p.id || `photo-${idx}`,
-          url: formatDriveImageUrl(rawUrl),
-          thumbnailUrl: formatDriveImageUrl(p.thumbnailUrl || rawUrl),
-          caption: p.caption || p.label || p.fileName || `Field Photo ${p.date || idx + 1}`,
-          takenAt: p.date || data.Date || new Date().toISOString().split('T')[0],
-          treatmentName: p.treatment || formulationCode || 'Treatment Plot',
-        };
-      });
+      const formattedPhotos = photos
+        .map((p: any, idx: number) => {
+          const rawUrl = p.driveUrl || p.url || p.fileData || p.PhotoURL;
+          const resolvedUrl = formatDriveImageUrl(rawUrl);
+          return {
+            id: p.id || `photo-${idx}`,
+            url: resolvedUrl,
+            thumbnailUrl: formatDriveImageUrl(p.thumbnailUrl || rawUrl) || resolvedUrl,
+            caption: p.caption || p.label || p.fileName || `Field Photo ${p.date || idx + 1}`,
+            takenAt: p.date || data.Date || new Date().toISOString().split('T')[0],
+            treatmentName: p.treatment || formulationCode || 'Treatment Plot',
+          };
+        })
+        // Only keep photos that have a real resolved URL
+        .filter(p => p.url && p.url.length > 0);
 
       return {
         id: String(id),
