@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useUsers } from '../hooks/useUsers';
+import { getEffectiveAvatar } from '../utils/avatarHelper';
 
 export const ExecutiveControlTower: React.FC = () => {
   const { experiments, labTests, stabilityLogs } = useExperiments();
@@ -110,7 +111,7 @@ export const ExecutiveControlTower: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <img
-                      src={`https://i.pravatar.cc/150?u=${sci.id || idx}`}
+                      src={getEffectiveAvatar(sci.id, (sci as any).email, (sci as any).avatar) || `https://i.pravatar.cc/150?u=${sci.id || idx}`}
                       alt={sci.name}
                       className="w-11 h-11 rounded-2xl object-cover border-2 border-white dark:border-gray-800 shadow-sm"
                     />

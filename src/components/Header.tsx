@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getEffectiveAvatar } from '../utils/avatarHelper';
 
 interface HeaderProps {
   onToggleMobileMenu?: () => void;
@@ -215,9 +216,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
-              {profile?.name?.charAt(0) || 'U'}
-            </div>
+            {getEffectiveAvatar(profile?.id, profile?.email, profile?.avatar) ? (
+              <img
+                src={getEffectiveAvatar(profile?.id, profile?.email, profile?.avatar)!}
+                alt="Avatar"
+                className="w-9 h-9 rounded-xl object-cover border-2 border-emerald-500 shadow-md"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-emerald-500/20">
+                {profile?.name?.charAt(0) || 'U'}
+              </div>
+            )}
             <div className="hidden md:block text-left">
               <p className="text-sm font-semibold text-gray-900 dark:text-white">{profile?.name || 'User'}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{userRole}</p>
