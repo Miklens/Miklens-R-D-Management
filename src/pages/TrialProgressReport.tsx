@@ -557,6 +557,9 @@ export const TrialProgressReport: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
 
+  // Time Horizon / Period Filter (default '7d' for Last Week)
+  const [timeHorizon, setTimeHorizon] = useState<'7d' | '30d' | '90d' | 'all'>('7d');
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | TrialCategory>('all');
@@ -612,6 +615,15 @@ export const TrialProgressReport: React.FC = () => {
       .finally(() => setIsLoading(false));
   };
 
+  // Helper date cutoffs
+  const cutoffDate = useMemo(() => {
+    if (timeHorizon === 'all') return null;
+    const days = timeHorizon === '7d' ? 7 : timeHorizon === '30d' ? 30 : 90;
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d;
+  }, [timeHorizon]);
+
   // Unique scientists
   const scientists = useMemo(() => {
     const names = new Set<string>();
@@ -619,7 +631,7 @@ export const TrialProgressReport: React.FC = () => {
     return Array.from(names).sort();
   }, [trials]);
 
-  // Filtered trials
+  // Filtered trials (incorporating Time Horizon)
   const filtered = useMemo(() => {
     return trials.filter(t => {
       if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
@@ -627,6 +639,21 @@ export const TrialProgressReport: React.FC = () => {
       if (statusFilter === 'finalized' && !t.isCompleted) return false;
       if (scientistFilter !== 'all' && t.scientistName !== scientistFilter) return false;
       if (ratingFilter !== 'all' && (t.resultRating || 'Unrated') !== ratingFilter) return false;
+
+      // Period Cutoff Check (either trial startDate or any observation date falls in cutoff)
+      if (cutoffDate) {
+        const startDt = new Date(t.startDate);
+        const hasRecentStart = !isNaN(startDt.getTime()) && startDt >= cutoffDate;
+        const hasRecentObs = t.evaluations?.some(e => {
+          const eDt = new Date(e.evalDate);
+          return !isNaN(eDt.getTime()) && eDt >= cutoffDate;
+        });
+
+        if (!hasRecentStart && !hasRecentObs) {
+          return false;
+        }
+      }
+
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
         return (
@@ -641,26 +668,85 @@ export const TrialProgressReport: React.FC = () => {
       }
       return true;
     });
-  }, [trials, categoryFilter, statusFilter, scientistFilter, ratingFilter, searchTerm]);
+  }, [trials, categoryFilter, statusFilter, scientistFilter, ratingFilter, searchTerm, cutoffDate]);
 
-  // KPI Stats
+  // Executive Digest: Scientist Breakdown in Selected Period
+  const scientistDigest = useMemo(() => {
+    const map = new Map<string, {
+      name: string;
+      trialsWorked: Set<string>;
+      obsCount: number;
+      efficacies: number[];
+      latestDate: string;
+      finalizedCount: number;
+      topFormulation: string;
+    }>();
+
+    trials.forEach(t => {
+      const sName = fmtName(t.scientistName || 'Agronomist');
+      const evals = t.evaluations || [];
+
+      evals.forEach(ev => {
+        if (cutoffDate) {
+          const eDt = new Date(ev.evalDate);
+          if (isNaN(eDt.getTime()) || eDt < cutoffDate) return;
+        }
+
+        if (!map.has(sName)) {
+          map.set(sName, {
+            name: sName,
+            trialsWorked: new Set(),
+            obsCount: 0,
+            efficacies: [],
+            latestDate: ev.evalDate,
+            finalizedCount: 0,
+            topFormulation: t.productName || t.title,
+          });
+        }
+        const item = map.get(sName)!;
+        item.trialsWorked.add(t.trialCode);
+        item.obsCount += 1;
+        if (ev.efficacyPercent > 0) item.efficacies.push(ev.efficacyPercent);
+        if (new Date(ev.evalDate) > new Date(item.latestDate)) item.latestDate = ev.evalDate;
+        if (t.isCompleted) item.finalizedCount += 1;
+      });
+    });
+
+    return Array.from(map.values()).map(item => {
+      const avgEff = item.efficacies.length
+        ? Math.round(item.efficacies.reduce((a, b) => a + b, 0) / item.efficacies.length)
+        : 0;
+      return { ...item, avgEff };
+    }).sort((a, b) => b.obsCount - a.obsCount);
+  }, [trials, cutoffDate]);
+
+  // KPI Stats based on current filtered view
   const kpis = useMemo(() => {
-    const active = trials.filter(t => !t.isCompleted).length;
-    const finalized = trials.filter(t => t.isCompleted).length;
-    const allEfjs = trials.flatMap(t => t.evaluations?.map(e => e.efficacyPercent) ?? []).filter(e => e > 0);
-    const avgEff = allEfjs.length ? Math.round(allEfjs.reduce((s, v) => s + v, 0) / allEfjs.length) : 0;
-    const totalObs = trials.reduce((s, t) => s + (t.evaluations?.length ?? 0), 0);
-    return { total: trials.length, active, finalized, avgEff, totalObs };
-  }, [trials]);
+    const active = filtered.filter(t => !t.isCompleted).length;
+    const finalized = filtered.filter(t => t.isCompleted).length;
+
+    // Filter evaluations by cutoff if set
+    const periodObs = filtered.flatMap(t =>
+      (t.evaluations || []).filter(e => {
+        if (!cutoffDate) return true;
+        const eDt = new Date(e.evalDate);
+        return !isNaN(eDt.getTime()) && eDt >= cutoffDate;
+      })
+    );
+
+    const periodEfjs = periodObs.map(e => e.efficacyPercent).filter(e => e > 0);
+    const avgEff = periodEfjs.length ? Math.round(periodEfjs.reduce((s, v) => s + v, 0) / periodEfjs.length) : 0;
+    return { total: filtered.length, active, finalized, avgEff, totalObs: periodObs.length };
+  }, [filtered, cutoffDate]);
 
   // Category distribution for bar chart
   const catChartData = useMemo(() =>
     ALL_CATEGORIES.map(cat => ({
       name: CATEGORY_CONFIG[cat].label,
-      count: trials.filter(t => t.category === cat).length,
+      count: filtered.filter(t => t.category === cat).length,
       color: CATEGORY_CONFIG[cat].color,
     })).filter(d => d.count > 0),
-  [trials]);
+  [filtered]);
 
   return (
     <div className="space-y-6 max-w-screen-2xl mx-auto">
@@ -675,11 +761,33 @@ export const TrialProgressReport: React.FC = () => {
             Trial Progress Intelligence
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">
-            Live management view of all field trial data synced from Miklens Trial Manager
+            Live management view of field trial progress and scientist activity across time horizons
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Time Horizon Selector */}
+          <div className="bg-gray-100 dark:bg-gray-800/80 p-1 rounded-2xl flex items-center gap-1 border border-gray-200/60 dark:border-gray-700">
+            {[
+              { id: '7d', label: 'Last 7 Days (This Week)' },
+              { id: '30d', label: 'Last 30 Days' },
+              { id: '90d', label: 'Last 90 Days' },
+              { id: 'all', label: 'All Time' },
+            ].map(period => (
+              <button
+                key={period.id}
+                onClick={() => setTimeHorizon(period.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
+                  timeHorizon === period.id
+                    ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {period.label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={handleRefresh}
             disabled={isLoading}
@@ -697,6 +805,87 @@ export const TrialProgressReport: React.FC = () => {
             Export Excel ({filtered.length})
           </button>
         </div>
+      </div>
+
+      {/* ── Executive "At One Glance" Weekly Progress Brief ───────────────── */}
+      <div className="bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl space-y-5 border border-emerald-800/40">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-extrabold uppercase tracking-wider mb-2 border border-emerald-400/30">
+              <Activity className="w-3.5 h-3.5" />
+              Executive Field Progress Brief ({timeHorizon === '7d' ? 'Last 7 Days' : timeHorizon === '30d' ? 'Last 30 Days' : timeHorizon === '90d' ? 'Last 90 Days' : 'All Time'})
+            </div>
+            <h2 className="text-xl font-black text-white">
+              {timeHorizon === '7d' ? 'What Scientists Did This Week' : `Field Activity & Progress (${timeHorizon})`}
+            </h2>
+            <p className="text-xs text-emerald-200/80 font-medium mt-0.5">
+              Complete breakdown of scientist observations, trial progress, and trial outcomes in one glance.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 shrink-0">
+            <div className="text-right">
+              <span className="text-[10px] uppercase font-bold text-emerald-300 block">Active Field Scientists</span>
+              <span className="text-lg font-black text-white">{scientistDigest.length} Deployed</span>
+            </div>
+            <div className="h-7 w-px bg-white/20" />
+            <div className="text-right">
+              <span className="text-[10px] uppercase font-bold text-emerald-300 block">Period Obs Count</span>
+              <span className="text-lg font-black text-emerald-300">{kpis.totalObs} Logged</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Scientist Activity Table Digest */}
+        {scientistDigest.length > 0 ? (
+          <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/20 backdrop-blur-sm">
+            <table className="w-full text-xs text-left">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/5 text-emerald-300 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="px-4 py-3">Scientist</th>
+                  <th className="px-4 py-3 text-center">Trials Worked On</th>
+                  <th className="px-4 py-3 text-center">Observations Logged</th>
+                  <th className="px-4 py-3 text-right">Avg Efficacy</th>
+                  <th className="px-4 py-3">Top Formulation</th>
+                  <th className="px-4 py-3 text-right">Latest Observation Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {scientistDigest.map((sci, idx) => (
+                  <tr key={sci.name} className="hover:bg-white/5 transition-colors">
+                    <td className="px-4 py-3 font-bold text-white flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-xl bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 flex items-center justify-center font-black text-xs">
+                        {sci.name.charAt(0)}
+                      </div>
+                      <span>{sci.name}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center font-semibold text-emerald-200">
+                      {sci.trialsWorked.size} Trial{sci.trialsWorked.size !== 1 ? 's' : ''}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-black text-xs border border-emerald-400/30">
+                        {sci.obsCount} Logged
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-black text-sm" style={{ color: getEfficacyColor(sci.avgEff) }}>
+                      {sci.avgEff > 0 ? `${sci.avgEff}%` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-emerald-100 font-medium truncate max-w-[180px]" title={sci.topFormulation}>
+                      {sci.topFormulation}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-300 font-medium whitespace-nowrap">
+                      {fmtDate(sci.latestDate)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-white/5 text-center text-xs text-emerald-200 italic">
+            No scientist observations recorded in the selected period ({timeHorizon}). Switch to <strong>Last 30 Days</strong> or <strong>All Time</strong> to view historical logs.
+          </div>
+        )}
       </div>
 
       {/* ── Sync Notice ─────────────────────────────────────────────────────── */}
