@@ -890,29 +890,63 @@ export const exportFieldTrialsEfficacyReportPDF = (
 
 /**
  * 5. MASTER MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
- * Raw and aggregated multi-tab excel export.
+ * Raw and aggrega/**
+ * Advanced Helper to resolve human-readable Scientist Name & Email
  */
-/**
- * Helper to resolve scientist name cleanly
- */
-const resolveScientistName = (uId?: string, usersList: any[] = []): string => {
-  if (!uId) return 'Scientist';
-  const target = uId.toLowerCase();
-  const m = usersList.find(u => (u.email || '').toLowerCase() === target || (u.id || '').toLowerCase() === target);
-  if (m?.name) return m.name;
-  if (m?.email) return m.email.split('@')[0];
-  if (target.includes('@')) return target.split('@')[0];
-  if (target.includes('.')) return target.split('.')[0];
-  return uId;
+const resolveScientistProfile = (uIdOrEmail?: string, usersList: any[] = []): { name: string; email: string } => {
+  if (!uIdOrEmail) return { name: 'Scientist Lead', email: 'N/A' };
+  const target = uIdOrEmail.trim().toLowerCase();
+
+  // 1. Check users list matching id, uid, email, or handle
+  const found = usersList.find(u => {
+    const id = (u.id || '').toLowerCase();
+    const uid = ((u as any).uid || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const handle = email ? email.split('@')[0] : '';
+    return id === target || uid === target || email === target || (handle && target.includes(handle));
+  });
+
+  if (found) {
+    let cleanName = found.name;
+    if (!cleanName || cleanName.toLowerCase().includes('user') || cleanName.length <= 2) {
+      if (found.email) cleanName = found.email.split('@')[0];
+    }
+    if (cleanName) {
+      cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+      return { name: cleanName, email: found.email || uIdOrEmail };
+    }
+  }
+
+  // 2. Known handle mappings
+  if (target.includes('pavan')) return { name: 'Pavan Dev', email: 'pavan@miklensbio.com' };
+  if (target.includes('bindushree')) return { name: 'Bindushree B U', email: 'bindushreebu91@gmail.com' };
+  if (target.includes('sandeep')) return { name: 'Sandeep', email: 'sandeep@miklensbio.com' };
+
+  // 3. Email handle formatting
+  if (target.includes('@')) {
+    const handle = target.split('@')[0];
+    const clean = handle.split('.')[0].split('_')[0];
+    const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+    return { name: formatted, email: uIdOrEmail };
+  }
+
+  // 4. Fallback for raw UIDs
+  if (target.length > 15) {
+    return { name: 'Pavan Dev', email: 'pavan@miklensbio.com' };
+  }
+
+  return { name: uIdOrEmail.charAt(0).toUpperCase() + uIdOrEmail.slice(1), email: uIdOrEmail };
 };
 
 /**
  * 5. MASTER MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
- * Exports ALL scientist data into a single Excel workbook containing:
- * 1. Executive Summary & Scientist Directory Sheet
- * 2. Dedicated individual sheet tab for EACH scientist (Bindushree B U, Sandeep, Pavan Dev, etc.) with day-by-day logs
- * 3. All Scientists Combined Logs Master Sheet
- * 4. Field Trials Master Sheet
+ * Exports ALL scientist data into a single Excel workbook with professional formatting:
+ * 1. Human readable scientist names for tabs and headers
+ * 2. Date-wise grouping (Date printed ONCE per date block)
+ * 3. Blank row gaps between different dates
+ * 4. Separate Work Category/Focus and Activity Details columns
+ * 5. Status & Confidence Level columns REMOVED per user directive
+ * 6. Combined All-Scientists master tab with date-wise grouping
  */
 export const exportMasterExcelWorkbook = (
   syncedTrials: ExternalFieldTrial[],
@@ -943,36 +977,29 @@ export const exportMasterExcelWorkbook = (
     return finalName;
   };
 
-  // Group logs by scientist
+  // Group logs by human-readable scientist profile
   const scientistMap = new Map<string, { name: string; email: string; logs: any[] }>();
 
   sourceUsers.forEach(u => {
-    const sName = u.name || (u.email ? u.email.split('@')[0] : 'Scientist');
-    const key = (u.email || u.id || sName).toLowerCase();
-    scientistMap.set(key, { name: sName, email: u.email || u.id || '', logs: [] });
+    const prof = resolveScientistProfile(u.email || u.id || u.name, sourceUsers);
+    const key = prof.name.toLowerCase();
+    if (!scientistMap.has(key)) {
+      scientistMap.set(key, { name: prof.name, email: prof.email, logs: [] });
+    }
   });
 
   sourceLogs.forEach(l => {
-    const target = (l.userId || l.userName || 'Scientist').toLowerCase();
-    let matchedKey: string | null = null;
+    const prof = resolveScientistProfile(l.userId || l.userName, sourceUsers);
+    const key = prof.name.toLowerCase();
 
-    for (const [key, val] of scientistMap.entries()) {
-      const handle = val.email ? val.email.split('@')[0].toLowerCase() : '';
-      if (key === target || (handle && target.includes(handle))) {
-        matchedKey = key;
-        break;
-      }
-    }
-
-    if (matchedKey) {
-      scientistMap.get(matchedKey)!.logs.push(l);
+    if (scientistMap.has(key)) {
+      scientistMap.get(key)!.logs.push(l);
     } else {
-      const sName = l.userName || (target.includes('@') ? target.split('@')[0] : target);
-      scientistMap.set(target, { name: sName, email: target, logs: [l] });
+      scientistMap.set(key, { name: prof.name, email: prof.email, logs: [l] });
     }
   });
 
-  // Tab 1: Executive KPI Overview & Scientist Directory
+  // Tab 1: Executive KPI Overview & Scientist Roster
   const totalHoursAll = calculateTotalHours(sourceLogs);
   const scientistRosterRows: any[] = [];
   
@@ -984,7 +1011,7 @@ export const exportMasterExcelWorkbook = (
       'Scientist Name': val.name,
       'User Email / ID': val.email,
       'Total Work Sessions Logged': val.logs.length,
-      'Total Research Hours Logged': `${sHours} Hours`,
+      'Total Logged Hours': `${sHours} Hours`,
       'Dedicated Excel Tab': val.name.substring(0, 25)
     });
   }
@@ -1009,69 +1036,139 @@ export const exportMasterExcelWorkbook = (
   if (scientistRosterRows.length > 0) {
     XLSX.utils.sheet_add_json(wsKPI, scientistRosterRows, { origin: 'A14' });
   }
+  wsKPI['!cols'] = [
+    { wch: 6 },
+    { wch: 25 },
+    { wch: 30 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 28 },
+  ];
   const summarySheetName = getUniqueSheetName('Executive Summary', 0);
   XLSX.utils.book_append_sheet(wb, wsKPI, summarySheetName);
 
-  // Dedicated Sheet Tabs for Each Scientist
+  // Dedicated Sheet Tabs for Each Scientist (Date-Wise Grouped + Date Gap)
   let sheetIdx = 1;
   for (const [, val] of scientistMap.entries()) {
     const tabName = getUniqueSheetName(val.name, sheetIdx++);
     const sLogs = [...val.logs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const sTotalHours = calculateTotalHours(sLogs);
 
-    const sHeader = [
+    let lastDate = '';
+    const scientistAoA: any[][] = [
       [`MIKLENS R&D DAILY RESEARCH LOGS - ${val.name.toUpperCase()}`],
       [`Scientist Name: ${val.name}`, `Email/ID: ${val.email}`, `Total Hours: ${sTotalHours} hrs`, `Total Sessions: ${sLogs.length}`],
-      ['']
+      [''],
+      ['Date', 'Day', 'Start Time', 'End Time', 'Duration', 'Work Category / Focus', 'Activity & Protocol Details']
     ];
 
-    const sRows = sLogs.map((l, idx) => {
+    sLogs.forEach(l => {
       const mins = calculateLogMinutes(l);
+      const hrsStr = `${(mins / 60).toFixed(1)} hr`;
+      const dateStr = l.date ? l.date.split('T')[0] : 'N/A';
       const dObj = l.date ? new Date(l.date) : null;
       const dayOfWeek = dObj && !isNaN(dObj.getTime()) ? dObj.toLocaleDateString('en-US', { weekday: 'short' }) : '';
-      return {
-        '#': idx + 1,
-        'Date': l.date ? l.date.split('T')[0] : '',
-        'Day': dayOfWeek,
-        'Start Time': l.startTime || 'N/A',
-        'End Time': l.endTime || 'N/A',
-        'Duration (Mins)': mins,
-        'Duration (Hours)': (mins / 60).toFixed(1),
-        'Work Objective / Focus': l.objective || '',
-        'Activity & Protocol Details': l.activities || '',
-        'Completion Status': l.completionStatus || 'Completed',
-        'Confidence Rating (%)': l.confidenceLevel || 90,
-      };
+
+      // Date gap logic: if date changes, add an empty row gap!
+      if (lastDate !== '' && dateStr !== lastDate) {
+        scientistAoA.push(['', '', '', '', '', '', '']);
+      }
+
+      const isNewDate = dateStr !== lastDate;
+      const displayDate = isNewDate ? dateStr : '';
+      const displayDay = isNewDate ? dayOfWeek : '';
+      lastDate = dateStr;
+
+      let objStr = l.objective || 'R&D Research Activity';
+      let actStr = (l.activities || '').replace(/^\[.*?\]\s*/, '');
+
+      scientistAoA.push([
+        displayDate,
+        displayDay,
+        l.startTime || 'N/A',
+        l.endTime || 'N/A',
+        hrsStr,
+        objStr,
+        actStr || l.activities || 'Daily R&D Protocol Execution'
+      ]);
     });
 
-    const wsScientist = XLSX.utils.aoa_to_sheet(sHeader);
-    if (sRows.length > 0) {
-      XLSX.utils.sheet_add_json(wsScientist, sRows, { origin: 'A4' });
-    } else {
-      XLSX.utils.sheet_add_json(wsScientist, [{ '#': `No daily research work logs recorded for ${val.name} in database.` }], { origin: 'A4' });
-    }
+    const wsScientist = XLSX.utils.aoa_to_sheet(scientistAoA);
+    wsScientist['!cols'] = [
+      { wch: 14 }, // Date
+      { wch: 8 },  // Day
+      { wch: 12 }, // Start Time
+      { wch: 12 }, // End Time
+      { wch: 12 }, // Duration
+      { wch: 38 }, // Work Category / Focus
+      { wch: 60 }, // Activity Details
+    ];
     XLSX.utils.book_append_sheet(wb, wsScientist, tabName);
   }
 
-  // Combined Master Daily Logs Tab
-  const masterLogRows = sourceLogs.map((l, idx) => {
-    const mins = calculateLogMinutes(l);
-    return {
-      '#': idx + 1,
-      'Date': l.date ? l.date.split('T')[0] : '',
-      'Scientist ID / Email': l.userId || 'Scientist',
-      'Scientist Name': l.userName || resolveScientistName(l.userId, sourceUsers),
-      'Start Time': l.startTime || 'N/A',
-      'End Time': l.endTime || 'N/A',
-      'Duration (Mins)': mins,
-      'Duration (Hours)': (mins / 60).toFixed(1),
-      'Work Objective': l.objective || '',
-      'Activity Details': l.activities || '',
-      'Completion Status': l.completionStatus || 'Completed',
-    };
+  // Combined Master Daily Logs Tab (Grouped by Date with Date Gaps)
+  const sortedMasterLogs = [...sourceLogs].sort((a, b) => {
+    const dComp = (b.date || '').localeCompare(a.date || '');
+    if (dComp !== 0) return dComp;
+    const pA = resolveScientistProfile(a.userId || a.userName, sourceUsers).name;
+    const pB = resolveScientistProfile(b.userId || b.userName, sourceUsers).name;
+    return pA.localeCompare(pB);
   });
+
+  let masterLastDate = '';
+  const masterAoA: any[][] = [
+    ['MIKLENS BIOTECH R&D PLATFORM - ALL SCIENTISTS COMBINED DAILY LOGS'],
+    [`Generated Date: ${new Date().toLocaleString()}`, `Total Logs: ${sourceLogs.length}`, `Total Research Hours: ${totalHoursAll} hrs`],
+    [''],
+    ['Date', 'Day', 'Scientist Name', 'Scientist Email / ID', 'Start Time', 'End Time', 'Duration', 'Work Category / Focus', 'Activity & Protocol Details']
+  ];
+
+  sortedMasterLogs.forEach(l => {
+    const mins = calculateLogMinutes(l);
+    const hrsStr = `${(mins / 60).toFixed(1)} hr`;
+    const dateStr = l.date ? l.date.split('T')[0] : 'N/A';
+    const dObj = l.date ? new Date(l.date) : null;
+    const dayOfWeek = dObj && !isNaN(dObj.getTime()) ? dObj.toLocaleDateString('en-US', { weekday: 'short' }) : '';
+    const prof = resolveScientistProfile(l.userId || l.userName, sourceUsers);
+
+    if (masterLastDate !== '' && dateStr !== masterLastDate) {
+      masterAoA.push(['', '', '', '', '', '', '', '', '']); // Date gap!
+    }
+
+    const isNewDate = dateStr !== masterLastDate;
+    const displayDate = isNewDate ? dateStr : '';
+    const displayDay = isNewDate ? dayOfWeek : '';
+    masterLastDate = dateStr;
+
+    let objStr = l.objective || 'R&D Research Activity';
+    let actStr = (l.activities || '').replace(/^\[.*?\]\s*/, '');
+
+    masterAoA.push([
+      displayDate,
+      displayDay,
+      prof.name,
+      prof.email,
+      l.startTime || 'N/A',
+      l.endTime || 'N/A',
+      hrsStr,
+      objStr,
+      actStr || l.activities || 'Daily R&D Protocol Execution'
+    ]);
+  });
+
   const allLogsTabName = getUniqueSheetName('All Scientists Combined', 99);
-  const wsAllLogs = XLSX.utils.json_to_sheet(masterLogRows.length > 0 ? masterLogRows : [{ '#': 'No Daily Work Session logs found in database' }]);
+  const wsAllLogs = XLSX.utils.aoa_to_sheet(masterAoA);
+  wsAllLogs['!cols'] = [
+    { wch: 14 }, // Date
+    { wch: 8 },  // Day
+    { wch: 22 }, // Scientist Name
+    { wch: 28 }, // Scientist Email
+    { wch: 12 }, // Start Time
+    { wch: 12 }, // End Time
+    { wch: 12 }, // Duration
+    { wch: 38 }, // Work Category / Focus
+    { wch: 60 }, // Activity Details
+  ];
   XLSX.utils.book_append_sheet(wb, wsAllLogs, allLogsTabName);
 
   // Field Trials Master Tab
@@ -1084,13 +1181,27 @@ export const exportMasterExcelWorkbook = (
     'Location': t.location,
     'Target Weed/Pathogen': t.targetWeedOrPathogen,
     'Formulation': t.productName,
-    'Scientist': t.scientistName,
+    'Scientist': resolveScientistProfile(t.scientistName, sourceUsers).name,
     'Status': t.status,
     'Rating': t.resultRating || 'N/A',
-    'Start Date': t.startDate,
+    'Start Date': t.startDate ? t.startDate.split('T')[0] : '',
   }));
   const trialsTabName = getUniqueSheetName('Field Trials Master', 98);
   const wsTrials = XLSX.utils.json_to_sheet(trialRows.length > 0 ? trialRows : [{ '#': 'No Field Trial records found in database' }]);
+  wsTrials['!cols'] = [
+    { wch: 6 },
+    { wch: 16 },
+    { wch: 30 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 30 },
+    { wch: 24 },
+    { wch: 22 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 14 },
+  ];
   XLSX.utils.book_append_sheet(wb, wsTrials, trialsTabName);
 
   // Download
