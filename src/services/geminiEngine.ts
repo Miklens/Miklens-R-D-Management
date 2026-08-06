@@ -242,3 +242,23 @@ const generateOfflineIntelligentResponse = (
   const totalMins = logs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0);
   return `💡 **Miklens R&D Database Intelligence Overview**:\n• **Field Trials**: ${syncedTrials.length} tracked across 5 categories.\n• **Total Logged Research Time**: ${(totalMins / 60).toFixed(1)} Hours.\n• **Active Scientists**: ${users.length} registered.\n\nAsk me about today's work sessions, specific scientists, herbicide trials, or commercial product readiness!`;
 };
+
+/**
+ * 1-Click Executive AI Summary of All Scientists Data for Management
+ */
+export const getExecutiveScientistAISummary = async (
+  users: any[] = [],
+  logs: any[] = [],
+  syncedTrials: any[] = []
+): Promise<string> => {
+  const prompt = `Generate a high-level, executive-ready R&D Scientist Productivity & Output Intelligence Report for Admin and Senior Management.
+Summarize:
+1. OVERALL SCIENTIST TEAM OUTPUT: Total hours logged, active vs inactive scientists, primary research focus.
+2. INDIVIDUAL SCIENTIST PERFORMANCE BREAKDOWN: For each scientist (e.g. Bindushree B U, Sandeep, Pavan), list their total logged hours, key daily activities, active field trials led, and output status.
+3. MANAGEMENT ACTION ITEMS & RECOMMENDATIONS: Highlight any unlogged days, high-efficacy formulation breakthroughs, or overburdened team members.
+
+Be extremely clear, professional, structured with GitHub markdown formatting and emojis.`;
+
+  const response = await querySuperpoweredGemini(prompt, { users, logs, experiments: syncedTrials });
+  return response.text;
+};
