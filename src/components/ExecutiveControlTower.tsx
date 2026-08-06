@@ -23,12 +23,14 @@ import {
 } from '../services/executiveReportGenerator';
 import { ScientistLivePulse } from './ScientistLivePulse';
 import { ProductPipelineTracker } from './ProductPipelineTracker';
+import { ExecutiveROICalculator } from './ExecutiveROICalculator';
+import { WorkloadRiskRadar } from './WorkloadRiskRadar';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { format } from 'date-fns';
 
 
 export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> = ({ trials }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'live_pulse' | 'pipeline' | 'categories' | 'projects' | 'timesheets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'live_pulse' | 'pipeline' | 'roi' | 'risk_radar' | 'categories' | 'projects' | 'timesheets'>('overview');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<TrialCategory>('herbicide');
   const [timesheetScientistFilter, setTimesheetScientistFilter] = useState('all');
   const [timesheetDateFilter, setTimesheetDateFilter] = useState('');
@@ -285,6 +287,8 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
             { id: 'overview', label: '📊 OVERVIEW' },
             { id: 'live_pulse', label: '⚡ LIVE SCIENTIST PULSE' },
             { id: 'pipeline', label: '🚀 R&D PIPELINE' },
+            { id: 'roi', label: '💰 COMMERCIAL ROI & VALUATION' },
+            { id: 'risk_radar', label: '🛡️ RISK RADAR & AUDIT' },
             { id: 'categories', label: '🏷️ CATEGORIES' },
             { id: 'projects', label: '📁 PROJECTS' },
             { id: 'timesheets', label: '⏱️ TIMESHEETS' },
@@ -310,6 +314,14 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
 
       {activeTab === 'pipeline' && (
         <ProductPipelineTracker />
+      )}
+
+      {activeTab === 'roi' && (
+        <ExecutiveROICalculator />
+      )}
+
+      {activeTab === 'risk_radar' && (
+        <WorkloadRiskRadar />
       )}
 
       {activeTab === 'overview' && (
