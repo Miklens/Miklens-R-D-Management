@@ -83,6 +83,9 @@ export const AIInsights: React.FC = () => {
     if (!textToSend) setInputMsg('');
     setIsTyping(true);
 
+    // Extract recent conversation memory (ChatGPT / Gemini / Claude style)
+    const history = messages.slice(-8).map(m => ({ sender: m.sender, text: m.text }));
+
     // Call Superpowered Gemini Engine with full DB Context & selected model
     const result = await querySuperpoweredGemini(
       queryStr,
@@ -93,7 +96,8 @@ export const AIInsights: React.FC = () => {
         labTests: labTests || [],
         stabilityLogs: stabilityLogs || [],
       },
-      selectedModel
+      selectedModel,
+      history
     );
 
     if (result.keyIndexUsed > 0) {

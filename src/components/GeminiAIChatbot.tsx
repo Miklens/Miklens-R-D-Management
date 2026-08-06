@@ -100,14 +100,22 @@ export const GeminiAIChatbot: React.FC = () => {
       return;
     }
 
+    // Extract recent chat history for conversation memory (ChatGPT / Gemini / Claude style)
+    const history = messages.slice(-8).map(m => ({ sender: m.sender, text: m.text }));
+
     // Call Superpowered Gemini Engine
-    const result = await querySuperpoweredGemini(query, {
-      users: users || [],
-      logs: logs || [],
-      experiments: experiments || [],
-      labTests: labTests || [],
-      stabilityLogs: stabilityLogs || [],
-    });
+    const result = await querySuperpoweredGemini(
+      query,
+      {
+        users: users || [],
+        logs: logs || [],
+        experiments: experiments || [],
+        labTests: labTests || [],
+        stabilityLogs: stabilityLogs || [],
+      },
+      undefined,
+      history
+    );
 
     if (result.keyIndexUsed > 0) {
       setKeyStatusInfo(`Key #${result.keyIndexUsed} (${result.modelUsed})`);

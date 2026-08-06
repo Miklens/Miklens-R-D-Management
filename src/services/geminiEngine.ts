@@ -152,6 +152,7 @@ ${scientistLogSummary || 'Daily scientist research logs active in system.'}
 
 /**
  * Ask Gemini API with automatic key rotation, model selection & model rollover fallback
+ * Supports multi-turn chat history (ChatGPT / Gemini / Claude style conversation memory)
  */
 export const querySuperpoweredGemini = async (
   userQuery: string,
@@ -162,7 +163,8 @@ export const querySuperpoweredGemini = async (
     labTests?: any[];
     stabilityLogs?: any[];
   } = {},
-  preferredModel?: string
+  preferredModel?: string,
+  chatHistory: { sender: 'user' | 'ai'; text: string }[] = []
 ): Promise<{ text: string; keyIndexUsed: number; modelUsed: string }> => {
   const keys = getAvailableGeminiKeys();
   const dbContext = buildRealtimeRDContext(
@@ -173,18 +175,38 @@ export const querySuperpoweredGemini = async (
     contextData.stabilityLogs || []
   );
 
-  const systemPrompt = `You are the Lead Chief Executive AI Officer & Chief Scientist for Miklens Biotech Agricultural R&D.
-You have direct, unrestricted real-time access to all company field trials, daily scientist logs, product formulations, and laboratory records.
+  const initialSystemPrompt = `You are the Lead Chief Executive AI Officer & Chief Scientist for Miklens Biotech Agricultural R&D.
+You possess state-of-the-art general intelligence (combining the reasoning capabilities of ChatGPT, Gemini 3.5, and Claude 3.5 Sonnet) WITH direct, real-time access to all Miklens Biotech live database records.
 
 ${dbContext}
 
-USER QUERY: ${userQuery}
+YOUR CAPABILITIES & RULES:
+1. GENERAL SCIENTIFIC & AGRICULTURAL KNOWLEDGE: You can answer any general question about agronomy, plant pathology, weed science, formulation chemistry, CIPAC standards, bio-stimulant synthesis, math, or time management like standard ChatGPT/Gemini/Claude.
+2. MIKLENS R&D DATABASE REASONING: When asked about Miklens R&D, specific scientists (Pavan Dev, Bindushree B U, Sandeep), field trials, daily work logs, or product formulations (GOWEED ULTRA, GMEA, COSMO), ALWAYS ground your answers in the real database state provided above.
+3. CONVERSATIONAL MEMORY: Maintain full multi-turn conversational context with the user across follow-up questions.
+4. FORMATTING: Use clean, executive-grade GitHub Markdown formatting (headers, bolding, bullet points, numbered lists, tables). Be authoritative, intelligent, and accurate.`;
 
-CRITICAL RESPONSE RULES:
-1. ALWAYS answer accurately using actual real numbers, scientist names, dates, trial codes, and formulation names from the context above.
-2. If asked about a specific scientist (e.g. Bindushree, Pavan, Sandeep), give a detailed summary of their trials, logged hours, recent activities, and outcomes.
-3. If asked about last week, last month, or recent progress, provide a narrative paragraph summary followed by structured bullet points.
-4. Format output using clean GitHub Markdown with headers, bold text, and emoji bullet points. Be extremely clear, professional, and authoritative.`;
+  // Build multi-turn API contents payload
+  const formattedHistory = (chatHistory || []).map(msg => ({
+    role: msg.sender === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.text }],
+  }));
+
+  const apiContents = [
+    {
+      role: 'user',
+      parts: [{ text: `[SYSTEM INSTRUCTION & LIVE DATABASE STATE]\n${initialSystemPrompt}\n\nPlease acknowledge and prepare to assist.` }],
+    },
+    {
+      role: 'model',
+      parts: [{ text: 'Understood. I am your Advanced AI R&D Executive Officer with full scientific intelligence and live database access to Miklens Biotech records. How may I assist you today?' }],
+    },
+    ...formattedHistory,
+    {
+      role: 'user',
+      parts: [{ text: userQuery }],
+    },
+  ];
 
   const modelCandidates = preferredModel
     ? [preferredModel, ...GEMINI_MODELS.filter(m => m !== preferredModel)]
@@ -204,9 +226,9 @@ CRITICAL RESPONSE RULES:
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
+                contents: apiContents,
                 generationConfig: {
-                  maxOutputTokens: 1200,
+                  maxOutputTokens: 1400,
                   temperature: 0.6,
                 },
               }),
