@@ -145,6 +145,7 @@ export const ResearchLog: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [searchFilter, setSearchFilter] = useState('');
   const [showFullHistoryDrawer, setShowFullHistoryDrawer] = useState(false);
+  const [showCalendarSidebar, setShowCalendarSidebar] = useState(false);
 
   // Use Firestore-backed hook so sessions saved to Firebase are visible here
   const { data: allLogs } = useDailyLogs();
@@ -458,9 +459,22 @@ export const ResearchLog: React.FC = () => {
           </p>
         </div>
 
-        {/* Executive Month Summary Pill */}
-        <div className="flex items-center gap-3 bg-white dark:bg-gray-900 p-2.5 px-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-md shrink-0">
-          <div className="text-left">
+        {/* Header Action Controls */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowCalendarSidebar(prev => !prev)}
+            className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all shadow-sm flex items-center gap-2 cursor-pointer border ${
+              showCalendarSidebar
+                ? 'bg-emerald-500 text-white border-emerald-600 shadow-md'
+                : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:border-emerald-500'
+            }`}
+          >
+            <CalendarIcon className="w-4 h-4 text-emerald-500" />
+            {showCalendarSidebar ? '✕ Hide Calendar (Full Width Mode)' : '📅 Show Calendar & Past Days'}
+          </button>
+
+          <div className="text-left bg-white dark:bg-gray-900 p-2.5 px-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-md">
             <span className="text-[10px] font-black uppercase text-gray-400 block">Monthly Timesheet</span>
             <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
               {monthlyStats.totalHours} Hours ({monthlyStats.activeDaysCount} Days Logged)
@@ -469,146 +483,148 @@ export const ResearchLog: React.FC = () => {
         </div>
       </div>
 
-      {/* Main 2-Column Responsive Dashboard Layout */}
+      {/* Main Responsive Dashboard Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        {/* ── LEFT SIDEBAR (4 Columns): Interactive Calendar & Logged History Navigator ── */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* ── LEFT SIDEBAR (4 Columns): Shown ONLY when user clicks 'Show Calendar' ── */}
+        {showCalendarSidebar && (
+          <div className="lg:col-span-4 space-y-6">
 
-          {/* Mini Interactive Month Calendar Card */}
-          <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-              <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <CalendarIcon className="w-4 h-4 text-emerald-500" />
-                Calendar Date Selector
-              </span>
-
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
-                  className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 transition-colors"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
-                </button>
-                <span className="text-xs font-black text-gray-800 dark:text-gray-200 px-1">
-                  {format(currentMonth, 'MMM yyyy')}
+            {/* Mini Interactive Month Calendar Card */}
+            <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarIcon className="w-4 h-4 text-emerald-500" />
+                  Calendar Date Selector
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
-                  className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 transition-colors"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
-                </button>
-              </div>
-            </div>
 
-            {/* Weekdays Header */}
-            <div className="grid grid-cols-7 text-center text-[10px] font-black text-gray-400 uppercase">
-              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-            </div>
-
-            {/* Calendar Cells Grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {calendarGrid.leadingPadding.map((_, idx) => (
-                <div key={`pad-${idx}`} className="h-8 rounded-lg" />
-              ))}
-
-              {calendarGrid.daysInMonth.map((dayObj) => {
-                const dStr = format(dayObj, 'yyyy-MM-dd');
-                const stats = logsByDateMap[dStr];
-                const isSelected = dStr === logDate;
-                const isTodayDate = isToday(dayObj);
-                const hasLogs = stats && stats.count > 0;
-
-                return (
+                <div className="flex items-center gap-1">
                   <button
-                    key={dStr}
                     type="button"
-                    onClick={() => setLogDate(dStr)}
-                    className={`h-9 rounded-xl text-xs font-black relative flex flex-col items-center justify-center transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 font-black scale-105'
-                        : isTodayDate
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300'
-                        : hasLogs
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
+                    onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
+                    className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 transition-colors"
                   >
-                    <span>{format(dayObj, 'd')}</span>
-                    {hasLogs && !isSelected && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 absolute bottom-1" />
-                    )}
+                    <ChevronLeft className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
                   </button>
-                );
-              })}
-            </div>
+                  <span className="text-xs font-black text-gray-800 dark:text-gray-200 px-1">
+                    {format(currentMonth, 'MMM yyyy')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
+                    className="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-600 dark:text-gray-300" />
+                  </button>
+                </div>
+              </div>
 
-            <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[11px] text-gray-500">
-              <span className="flex items-center gap-1 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Days with logs
-              </span>
-              <button
-                type="button"
-                onClick={() => { setLogDate(format(new Date(), 'yyyy-MM-dd')); setCurrentMonth(new Date()); }}
-                className="text-emerald-600 dark:text-emerald-400 font-extrabold hover:underline"
-              >
-                Jump to Today
-              </button>
-            </div>
-          </div>
+              {/* Weekdays Header */}
+              <div className="grid grid-cols-7 text-center text-[10px] font-black text-gray-400 uppercase">
+                <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              </div>
 
-          {/* Active Logged Days List ("Fast History Access") */}
-          <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-              <h3 className="text-xs font-black uppercase text-gray-900 dark:text-white flex items-center gap-1.5 tracking-wider">
-                <History className="w-4 h-4 text-emerald-500" />
-                Active Logged Days ({activeLoggedDaysList.length})
-              </h3>
-            </div>
+              {/* Calendar Cells Grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarGrid.leadingPadding.map((_, idx) => (
+                  <div key={`pad-${idx}`} className="h-8 rounded-lg" />
+                ))}
 
-            {activeLoggedDaysList.length > 0 ? (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {activeLoggedDaysList.map((item) => {
-                  const isSelected = item.dateStr === logDate;
+                {calendarGrid.daysInMonth.map((dayObj) => {
+                  const dStr = format(dayObj, 'yyyy-MM-dd');
+                  const stats = logsByDateMap[dStr];
+                  const isSelected = dStr === logDate;
+                  const isTodayDate = isToday(dayObj);
+                  const hasLogs = stats && stats.count > 0;
 
                   return (
-                    <div
-                      key={item.dateStr}
-                      onClick={() => setLogDate(item.dateStr)}
-                      className={`p-3 rounded-2xl border text-xs transition-all cursor-pointer space-y-1 ${
+                    <button
+                      key={dStr}
+                      type="button"
+                      onClick={() => setLogDate(dStr)}
+                      className={`h-9 rounded-xl text-xs font-black relative flex flex-col items-center justify-center transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                          : 'bg-gray-50/60 dark:bg-gray-800/40 border-gray-100 dark:border-gray-800 hover:border-emerald-300'
+                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30 font-black scale-105'
+                          : isTodayDate
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300'
+                          : hasLogs
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                       }`}
                     >
-                      <div className="flex items-center justify-between font-bold">
-                        <span className="text-gray-900 dark:text-white font-extrabold">
-                          📅 {format(parseISO(item.dateStr), 'EEE, MMM d, yyyy')}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                          ⏱️ {item.hours}h ({item.count})
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-gray-500 line-clamp-1 italic font-medium">
-                        "{item.latestObjective}"
-                      </p>
-                    </div>
+                      <span>{format(dayObj, 'd')}</span>
+                      {hasLogs && !isSelected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 absolute bottom-1" />
+                      )}
+                    </button>
                   );
                 })}
               </div>
-            ) : (
-              <div className="p-6 text-center text-xs text-gray-400 italic">
-                No past research log history recorded yet.
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* ── RIGHT MAIN PANEL (8 Columns): Daily Logger & Selected Sheet ── */}
-        <div className="lg:col-span-8 space-y-6">
+              <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[11px] text-gray-500">
+                <span className="flex items-center gap-1 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Days with logs
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setLogDate(format(new Date(), 'yyyy-MM-dd')); setCurrentMonth(new Date()); }}
+                  className="text-emerald-600 dark:text-emerald-400 font-extrabold hover:underline"
+                >
+                  Jump to Today
+                </button>
+              </div>
+            </div>
+
+            {/* Active Logged Days List ("Fast History Access") */}
+            <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+                <h3 className="text-xs font-black uppercase text-gray-900 dark:text-white flex items-center gap-1.5 tracking-wider">
+                  <History className="w-4 h-4 text-emerald-500" />
+                  Active Logged Days ({activeLoggedDaysList.length})
+                </h3>
+              </div>
+
+              {activeLoggedDaysList.length > 0 ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {activeLoggedDaysList.map((item) => {
+                    const isSelected = item.dateStr === logDate;
+
+                    return (
+                      <div
+                        key={item.dateStr}
+                        onClick={() => setLogDate(item.dateStr)}
+                        className={`p-3 rounded-2xl border text-xs transition-all cursor-pointer space-y-1 ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
+                            : 'bg-gray-50/60 dark:bg-gray-800/40 border-gray-100 dark:border-gray-800 hover:border-emerald-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between font-bold">
+                          <span className="text-gray-900 dark:text-white font-extrabold">
+                            📅 {format(parseISO(item.dateStr), 'EEE, MMM d, yyyy')}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            ⏱️ {item.hours}h ({item.count})
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 line-clamp-1 italic font-medium">
+                          "{item.latestObjective}"
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-xs text-gray-400 italic">
+                  No past research log history recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── RIGHT MAIN PANEL: Expands to 12 Columns (Full Width) when Sidebar is Hidden ── */}
+        <div className={showCalendarSidebar ? "lg:col-span-8 space-y-6" : "lg:col-span-12 space-y-6"}>
 
           {/* Card 1: Selected Date Header & Objective Box */}
           <form onSubmit={handleSubmit} className="p-6 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl space-y-6">
