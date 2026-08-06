@@ -263,13 +263,17 @@ export const ResearchLog: React.FC = () => {
   /* ---------- row mutations ---------- */
   const addRow = () => {
     const lastEnd = activities.at(-1)?.endTime ?? '13:00';
-    const [h,m] = lastEnd.split(':').map(Number);
-    const ns = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-    const ne = `${((h+2)%24).toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+    const [h, m] = lastEnd.split(':').map(Number);
+    const startH = isNaN(h) ? 13 : h;
+    const endH = startH >= 23 ? 23 : startH + 1;
+    const ns = `${startH.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`;
+    const ne = `${endH.toString().padStart(2, '0')}:${(m || 0).toString().padStart(2, '0')}`;
+    const finalNe = ne === ns ? '23:59' : ne;
+
     setActivities(p => [...p, {
       id: `row-${Date.now()}`, category: 'lab', customCategory: '',
       productId: 'p1', productName: (allProducts[0] || 'Active Formulation'), customProductName: '',
-      startTime: ns, endTime: ne, durationMinutes: calcDurationMinutes(ns, ne), description: '',
+      startTime: ns, endTime: finalNe, durationMinutes: calcDurationMinutes(ns, finalNe), description: '',
     }]);
     setCollisionError(null);
   };
