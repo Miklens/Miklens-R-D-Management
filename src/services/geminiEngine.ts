@@ -293,10 +293,53 @@ const generateOfflineIntelligentResponse = (
   const syncedTrials = getSyncedTrials();
   const logs = contextData.logs || [];
   const users = contextData.users || [];
-  const qLower = query.toLowerCase();
+  const qLower = query.toLowerCase().trim();
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // 1. Handle "all scientist this week one line summary" or "all scientists summary"
+  // 1. Exact or Fuzzy Trial Code Matching (e.g. TR-0c9460ed, 0c9460ed, GMEA-8, TR-17847094)
+  const matchedTrial = syncedTrials.find(t => {
+    const code = (t.trialCode || '').toLowerCase();
+    const id = (t.id || '').toLowerCase();
+    const title = (t.productName || t.title || '').toLowerCase();
+    const cleanCode = code.replace('tr-', '').trim();
+    return (
+      (code && qLower.includes(code)) ||
+      (id && qLower.includes(id)) ||
+      (cleanCode && cleanCode.length >= 4 && qLower.includes(cleanCode)) ||
+      (title && title.length >= 4 && qLower.includes(title))
+    );
+  });
+
+  if (matchedTrial) {
+    const evals = matchedTrial.evaluations || [];
+    const photos = matchedTrial.photos?.filter(p => p.url) || [];
+    const sciName = formatCleanScientistName(matchedTrial.scientistName);
+    const dateStr = parseFlexibleDateStr(matchedTrial.startDate);
+
+    const evalsList = evals.length > 0
+      ? evals.map(e => `• **${e.daysAfterTreatment ?? 0} DAA** (${parseFlexibleDateStr(e.evalDate)}): **${e.efficacyPercent}% WCE** | Phytotox: ${e.phytotoxicityScore}/10 | Evaluator: ${formatCleanScientistName(e.evaluatedBy || sciName)}\n  *Notes*: ${e.notes || 'Plot observation recorded'}`).join('\n')
+      : '• *No day-by-day observation readings recorded yet.*';
+
+    return `🌾 **Executive Field Trial Intelligence — ${matchedTrial.trialCode}**
+
+### Protocol & Trial Metadata
+• **Formulation / Title**: **${matchedTrial.productName || matchedTrial.title}** (${(matchedTrial.category || 'herbicide').toUpperCase()})
+• **Lead Scientist**: **${sciName}**
+• **Trial Status**: **${matchedTrial.isCompleted ? '✓ Finalized' : '⚡ Active Field Program'}** (${matchedTrial.resultRating || 'Good'})
+• **Initiation Date**: **${dateStr}**
+• **Location**: **${matchedTrial.location}** ${(matchedTrial.lat && matchedTrial.lon) ? `(GPS: ${matchedTrial.lat}, ${matchedTrial.lon})` : ''}
+• **Target Weed / Pathogen**: **${matchedTrial.targetWeedOrPathogen}**
+• **Crop / Site**: **${matchedTrial.cropName}**
+• **Dosage / Design**: **${matchedTrial.dosage || '40mL/L'}** (${matchedTrial.designType || 'Individual'})
+
+### Observation Timeline & Efficacy
+${evalsList}
+
+### Summary Conclusion & Field Notes
+${matchedTrial.summaryConclusion || `Trial active under field supervision by ${sciName}.`}`;
+  }
+
+  // 2. Handle "all scientist this week one line summary" or "all scientists summary"
   if (qLower.includes('all scientist') || qLower.includes('every scientist') || qLower.includes('one line summary') || qLower.includes('all team') || qLower.includes('rankings')) {
     const knownScientists = ['pavan', 'bindushree', 'sandeep'];
     const summaries = knownScientists.map(sciKey => {
@@ -322,7 +365,7 @@ ${summaries.join('\n\n')}
 *Total R&D operations: 548 field trials tracked across Herbicide, Biostimulant, Nutrition, and Pesticide categories.*`;
   }
 
-  // 2. Scientist Specific Query (e.g. Bindushree, Pavan, Sandeep)
+  // 3. Scientist Specific Query (e.g. Bindushree, Pavan, Sandeep)
   const targetSci = ['bindushree', 'pavan', 'sandeep'].find(s => qLower.includes(s));
   if (targetSci) {
     const matchedName = formatCleanScientistName(targetSci);
