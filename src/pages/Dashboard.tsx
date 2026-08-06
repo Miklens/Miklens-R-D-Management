@@ -159,25 +159,29 @@ export const Dashboard: React.FC = () => {
   const breakthroughs = useMemo(() => {
     return filteredTrials.filter(t => {
       const hasGoodRating = t.resultRating === 'Excellent' || t.resultRating === 'Good';
-      const hasEfficacy = t.evaluations && t.evaluations.some(ev => ev.efficacyPercent > 80);
-      return hasGoodRating && hasEfficacy;
-    }).slice(0, 3);
+      const hasEfficacy = t.evaluations && t.evaluations.some(ev => ev.efficacyPercent >= 75);
+      return hasGoodRating || hasEfficacy;
+    }).slice(0, 4);
   }, [filteredTrials]);
 
-  // Dynamic Critical Risks
+  // Dynamic Critical Risks with Clear Trial Names & Products
   const criticalRisks = useMemo(() => {
     const risks: Array<{ id: string; title: string; desc: string; type: 'red' | 'amber' }> = [];
     const activeTrials = filteredTrials.filter(t => !t.isCompleted);
 
-    // 1. Long running trials
+    // 1. Long running / delayed trials
     activeTrials.forEach(t => {
       const start = new Date(t.startDate);
       const diffDays = (now.getTime() - start.getTime()) / (1000 * 3600 * 24);
-      if (diffDays > 90 && risks.length < 2) {
+      if (diffDays > 60 && risks.length < 3) {
+        const mainTitle = t.title || t.productName || 'Field Trial Program';
+        const displayHeader = `${mainTitle} — ${t.cropName || 'Crop'} (${t.trialCode})`;
+        const targetStr = t.targetWeedOrPathogen ? ` [Target: ${t.targetWeedOrPathogen}]` : '';
+
         risks.push({
           id: `risk-long-${t.id}`,
-          title: `Trial ${t.trialCode} Long Running`,
-          desc: `${t.cropName} trial under ${formatName(t.scientistName)} has been active for ${Math.round(diffDays)} days without conclusion.`,
+          title: `⏱️ ${displayHeader}`,
+          desc: `Trial "${mainTitle}" on ${t.cropName || 'Crop'}${targetStr} led by ${formatName(t.scientistName)} has been active for ${Math.round(diffDays)} days without conclusion.`,
           type: 'red'
         });
       }
@@ -185,12 +189,13 @@ export const Dashboard: React.FC = () => {
 
     // 2. High Phytotox alerts
     filteredTrials.forEach(t => {
-      const hasHighPhytotox = t.evaluations && t.evaluations.some(ev => ev.phytotoxicityScore > 6);
-      if (hasHighPhytotox && risks.length < 3) {
+      const hasHighPhytotox = t.evaluations && t.evaluations.some(ev => ev.phytotoxicityScore > 5);
+      if (hasHighPhytotox && risks.length < 4) {
+        const mainTitle = t.title || t.productName || 'Field Program';
         risks.push({
           id: `risk-phyto-${t.id}`,
-          title: `Crop Safety Hazard - ${t.trialCode}`,
-          desc: `High phytotoxicity score (>6) observed in treatments for ${t.cropName}.`,
+          title: `⚠️ Crop Safety Hazard: ${mainTitle} (${t.trialCode})`,
+          desc: `Elevated phytotoxicity score observed in treatments for ${t.cropName || 'Crop'} led by Lead ${formatName(t.scientistName)}. Protocol review required.`,
           type: 'amber'
         });
       }
@@ -198,9 +203,9 @@ export const Dashboard: React.FC = () => {
 
     if (risks.length === 0) {
       risks.push({
-        id: 'no-risks',
-        title: 'All Parameters Clear',
-        desc: 'All field operations and treatments are operating within standard tolerance zones.',
+        id: 'risk-none',
+        title: '✅ All Field Trials Operating Normally',
+        desc: 'Zero overdue trials or crop phytotoxicity hazards detected across active research programs.',
         type: 'amber'
       });
     }
