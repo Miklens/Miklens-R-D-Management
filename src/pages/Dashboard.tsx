@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 import { calculateTotalHours } from '../utils/timeTracking';
 import { 
   Sparkles, Clock, Beaker, Download, Award, Search, AlertTriangle, 
-  TrendingUp, Users, ArrowRight 
+  TrendingUp, Users, ArrowRight, CheckCircle2, MapPin, User, Calendar, Target
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -158,24 +158,56 @@ export const Dashboard: React.FC = () => {
     }).slice(0, 4);
   }, [filteredTrials]);
 
-  // Dynamic Critical Risks with Clear Trial Names & Products
+  // Dynamic Critical Risks with Detailed Trial Metrics & Direct Action Links
   const criticalRisks = useMemo(() => {
-    const risks: Array<{ id: string; title: string; desc: string; type: 'red' | 'amber' }> = [];
+    const risks: Array<{
+      id: string;
+      trialCode: string;
+      productName: string;
+      cropName: string;
+      location: string;
+      target: string;
+      scientistName: string;
+      startDateStr: string;
+      activeDays: number;
+      overdueDays: number;
+      type: 'red' | 'amber';
+      badgeText: string;
+      hazardDesc?: string;
+    }> = [];
+
     const activeTrials = filteredTrials.filter(t => !t.isCompleted);
 
     activeTrials.forEach(t => {
       const start = new Date(t.startDate);
-      const diffDays = (now.getTime() - start.getTime()) / (1000 * 3600 * 24);
+      const diffDays = Math.round((now.getTime() - start.getTime()) / (1000 * 3600 * 24));
+      
       if (diffDays > 60 && risks.length < 3) {
-        const mainTitle = t.title || t.productName || 'Field Trial Program';
-        const displayHeader = `${mainTitle} — ${t.cropName || 'Crop'} (${t.trialCode})`;
-        const targetStr = t.targetWeedOrPathogen ? ` [Target: ${t.targetWeedOrPathogen}]` : '';
+        let cleanCrop = t.cropName || 'Crop Field';
+        if (cleanCrop === 'Crop Field' || cleanCrop === 'Field' || cleanCrop === 'Crop') {
+          if (t.targetWeedOrPathogen) {
+            cleanCrop = `Field Plot (${t.targetWeedOrPathogen.split(',')[0].trim()})`;
+          } else {
+            cleanCrop = `${t.category.charAt(0).toUpperCase() + t.category.slice(1)} Plot`;
+          }
+        }
+
+        const cleanStart = t.startDate ? t.startDate.split('T')[0] : 'N/A';
+        const overdueBy = diffDays > 90 ? diffDays - 90 : diffDays - 60;
 
         risks.push({
           id: `risk-long-${t.id}`,
-          title: `⏱️ ${displayHeader}`,
-          desc: `Trial "${mainTitle}" on ${t.cropName || 'Crop'}${targetStr} led by ${formatName(t.scientistName)} has been active for ${Math.round(diffDays)} days without conclusion.`,
-          type: 'red'
+          trialCode: t.trialCode || 'TR-ONLINE',
+          productName: t.title || t.productName || 'Field Program',
+          cropName: cleanCrop,
+          location: t.location && t.location !== 'N/A' ? t.location : 'Field Station',
+          target: t.targetWeedOrPathogen || 'Unspecified Weed/Pathogen',
+          scientistName: formatName(t.scientistName || t.creatorEmail || 'Scientist'),
+          startDateStr: cleanStart,
+          activeDays: diffDays,
+          overdueDays: overdueBy > 0 ? overdueBy : 0,
+          type: 'red',
+          badgeText: `ACTIVE ${diffDays} DAYS`
         });
       }
     });
@@ -183,24 +215,28 @@ export const Dashboard: React.FC = () => {
     filteredTrials.forEach(t => {
       const hasHighPhytotox = t.evaluations && t.evaluations.some(ev => ev.phytotoxicityScore > 5);
       if (hasHighPhytotox && risks.length < 4) {
-        const mainTitle = t.title || t.productName || 'Field Program';
+        let cleanCrop = t.cropName || 'Crop Field';
+        if (cleanCrop === 'Crop Field' || cleanCrop === 'Field') {
+          cleanCrop = `${t.category.charAt(0).toUpperCase() + t.category.slice(1)} Crop`;
+        }
+
         risks.push({
           id: `risk-phyto-${t.id}`,
-          title: `⚠️ Crop Safety Hazard: ${mainTitle} (${t.trialCode})`,
-          desc: `Elevated phytotoxicity score observed in treatments for ${t.cropName || 'Crop'} led by Lead ${formatName(t.scientistName)}. Protocol review required.`,
-          type: 'amber'
+          trialCode: t.trialCode || 'TR-PHYTO',
+          productName: t.title || t.productName || 'Field Program',
+          cropName: cleanCrop,
+          location: t.location || 'Research Farm',
+          target: t.targetWeedOrPathogen || 'Crop Protection',
+          scientistName: formatName(t.scientistName || 'Scientist'),
+          startDateStr: t.startDate ? t.startDate.split('T')[0] : 'N/A',
+          activeDays: 0,
+          overdueDays: 0,
+          type: 'amber',
+          badgeText: 'SAFETY HAZARD',
+          hazardDesc: 'High phytotoxicity score detected during treatment checks. Protocol review required.'
         });
       }
     });
-
-    if (risks.length === 0) {
-      risks.push({
-        id: 'risk-none',
-        title: '✅ All Field Trials Operating Normally',
-        desc: 'Zero overdue trials or crop phytotoxicity hazards detected across active research programs.',
-        type: 'amber'
-      });
-    }
 
     return risks;
   }, [filteredTrials]);
@@ -473,16 +509,86 @@ export const Dashboard: React.FC = () => {
               </h3>
 
               <div className="space-y-3">
-                {criticalRisks.map(r => (
-                  <div key={r.id} className={`p-3.5 rounded-2xl text-xs space-y-1 ${
-                    r.type === 'red' 
-                      ? 'bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50 text-rose-800 dark:text-rose-300' 
-                      : 'bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 text-amber-800 dark:text-amber-300'
-                  }`}>
-                    <span className="font-extrabold block">{r.title}</span>
-                    <p className="text-gray-600 dark:text-gray-400 text-[11px] font-medium leading-normal">{r.desc}</p>
+                {criticalRisks.length > 0 ? (
+                  criticalRisks.map(r => (
+                    <div 
+                      key={r.id} 
+                      className={`p-4 rounded-2xl text-xs space-y-2.5 transition-all border ${
+                        r.type === 'red' 
+                          ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 hover:border-rose-300' 
+                          : 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 hover:border-amber-300'
+                      }`}
+                    >
+                      {/* Header Row */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${r.type === 'red' ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`} />
+                          <h4 className="font-extrabold text-sm text-gray-900 dark:text-white truncate">
+                            {r.productName}
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white/80 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shrink-0">
+                            {r.trialCode}
+                          </span>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase shrink-0 border ${
+                          r.type === 'red'
+                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-200'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200'
+                        }`}>
+                          {r.badgeText}
+                        </span>
+                      </div>
+
+                      {/* Details Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-gray-200/50 dark:border-gray-800/50 text-gray-700 dark:text-gray-300 font-medium">
+                        <div>
+                          <span className="text-gray-400 block text-[10px] uppercase font-bold">Crop / Scope:</span>
+                          <span>🌿 {r.cropName}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block text-[10px] uppercase font-bold">Target Bio-agent:</span>
+                          <span className="truncate block" title={r.target}>🎯 {r.target}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block text-[10px] uppercase font-bold">Lead Scientist:</span>
+                          <span>👤 {r.scientistName}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block text-[10px] uppercase font-bold">Initiated Date:</span>
+                          <span>📅 {r.startDateStr}</span>
+                        </div>
+                      </div>
+
+                      {/* Status & Inspect Link */}
+                      {r.hazardDesc ? (
+                        <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-950/40 p-2 rounded-xl border border-amber-200/50">
+                          ⚠️ {r.hazardDesc}
+                        </p>
+                      ) : (
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-200/30 dark:border-gray-800/30">
+                          <p className="text-[11px] font-medium text-rose-700 dark:text-rose-400">
+                            ⏱️ Active for <strong>{r.activeDays} days</strong> without conclusion.
+                          </p>
+                          <Link 
+                            to={`/trial-sync?search=${encodeURIComponent(r.trialCode)}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-black text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                          >
+                            Inspect Trial →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                    <div>
+                      <p className="font-extrabold text-sm">All Field Trials Operating Normally</p>
+                      <p className="text-[11px] text-gray-500">Zero overdue programs or phytotoxicity alerts detected.</p>
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
