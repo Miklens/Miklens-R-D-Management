@@ -891,13 +891,55 @@ export const exportFieldTrialsEfficacyReportPDF = (
 /**
  * 5. MASTER MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
  * Raw and aggrega/**
+ * Helper to parse work category, product scope, and user manual notes from daily logs
+ */
+const parseActivityDetails = (l: any): { workType: string; productScope: string; userNotes: string } => {
+  let workType = l.objective ? l.objective.split('–')[0].trim() : 'R&D Activity';
+  let rawAct = (l.activities || '').trim();
+
+  // Strip leading [Work Type] if present
+  if (rawAct.startsWith('[')) {
+    const closeBracketIdx = rawAct.indexOf(']');
+    if (closeBracketIdx > -1) {
+      const extractedType = rawAct.substring(1, closeBracketIdx).trim();
+      if (extractedType) workType = extractedType;
+      rawAct = rawAct.substring(closeBracketIdx + 1).trim();
+    }
+  }
+
+  let productScope = (l as any).productName || 'Active Formulation';
+  let userNotes = rawAct;
+
+  if (rawAct.includes(':')) {
+    const colonIdx = rawAct.indexOf(':');
+    const possibleScope = rawAct.substring(0, colonIdx).trim();
+    const possibleNotes = rawAct.substring(colonIdx + 1).trim();
+    if (possibleScope.length > 0) {
+      productScope = possibleScope;
+      userNotes = possibleNotes;
+    }
+  }
+
+  return {
+    workType,
+    productScope,
+    userNotes: userNotes || rawAct || 'Daily R&D Protocol Execution'
+  };
+};
+
+/**
  * Advanced Helper to resolve human-readable Scientist Name & Email
  */
 const resolveScientistProfile = (uIdOrEmail?: string, usersList: any[] = []): { name: string; email: string } => {
-  if (!uIdOrEmail) return { name: 'Scientist Lead', email: 'N/A' };
+  if (!uIdOrEmail) return { name: 'Pavan Dev', email: 'pavan@miklensbio.com' };
   const target = uIdOrEmail.trim().toLowerCase();
 
-  // 1. Check users list matching id, uid, email, or handle
+  // 1. Known handle / email / UID mappings first!
+  if (target.includes('pavan')) return { name: 'Pavan Dev', email: 'pavan@miklensbio.com' };
+  if (target.includes('bindushree')) return { name: 'Bindushree B U', email: 'bindushreebu91@gmail.com' };
+  if (target.includes('sandeep')) return { name: 'Sandeep', email: 'sandeep.431441@gmail.com' };
+
+  // 2. Check users list matching id, uid, email, or handle
   const found = usersList.find(u => {
     const id = (u.id || '').toLowerCase();
     const uid = ((u as any).uid || '').toLowerCase();
@@ -908,21 +950,12 @@ const resolveScientistProfile = (uIdOrEmail?: string, usersList: any[] = []): { 
 
   if (found) {
     let cleanName = found.name;
-    if (!cleanName || cleanName.toLowerCase().includes('user') || cleanName.length <= 2) {
-      if (found.email) cleanName = found.email.split('@')[0];
-    }
-    if (cleanName) {
-      cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+    if (cleanName && !cleanName.toLowerCase().includes('user') && !cleanName.includes('@') && cleanName.length > 2) {
       return { name: cleanName, email: found.email || uIdOrEmail };
     }
   }
 
-  // 2. Known handle mappings
-  if (target.includes('pavan')) return { name: 'Pavan Dev', email: 'pavan@miklensbio.com' };
-  if (target.includes('bindushree')) return { name: 'Bindushree B U', email: 'bindushreebu91@gmail.com' };
-  if (target.includes('sandeep')) return { name: 'Sandeep', email: 'sandeep@miklensbio.com' };
-
-  // 3. Email handle formatting
+  // 3. Email handle formatting (e.g. pavan@miklensbio.com -> Pavan)
   if (target.includes('@')) {
     const handle = target.split('@')[0];
     const clean = handle.split('.')[0].split('_')[0];
@@ -941,10 +974,10 @@ const resolveScientistProfile = (uIdOrEmail?: string, usersList: any[] = []): { 
 /**
  * 5. MASTER MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
  * Exports ALL scientist data into a single Excel workbook with professional formatting:
- * 1. Human readable scientist names for tabs and headers
+ * 1. Human readable scientist names for tabs and headers (Pavan Dev, Bindushree B U, Sandeep)
  * 2. Date-wise grouping (Date printed ONCE per date block)
  * 3. Blank row gaps between different dates
- * 4. Separate Work Category/Focus and Activity Details columns
+ * 4. SEPARATE Product/Formulation Scope and User Manual Activity Notes columns
  * 5. Status & Confidence Level columns REMOVED per user directive
  * 6. Combined All-Scientists master tab with date-wise grouping
  */
@@ -1059,7 +1092,7 @@ export const exportMasterExcelWorkbook = (
       [`MIKLENS R&D DAILY RESEARCH LOGS - ${val.name.toUpperCase()}`],
       [`Scientist Name: ${val.name}`, `Email/ID: ${val.email}`, `Total Hours: ${sTotalHours} hrs`, `Total Sessions: ${sLogs.length}`],
       [''],
-      ['Date', 'Day', 'Start Time', 'End Time', 'Duration', 'Work Category / Focus', 'Activity & Protocol Details']
+      ['Date', 'Day', 'Start Time', 'End Time', 'Duration', 'Work Category / Focus', 'Product / Formulation Scope', 'User Activity Notes (Manual Entry)']
     ];
 
     sLogs.forEach(l => {
@@ -1071,7 +1104,7 @@ export const exportMasterExcelWorkbook = (
 
       // Date gap logic: if date changes, add an empty row gap!
       if (lastDate !== '' && dateStr !== lastDate) {
-        scientistAoA.push(['', '', '', '', '', '', '']);
+        scientistAoA.push(['', '', '', '', '', '', '', '']);
       }
 
       const isNewDate = dateStr !== lastDate;
@@ -1079,8 +1112,7 @@ export const exportMasterExcelWorkbook = (
       const displayDay = isNewDate ? dayOfWeek : '';
       lastDate = dateStr;
 
-      let objStr = l.objective || 'R&D Research Activity';
-      let actStr = (l.activities || '').replace(/^\[.*?\]\s*/, '');
+      const parsed = parseActivityDetails(l);
 
       scientistAoA.push([
         displayDate,
@@ -1088,8 +1120,9 @@ export const exportMasterExcelWorkbook = (
         l.startTime || 'N/A',
         l.endTime || 'N/A',
         hrsStr,
-        objStr,
-        actStr || l.activities || 'Daily R&D Protocol Execution'
+        parsed.workType,
+        parsed.productScope,
+        parsed.userNotes
       ]);
     });
 
@@ -1100,8 +1133,9 @@ export const exportMasterExcelWorkbook = (
       { wch: 12 }, // Start Time
       { wch: 12 }, // End Time
       { wch: 12 }, // Duration
-      { wch: 38 }, // Work Category / Focus
-      { wch: 60 }, // Activity Details
+      { wch: 32 }, // Work Category / Focus
+      { wch: 28 }, // Product / Formulation Scope
+      { wch: 50 }, // User Activity Notes
     ];
     XLSX.utils.book_append_sheet(wb, wsScientist, tabName);
   }
@@ -1120,7 +1154,7 @@ export const exportMasterExcelWorkbook = (
     ['MIKLENS BIOTECH R&D PLATFORM - ALL SCIENTISTS COMBINED DAILY LOGS'],
     [`Generated Date: ${new Date().toLocaleString()}`, `Total Logs: ${sourceLogs.length}`, `Total Research Hours: ${totalHoursAll} hrs`],
     [''],
-    ['Date', 'Day', 'Scientist Name', 'Scientist Email / ID', 'Start Time', 'End Time', 'Duration', 'Work Category / Focus', 'Activity & Protocol Details']
+    ['Date', 'Day', 'Scientist Name', 'Scientist Email / ID', 'Start Time', 'End Time', 'Duration', 'Work Category / Focus', 'Product / Formulation Scope', 'User Activity Notes (Manual Entry)']
   ];
 
   sortedMasterLogs.forEach(l => {
@@ -1132,7 +1166,7 @@ export const exportMasterExcelWorkbook = (
     const prof = resolveScientistProfile(l.userId || l.userName, sourceUsers);
 
     if (masterLastDate !== '' && dateStr !== masterLastDate) {
-      masterAoA.push(['', '', '', '', '', '', '', '', '']); // Date gap!
+      masterAoA.push(['', '', '', '', '', '', '', '', '', '']); // Date gap!
     }
 
     const isNewDate = dateStr !== masterLastDate;
@@ -1140,8 +1174,7 @@ export const exportMasterExcelWorkbook = (
     const displayDay = isNewDate ? dayOfWeek : '';
     masterLastDate = dateStr;
 
-    let objStr = l.objective || 'R&D Research Activity';
-    let actStr = (l.activities || '').replace(/^\[.*?\]\s*/, '');
+    const parsed = parseActivityDetails(l);
 
     masterAoA.push([
       displayDate,
@@ -1151,8 +1184,9 @@ export const exportMasterExcelWorkbook = (
       l.startTime || 'N/A',
       l.endTime || 'N/A',
       hrsStr,
-      objStr,
-      actStr || l.activities || 'Daily R&D Protocol Execution'
+      parsed.workType,
+      parsed.productScope,
+      parsed.userNotes
     ]);
   });
 
@@ -1166,8 +1200,9 @@ export const exportMasterExcelWorkbook = (
     { wch: 12 }, // Start Time
     { wch: 12 }, // End Time
     { wch: 12 }, // Duration
-    { wch: 38 }, // Work Category / Focus
-    { wch: 60 }, // Activity Details
+    { wch: 32 }, // Work Category / Focus
+    { wch: 28 }, // Product / Formulation Scope
+    { wch: 50 }, // User Activity Notes
   ];
   XLSX.utils.book_append_sheet(wb, wsAllLogs, allLogsTabName);
 
