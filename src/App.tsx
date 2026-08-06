@@ -10,27 +10,29 @@ import { TaskProvider } from './contexts/TaskContext';
 import { ExperimentProvider } from './contexts/ExperimentContext';
 import { RefreshCw } from 'lucide-react';
 
-// Lazy Loaded Pages for Instant Load Speed
-const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
-const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
-const Employees = lazy(() => import('./pages/Employees').then((m) => ({ default: m.Employees })));
-const Products = lazy(() => import('./pages/Products').then((m) => ({ default: m.Products })));
-const Experiments = lazy(() => import('./pages/Experiments').then((m) => ({ default: m.Experiments })));
-const ResearchLog = lazy(() => import('./pages/ResearchLog').then((m) => ({ default: m.ResearchLog })));
-const EmployeeProfile = lazy(() => import('./pages/EmployeeProfile').then((m) => ({ default: m.EmployeeProfile })));
-const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const Projects = lazy(() => import('./pages/Projects').then((m) => ({ default: m.Projects })));
-const Tasks = lazy(() => import('./pages/Tasks').then((m) => ({ default: m.Tasks })));
-const Documents = lazy(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
-const Calendar = lazy(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
-const AIInsights = lazy(() => import('./pages/AIInsights').then((m) => ({ default: m.AIInsights })));
-const Notifications = lazy(() => import('./pages/Notifications').then((m) => ({ default: m.Notifications })));
-const AuditLogs = lazy(() => import('./pages/AuditLogs').then((m) => ({ default: m.AuditLogs })));
-const TeamActivity = lazy(() => import('./pages/TeamActivity').then((m) => ({ default: m.TeamActivity })));
-const TimeMotion = lazy(() => import('./pages/TimeMotion').then((m) => ({ default: m.TimeMotion })));
-const FieldTrials = lazy(() => import('./pages/FieldTrials').then((m) => ({ default: m.FieldTrials })));
-const Diagnostics = lazy(() => import('./pages/Diagnostics').then((m) => ({ default: m.Diagnostics })));
-const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
+// Lazy Loaded Pages for Instant Load Speed with Chunk Recovery
+const Login = lazyWithRetry(() => import('./pages/Login').then((m) => ({ default: m.Login })));
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Employees = lazyWithRetry(() => import('./pages/Employees').then((m) => ({ default: m.Employees })));
+const Products = lazyWithRetry(() => import('./pages/Products').then((m) => ({ default: m.Products })));
+const Experiments = lazyWithRetry(() => import('./pages/Experiments').then((m) => ({ default: m.Experiments })));
+const ResearchLog = lazyWithRetry(() => import('./pages/ResearchLog').then((m) => ({ default: m.ResearchLog })));
+const EmployeeProfile = lazyWithRetry(() => import('./pages/EmployeeProfile').then((m) => ({ default: m.EmployeeProfile })));
+const Settings = lazyWithRetry(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const Projects = lazyWithRetry(() => import('./pages/Projects').then((m) => ({ default: m.Projects })));
+const Tasks = lazyWithRetry(() => import('./pages/Tasks').then((m) => ({ default: m.Tasks })));
+const Documents = lazyWithRetry(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
+const Calendar = lazyWithRetry(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
+const AIInsights = lazyWithRetry(() => import('./pages/AIInsights').then((m) => ({ default: m.AIInsights })));
+const Notifications = lazyWithRetry(() => import('./pages/Notifications').then((m) => ({ default: m.Notifications })));
+const AuditLogs = lazyWithRetry(() => import('./pages/AuditLogs').then((m) => ({ default: m.AuditLogs })));
+const TeamActivity = lazyWithRetry(() => import('./pages/TeamActivity').then((m) => ({ default: m.TeamActivity })));
+const TimeMotion = lazyWithRetry(() => import('./pages/TimeMotion').then((m) => ({ default: m.TimeMotion })));
+const FieldTrials = lazyWithRetry(() => import('./pages/FieldTrials').then((m) => ({ default: m.FieldTrials })));
+const Diagnostics = lazyWithRetry(() => import('./pages/Diagnostics').then((m) => ({ default: m.Diagnostics })));
+const Analytics = lazyWithRetry(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 
 // Optimized React Query Client with Stale Caching
 const queryClient = new QueryClient({
