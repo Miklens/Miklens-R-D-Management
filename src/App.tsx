@@ -33,6 +33,7 @@ const TimeMotion = lazyWithRetry(() => import('./pages/TimeMotion').then((m) => 
 const FieldTrials = lazyWithRetry(() => import('./pages/FieldTrials').then((m) => ({ default: m.FieldTrials })));
 const Diagnostics = lazyWithRetry(() => import('./pages/Diagnostics').then((m) => ({ default: m.Diagnostics })));
 const Analytics = lazyWithRetry(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
+const TrialProgressReport = lazyWithRetry(() => import('./pages/TrialProgressReport').then((m) => ({ default: m.TrialProgressReport })));
 
 // Optimized React Query Client with Stale Caching
 const queryClient = new QueryClient({
@@ -104,6 +105,7 @@ function App() {
                         <Route path="/employees" element={<Employees />} />
                         <Route path="/reports" element={<TeamActivity />} />
                         <Route path="/team-activity" element={<TeamActivity />} />
+                        <Route path="/trial-progress" element={<TrialProgressReport />} />
                         <Route path="/diagnostics" element={<Diagnostics />} />
                       </Route>
                     </Route>

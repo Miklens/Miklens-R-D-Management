@@ -42,6 +42,7 @@ const navGroups: NavGroup[] = [
     category: 'Management & Products',
     items: [
       { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
+      { name: 'Trial Progress Report', href: '/trial-progress', icon: Layers, roles: ['Admin', 'Management'] },
       { name: 'Executive Reports & Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
       { name: 'Task Center', href: '/tasks', icon: CheckSquare, badgeKey: 'tasks', roles: ['Admin', 'Scientist'] },
     ],
