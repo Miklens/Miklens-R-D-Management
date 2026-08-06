@@ -1,39 +1,35 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Edit3, Beaker, Sparkles, BarChart3 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, Clock, Beaker, Package, Sparkles } from 'lucide-react';
 
 export const MobileBottomNav: React.FC = () => {
-  const location = useLocation();
-
   const navItems = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Daily Log', href: '/research-log', icon: Edit3 },
-    { name: 'Experiments', href: '/experiments', icon: Beaker },
-    { name: 'Gemini AI', href: '/ai-insights', icon: Sparkles, highlight: true },
-    { name: 'Reports', href: '/team-activity', icon: BarChart3 },
+    { to: '/', label: 'Home', icon: LayoutDashboard },
+    { to: '/research-log', label: 'Log', icon: Clock },
+    { to: '/trial-sync', label: 'Trials', icon: Beaker },
+    { to: '/products', label: 'Products', icon: Package },
+    { to: '/ai-insights', label: 'AI Officer', icon: Sparkles },
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 backdrop-blur-xl px-2 py-2">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-2 py-1 shadow-2xl">
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.href;
-
           return (
             <NavLink
-              key={item.name}
-              to={item.href}
-              className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-2xl transition-all duration-200 ${
-                isActive
-                  ? item.highlight
-                    ? 'bg-gradient-to-r from-purple-600 to-emerald-600 text-white font-bold shadow-md scale-105'
-                    : 'bg-emerald-500 text-white font-bold shadow-md scale-105'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-              }`}
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all ${
+                  isActive
+                    ? 'text-emerald-600 dark:text-emerald-400 font-extrabold scale-105'
+                    : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-800 dark:hover:text-slate-200'
+                }`
+              }
             >
-              <Icon className={`w-5 h-5 ${item.highlight && !isActive ? 'text-amber-400 animate-pulse' : ''}`} />
-              <span className="text-[10px] font-bold mt-0.5">{item.name}</span>
+              <Icon className="w-5 h-5 mb-0.5" />
+              <span className="text-[10px] tracking-tight">{item.label}</span>
             </NavLink>
           );
         })}

@@ -1,13 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>miklens-rnd</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    {/* Mobile Viewport Optimization & iOS PWA Meta Tags */}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Miklens R&D" />
+
+    {/* Modern Typography */}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <title>Miklens Bio R&D Management | Enterprise R&D Platform</title>
+
+    {/* Register PWA Service Worker */}
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            console.log('Miklens PWA ServiceWorker registered with scope: ', registration.scope);
+          }, function(err) {
+            console.log('Miklens PWA ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-sans selection:bg-emerald-500 selection:text-white">
+    <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

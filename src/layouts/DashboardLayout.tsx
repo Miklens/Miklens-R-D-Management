@@ -6,6 +6,8 @@ import { GeminiAIChatbot } from '../components/GeminiAIChatbot';
 import { MobileBottomNav } from '../components/MobileBottomNav';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { PWAInstallPrompt } from '../components/PWAInstallPrompt';
+
 export const DashboardLayout: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,7 +46,7 @@ export const DashboardLayout: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden w-full">
         <Header onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6 dark:bg-gray-950 pb-20 md:pb-6">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6 dark:bg-gray-950 pb-24 md:pb-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -59,6 +61,9 @@ export const DashboardLayout: React.FC = () => {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* PWA Install Banner */}
+      <PWAInstallPrompt />
 
       {/* Floating Gemini AI Chatbot */}
       <GeminiAIChatbot />
