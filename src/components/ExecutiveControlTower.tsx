@@ -165,20 +165,22 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
     const efforts: Record<TrialCategory, number> = {
       herbicide: 0, fungicide: 0, pesticide: 0, nutrition: 0, biostimulant: 0
     };
-    syncedTrials.forEach(t => {
-      efforts[t.category] += (t.evaluations.length * 60) + 120;
-    });
+
     (logs || []).forEach(l => {
       const text = `${l.activities || ''} ${l.objective || ''}`.toLowerCase();
-      
-      // 1. Check explicit keyword matching
-      let matchedCat: TrialCategory | null = null;
-      if (text.includes('herbicide')) matchedCat = 'herbicide';
-      else if (text.includes('fungicide')) matchedCat = 'fungicide';
-      else if (text.includes('pesticide')) matchedCat = 'pesticide';
-      else if (text.includes('nutrition')) matchedCat = 'nutrition';
-      else if (text.includes('biostimulant')) matchedCat = 'biostimulant';
-      
+      const logMins = calculateLogMinutes(l);
+      if (logMins <= 0) return;
+
+      // 1. Check explicit category or keyword matching
+      let matchedCat: TrialCategory | null = (l as any).category || null;
+      if (!matchedCat) {
+        if (text.includes('herbicide') || text.includes('weed')) matchedCat = 'herbicide';
+        else if (text.includes('fungicide') || text.includes('fungus')) matchedCat = 'fungicide';
+        else if (text.includes('pesticide') || text.includes('pest') || text.includes('insect')) matchedCat = 'pesticide';
+        else if (text.includes('nutrition') || text.includes('fertilizer') || text.includes('npk')) matchedCat = 'nutrition';
+        else if (text.includes('biostimulant') || text.includes('bio')) matchedCat = 'biostimulant';
+      }
+
       // 2. Check product name matches from synced trials
       if (!matchedCat) {
         for (const t of syncedTrials) {
@@ -195,13 +197,11 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
         }
       }
 
-      const logMins = calculateLogMinutes(l);
-      if (matchedCat) {
+      if (matchedCat && efforts[matchedCat] !== undefined) {
         efforts[matchedCat] += logMins;
-      } else {
-        efforts.herbicide += logMins;
       }
     });
+
     return efforts;
   }, [syncedTrials, logs]);
 
@@ -389,11 +389,11 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[
-                    { name: 'Herbicide', Hours: Math.round(categoryEfforts.herbicide / 60) || 120 },
-                    { name: 'Fungicide', Hours: Math.round(categoryEfforts.fungicide / 60) || 85 },
-                    { name: 'Pesticide', Hours: Math.round(categoryEfforts.pesticide / 60) || 40 },
-                    { name: 'Nutrition', Hours: Math.round(categoryEfforts.nutrition / 60) || 95 },
-                    { name: 'Biostimulant', Hours: Math.round(categoryEfforts.biostimulant / 60) || 60 },
+                    { name: 'Herbicide', Hours: Math.round((categoryEfforts.herbicide / 60) * 10) / 10 },
+                    { name: 'Fungicide', Hours: Math.round((categoryEfforts.fungicide / 60) * 10) / 10 },
+                    { name: 'Pesticide', Hours: Math.round((categoryEfforts.pesticide / 60) * 10) / 10 },
+                    { name: 'Nutrition', Hours: Math.round((categoryEfforts.nutrition / 60) * 10) / 10 },
+                    { name: 'Biostimulant', Hours: Math.round((categoryEfforts.biostimulant / 60) * 10) / 10 },
                   ]}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={10} tickLine={false} />
