@@ -9,6 +9,51 @@ import { AppUser } from '../types';
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
 const FIREBASE_CONFIG_KEY = 'miklens_rnd_firebase_config_v1';
 
+export const formatCleanScientistName = (uIdOrEmail?: string): string => {
+  if (!uIdOrEmail) return 'Pavan Dev';
+  const target = uIdOrEmail.trim().toLowerCase();
+  if (target.includes('pavan')) return 'Pavan Dev';
+  if (target.includes('bindushree')) return 'Bindushree B U';
+  if (target.includes('sandeep')) return 'Sandeep';
+  if (target.includes('@')) {
+    const handle = target.split('@')[0];
+    const clean = handle.split('.')[0].split('_')[0];
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  return uIdOrEmail.split(/[\s._@]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+};
+
+export const parseFlexibleDateStr = (dateStr?: any): string => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const s = String(dateStr).trim();
+
+  // Handle DD-MM-YYYY or DD/MM/YYYY with optional time (e.g. 30-07-2026 11:03 AM)
+  const ddmmyyyyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (ddmmyyyyMatch) {
+    const [, day, month, year] = ddmmyyyyMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  // Handle YYYY-MM-DD
+  const yyyymmddMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (yyyymmddMatch) {
+    const [, year, month, day] = yyyymmddMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  const dt = new Date(s);
+  if (!isNaN(dt.getTime())) {
+    return dt.toISOString().split('T')[0];
+  }
+
+  return new Date().toISOString().split('T')[0];
+};
+
+export const parseFlexibleDateObj = (dateStr?: any): Date => {
+  const iso = parseFlexibleDateStr(dateStr);
+  return new Date(iso);
+};
+
 export interface FirebaseConnectionConfig {
   apiKey: string;
   authDomain?: string;
@@ -248,10 +293,8 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       const creatorUid = data.CreatedBy || data.createdBy || data.userId || data.UID || data.uid || '';
       let resolvedUser = creatorUid ? userMap.get(creatorUid) : null;
 
-      let scientistName = data.Scientist || data.scientist || data.EvaluatedBy || data.evaluatedBy || data.User || data.user || (resolvedUser ? resolvedUser.name : '');
-      if (!scientistName || scientistName.length > 25) {
-        scientistName = resolvedUser ? resolvedUser.name : (authUserEmail ? authUserEmail.split('@')[0] : 'Agronomist');
-      }
+      let rawSciName = data.Scientist || data.scientist || data.EvaluatedBy || data.evaluatedBy || data.User || data.user || (resolvedUser ? resolvedUser.name : '');
+      const scientistName = formatCleanScientistName(rawSciName);
 
       let creatorEmail = data.UserEmail || data.userEmail || data.Username || data.username || data.User || data.user || data.email || (resolvedUser ? resolvedUser.email : '');
       if (!creatorEmail && creatorUid === authUserUid) {
@@ -264,11 +307,12 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
                               data.TrialName || data.trialName || data.trial_name ||
                               'Treatment Formulation';
 
+      // Robust Ratings / Efficacy Observations extraction across all possible Firestore keys
+      let rawRatingsData = data.EfficacyDataJSON || data.Ratings || data.observations || data.evaluations || data.ratings || [];
       let ratings: any[] = [];
       try {
-        if (typeof data.Ratings === 'string') ratings = JSON.parse(data.Ratings);
-        else if (Array.isArray(data.Ratings)) ratings = data.Ratings;
-        else if (Array.isArray(data.evaluations)) ratings = data.evaluations;
+        if (typeof rawRatingsData === 'string') ratings = JSON.parse(rawRatingsData);
+        else if (Array.isArray(rawRatingsData)) ratings = rawRatingsData;
       } catch (e) {
         ratings = [];
       }
@@ -288,9 +332,11 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
 
       if (ratings && ratings.length > 0) {
         const last = ratings[ratings.length - 1];
-        latestEfficacy = parseFloat(last.WCE || last.Efficacy || last.ControlPercent || last.efficacyPercent || last.Control || '0') || 0;
-        latestPhytotox = parseFloat(last.Phytotoxicity || last.phytotoxicityScore || '0') || 0;
-        notesStr = last.Notes || last.notes || last.Observation || notesStr;
+        const rawLastEff = last.WCE ?? last.Efficacy ?? last.efficacyPercent ?? last.controlPct ?? last.weedCover ?? last.diseaseSeverity ?? last.pestCount ?? last.visualVigor ?? last.Control ?? '0';
+        latestEfficacy = parseFloat(String(rawLastEff)) || 0;
+        const rawLastPhyto = last.Phytotoxicity ?? last.phytotoxicityScore ?? last.phytotoxicity ?? '0';
+        latestPhytotox = parseFloat(String(rawLastPhyto)) || 0;
+        notesStr = last.Notes || last.notes || last.ObsNotes || last.Observation || notesStr;
       }
 
       const formattedPhotos = photos
@@ -302,11 +348,10 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
             url: resolvedUrl,
             thumbnailUrl: formatDriveImageUrl(p.thumbnailUrl || rawUrl) || resolvedUrl,
             caption: p.caption || p.label || p.fileName || `Field Photo ${p.date || idx + 1}`,
-            takenAt: p.date || data.Date || new Date().toISOString().split('T')[0],
+            takenAt: parseFlexibleDateStr(p.date || data.Date),
             treatmentName: p.treatment || formulationCode || 'Treatment Plot',
           };
         })
-        // Only keep photos that have a real resolved URL
         .filter(p => p.url && p.url.length > 0);
 
       const category = deriveCategoryFromCollectionOrField(item.collection, data.Category || data.category);
@@ -324,7 +369,7 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         scientistName: scientistName,
         creatorUid: creatorUid,
         creatorEmail: creatorEmail,
-        startDate: data.Date || data.startDate || new Date().toISOString().split('T')[0],
+        startDate: parseFlexibleDateStr(data.Date || data.startDate),
         status: (data.IsCompleted === true || data.IsCompleted === 'true' || data.Status === 'Completed') ? 'Completed' : ((data.Status || 'Active') as any),
         productName: formulationCode,
         dosage: data.Dosage || data.DoseRate || '40ml/l',
@@ -349,16 +394,26 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
             replicationsCount: data.Replication || 4,
           }
         ],
-        evaluations: ratings.map((r: any, rIdx: number) => ({
-          id: `eval-${rIdx}`,
-          evalDate: r.Date || r.evalDate || data.Date || new Date().toISOString().split('T')[0],
-          daysAfterTreatment: parseInt(r.DAT || r.daysAfterTreatment || '7', 10),
-          efficacyPercent: parseFloat(r.WCE || r.Efficacy || r.efficacyPercent || '0'),
-          phytotoxicityScore: parseFloat(r.Phytotoxicity || r.phytotoxicityScore || '0'),
-          weedOrPathogenControlPercent: parseFloat(r.Control || r.efficacyPercent || '0'),
-          notes: r.Notes || r.notes || 'Evaluation recorded',
-          evaluatedBy: r.Evaluator || scientistName,
-        })),
+        evaluations: ratings.map((r: any, rIdx: number) => {
+          const rawEff = r.WCE ?? r.Efficacy ?? r.efficacyPercent ?? r.controlPct ?? r.weedCover ?? r.diseaseSeverity ?? r.pestCount ?? r.visualVigor ?? r.Control ?? '0';
+          const effVal = parseFloat(String(rawEff)) || 0;
+          const rawPhyto = r.Phytotoxicity ?? r.phytotoxicityScore ?? r.phytotoxicity ?? '0';
+          const phytoVal = parseFloat(String(rawPhyto)) || 0;
+          const rawDaa = r.daa ?? r.DAT ?? r.daysAfterTreatment ?? (rIdx * 7);
+          const daaVal = parseInt(String(rawDaa), 10) || 0;
+          const rawEvDate = r.date || r.Date || r.evalDate || data.Date || data.startDate;
+
+          return {
+            id: `eval-${rIdx}`,
+            evalDate: parseFlexibleDateStr(rawEvDate),
+            daysAfterTreatment: daaVal,
+            efficacyPercent: effVal,
+            phytotoxicityScore: phytoVal,
+            weedOrPathogenControlPercent: effVal,
+            notes: r.notes || r.Notes || r.ObsNotes || r.phytotoxicityNotes || 'Evaluation recorded',
+            evaluatedBy: formatCleanScientistName(r.Evaluator || r.evaluatedBy || scientistName),
+          };
+        }),
         photos: formattedPhotos,
       };
     });

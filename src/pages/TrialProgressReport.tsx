@@ -15,6 +15,9 @@ import {
   saveSyncedTrialsList,
   fetchTrialsFromFirebaseCloud,
   getSavedFirebaseConfig,
+  formatCleanScientistName,
+  parseFlexibleDateObj,
+  parseFlexibleDateStr,
 } from '../services/trialManagerSync';
 import { ExternalFieldTrial, TrialCategory } from '../types/trialIntegrationTypes';
 import * as XLSX from 'xlsx';
@@ -49,14 +52,14 @@ const RATING_CONFIG: Record<string, { badge: string; dot: string }> = {
 const fmtDate = (d?: string) => {
   if (!d) return '—';
   try {
-    const dt = new Date(d);
+    const iso = parseFlexibleDateStr(d);
+    const dt = new Date(iso);
     if (isNaN(dt.getTime())) return d;
     return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   } catch { return d; }
 };
 
-const fmtName = (n: string) =>
-  n ? n.split(/[\s._@]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ') : '—';
+const fmtName = (n: string) => formatCleanScientistName(n);
 
 const getLatestEfficacy = (trial: ExternalFieldTrial): number => {
   if (!trial.evaluations?.length) return 0;
@@ -642,10 +645,10 @@ export const TrialProgressReport: React.FC = () => {
 
       // Period Cutoff Check (either trial startDate or any observation date falls in cutoff)
       if (cutoffDate) {
-        const startDt = new Date(t.startDate);
+        const startDt = parseFlexibleDateObj(t.startDate);
         const hasRecentStart = !isNaN(startDt.getTime()) && startDt >= cutoffDate;
         const hasRecentObs = t.evaluations?.some(e => {
-          const eDt = new Date(e.evalDate);
+          const eDt = parseFlexibleDateObj(e.evalDate);
           return !isNaN(eDt.getTime()) && eDt >= cutoffDate;
         });
 
@@ -685,31 +688,55 @@ export const TrialProgressReport: React.FC = () => {
     trials.forEach(t => {
       const sName = fmtName(t.scientistName || 'Agronomist');
       const evals = t.evaluations || [];
+      const trialDateObj = parseFlexibleDateObj(t.startDate);
 
-      evals.forEach(ev => {
-        if (cutoffDate) {
-          const eDt = new Date(ev.evalDate);
-          if (isNaN(eDt.getTime()) || eDt < cutoffDate) return;
-        }
+      // If trial has observations, check each observation date
+      if (evals.length > 0) {
+        evals.forEach(ev => {
+          if (cutoffDate) {
+            const eDt = parseFlexibleDateObj(ev.evalDate);
+            if (isNaN(eDt.getTime()) || eDt < cutoffDate) return;
+          }
 
-        if (!map.has(sName)) {
-          map.set(sName, {
-            name: sName,
-            trialsWorked: new Set(),
-            obsCount: 0,
-            efficacies: [],
-            latestDate: ev.evalDate,
-            finalizedCount: 0,
-            topFormulation: t.productName || t.title,
-          });
+          if (!map.has(sName)) {
+            map.set(sName, {
+              name: sName,
+              trialsWorked: new Set(),
+              obsCount: 0,
+              efficacies: [],
+              latestDate: ev.evalDate,
+              finalizedCount: 0,
+              topFormulation: t.productName || t.title,
+            });
+          }
+          const item = map.get(sName)!;
+          item.trialsWorked.add(t.trialCode);
+          item.obsCount += 1;
+          if (ev.efficacyPercent > 0) item.efficacies.push(ev.efficacyPercent);
+          if (new Date(parseFlexibleDateStr(ev.evalDate)) > new Date(parseFlexibleDateStr(item.latestDate))) {
+            item.latestDate = ev.evalDate;
+          }
+          if (t.isCompleted) item.finalizedCount += 1;
+        });
+      } else {
+        // If trial has 0 observations but was initiated in this period
+        if (!cutoffDate || (!isNaN(trialDateObj.getTime()) && trialDateObj >= cutoffDate)) {
+          if (!map.has(sName)) {
+            map.set(sName, {
+              name: sName,
+              trialsWorked: new Set(),
+              obsCount: 0,
+              efficacies: [],
+              latestDate: t.startDate,
+              finalizedCount: 0,
+              topFormulation: t.productName || t.title,
+            });
+          }
+          const item = map.get(sName)!;
+          item.trialsWorked.add(t.trialCode);
+          if (t.isCompleted) item.finalizedCount += 1;
         }
-        const item = map.get(sName)!;
-        item.trialsWorked.add(t.trialCode);
-        item.obsCount += 1;
-        if (ev.efficacyPercent > 0) item.efficacies.push(ev.efficacyPercent);
-        if (new Date(ev.evalDate) > new Date(item.latestDate)) item.latestDate = ev.evalDate;
-        if (t.isCompleted) item.finalizedCount += 1;
-      });
+      }
     });
 
     return Array.from(map.values()).map(item => {
@@ -717,7 +744,7 @@ export const TrialProgressReport: React.FC = () => {
         ? Math.round(item.efficacies.reduce((a, b) => a + b, 0) / item.efficacies.length)
         : 0;
       return { ...item, avgEff };
-    }).sort((a, b) => b.obsCount - a.obsCount);
+    }).sort((a, b) => b.obsCount - a.obsCount || b.trialsWorked.size - a.trialsWorked.size);
   }, [trials, cutoffDate]);
 
   // KPI Stats based on current filtered view
