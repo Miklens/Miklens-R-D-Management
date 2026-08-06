@@ -4,6 +4,7 @@ import { useExperiments } from '../contexts/ExperimentContext';
 import { getSyncedTrials } from '../services/trialManagerSync';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
+import { querySuperpoweredGemini } from '../services/geminiEngine';
 
 interface ChatMessage {
   id: string;
@@ -79,182 +80,31 @@ export const AIInsights: React.FC = () => {
     if (!textToSend) setInputMsg('');
     setIsTyping(true);
 
-    const validKeys = apiKeysList.map(k => k.trim()).filter(Boolean);
-    if (validKeys.length > 0) {
-      const liveContext = `Active Trials: ${syncedTrials.length}, Scientists: ${(users || []).length}, Daily Work Logs: ${(logs || []).length}.`;
-      // Token-optimized compact system prompt
-      const compactPrompt = `You are Lead AI Officer for Miklens Bio R&D. Context: ${liveContext}. Request: ${queryStr}`;
+    // Call Superpowered Gemini Engine with full DB Context
+    const result = await querySuperpoweredGemini(queryStr, {
+      users: users || [],
+      logs: logs || [],
+      experiments: experiments || [],
+      labTests: labTests || [],
+      stabilityLogs: stabilityLogs || [],
+    });
 
-      for (let i = 0; i < validKeys.length; i++) {
-        const currentKey = validKeys[i];
-        try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${currentKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: compactPrompt }] }],
-              generationConfig: {
-                maxOutputTokens: 450, // Budget token limit
-                temperature: 0.7
-              }
-            })
-          });
-
-          if (res.status === 429 || res.status === 403) {
-            console.warn(`Gemini Key #${i + 1} quota exhausted (HTTP ${res.status}). Auto-rolling over to key #${i + 2}...`);
-            continue; // Automatic rollover to next key!
-          }
-
-          const data = await res.json();
-          const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (answer) {
-            setActiveKeyInfo(`Key #${i + 1} of ${validKeys.length} (${selectedModel})`);
-            setMessages((prev) => [...prev, {
-              id: `ai-${Date.now()}`,
-              sender: 'ai',
-              text: answer,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }]);
-            setIsTyping(false);
-            return;
-          }
-        } catch (err) {
-          console.warn(`Key #${i + 1} error, auto-rolling over to next key:`, err);
-        }
-      }
+    if (result.keyIndexUsed > 0) {
+      setActiveKeyInfo(`Key #${result.keyIndexUsed} (${result.modelUsed})`);
+    } else {
+      setActiveKeyInfo('Offline Intelligent Engine');
     }
 
-    setTimeout(() => {
-      let responseText = '';
-      const qLower = queryStr.toLowerCase();
-      const nowBase = new Date();
-      const todayStr = `${nowBase.getFullYear()}-${String(nowBase.getMonth() + 1).padStart(2, '0')}-${String(nowBase.getDate()).padStart(2, '0')}`;
-
-      // Query Parsing Heuristics for Scientist Timesheets & Work Logs
-      if (qLower.includes('today') || qLower.includes('timesheet') || qLower.includes('logged hours')) {
-        const todayLogs = (logs || []).filter(l => (l.date || '').split('T')[0] === todayStr || l.date === todayStr);
-        if (todayLogs.length > 0) {
-          const totalMins = todayLogs.reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0);
-          const uniqueUsers = Array.from(new Set(todayLogs.map(l => l.userId)));
-          const userSummary = uniqueUsers.map(uId => {
-            const uLogs = todayLogs.filter(l => l.userId === uId);
-            const uMins = uLogs.reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0);
-            const name = formatName(uId);
-            return `• **${name}**: ${(uMins / 60).toFixed(1)}h logged across ${uLogs.length} session(s)`;
-          }).join('\n');
-
-          responseText = `📊 **Today's Scientist Timesheet Summary (${todayStr})**:\nTotal R&D output logged: **${(totalMins / 60).toFixed(1)} Hours** across **${todayLogs.length} work session(s)**.\n\n${userSummary}\n\nAll entries have been verified and synced with executive control tower records.`;
-        } else {
-          const recentLogs = (logs || []).slice(0, 5);
-          if (recentLogs.length > 0) {
-            const totalMins = recentLogs.reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0);
-            responseText = `No timesheet logs entered specifically for today (${todayStr}) yet. Here is the latest recorded R&D output: **${(totalMins / 60).toFixed(1)} Hours** across **${recentLogs.length} recent sessions**.`;
-          } else {
-            responseText = `No daily work session logs have been registered yet. Scientists can log daily activities via the Daily Research Log tab.`;
-          }
-        }
-      }
-      else if (qLower.includes('bindushree') || qLower.includes('bindu')) {
-        const binduLogs = (logs || []).filter(l => (l.userId || '').toLowerCase().includes('bindushree'));
-        const totalMins = binduLogs.reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0);
-        if (binduLogs.length > 0) {
-          const lastLog = binduLogs[0];
-          responseText = `👩‍🔬 **Scientist Profile: Bindushree B U**\n• **Total Logged R&D Output**: ${(totalMins / 60).toFixed(1)} Hours across ${binduLogs.length} session(s).\n• **Latest Activity Log**: [${lastLog.date}] ${lastLog.objective || ''} – ${lastLog.activities || ''}\n• **Status**: Active Lead Scientist on Synced Field Trial Series.`;
-        } else {
-          responseText = `Bindushree B U is registered as a Lead Scientist managing active field trials.`;
-        }
-      }
-      else if (qLower.includes('maize') || (qLower.includes('who worked') && qLower.includes('july'))) {
-        const maizeHerbicideJuly = syncedTrials.filter(t => 
-          t.cropName.toLowerCase().includes('maize') && 
-          t.category === 'herbicide' && 
-          t.startDate && t.startDate.includes('-07-')
-        );
-        const leads = Array.from(new Set(maizeHerbicideJuly.map(t => t.scientistName)));
-        if (leads.length > 0) {
-          responseText = `🌽 **Maize Herbicide Trial Intelligence**: I found ${maizeHerbicideJuly.length} trial(s) started in July (Lead Owner: ${leads.join(', ')}). Formulations are performing at an average efficacy rating of 86%.`;
-        } else {
-          responseText = `No specific Maize Herbicide trials started in July were recorded in the active database. Current maize studies are scheduled for upcoming planting windows.`;
-        }
-      }
-      else if (qLower.includes('haven\'t updated') || qLower.includes('not updated recently') || qLower.includes('inactive recently')) {
-        const cutoff = new Date(nowBase.getTime());
-        cutoff.setDate(cutoff.getDate() - 7);
-        
-        const activeUsers = (users || []).filter(u => u.isActive !== false);
-        const inactiveScorecards = activeUsers.filter(u => {
-          const uLogs = (logs || []).filter(l => l.userId === u.id || l.userId === u.email);
-          if (uLogs.length === 0) return true;
-          const latestLog = new Date(uLogs[0].date || uLogs[0].createdAt || '2026-07-01');
-          return latestLog < cutoff;
-        }).map(u => u.name).filter(n => n && n !== 'User');
-
-        if (inactiveScorecards.length > 0) {
-          responseText = `⚠️ **Scientists Pending Log Updates (Last 7 Days)**: ${inactiveScorecards.join(', ')}. Direct management follow-up is recommended.`;
-        } else {
-          responseText = `✅ All active scientists have submitted logging activity within the last 7 days. R&D reporting is fully up to date.`;
-        }
-      }
-      else if (qLower.includes('delayed projects with high efficacy') || (qLower.includes('delayed') && qLower.includes('efficacy'))) {
-        const highEfficacyDelayed = syncedTrials.filter(t => {
-          if (t.isCompleted) return false;
-          const hasHighEfficacy = t.evaluations?.some(ev => ev.efficacyPercent > 80) || t.resultRating === 'Excellent' || t.resultRating === 'Good';
-          const start = new Date(t.startDate);
-          const diffDays = (nowBase.getTime() - start.getTime()) / (1000 * 3600 * 24);
-          return hasHighEfficacy && diffDays > 60;
-        });
-
-        if (highEfficacyDelayed.length > 0) {
-          const list = highEfficacyDelayed.map(t => `• **${t.trialCode}**: ${t.productName} on ${t.cropName} (Efficacy > 80%)`).join('\n');
-          responseText = `🚀 **High-Efficacy Commercialization Candidates Requiring Acceleration**:\n${list}\n\nThese represent high-priority products ready for swift final checks and registration dossier compilation.`;
-        } else {
-          responseText = `Zero delayed field trials currently meet the high-efficacy threshold (WCE > 80%). All active high-efficacy trials are on schedule.`;
-        }
-      }
-      else if (qLower.includes('highest success rate') || qLower.includes('best scientist') || qLower.includes('ranking')) {
-        const activeUsers = (users || []).filter(u => u.isActive !== false);
-        if (activeUsers.length > 0) {
-          const rates = activeUsers.map(u => {
-            const uEmail = (u.email || '').toLowerCase();
-            const uHandle = uEmail ? uEmail.split('@')[0] : u.name.toLowerCase();
-            const myTrials = syncedTrials.filter(t => {
-              const sName = (t.scientistName || '').toLowerCase();
-              return sName.includes(uHandle) || sName.includes(u.name.toLowerCase());
-            });
-            const completed = myTrials.filter(t => t.isCompleted);
-            const passed = completed.filter(t => t.resultRating === 'Excellent' || t.resultRating === 'Good');
-            const successRate = completed.length > 0 ? Math.round((passed.length / completed.length) * 100) : 95;
-            return `• **${formatName(u.name || u.email)}**: ${successRate}% success rate (${myTrials.length} total trials)`;
-          });
-          responseText = `🏆 **Scientist Performance & Success Rate Rankings**:\n${rates.join('\n')}`;
-        } else {
-          responseText = `Zero active scientists synced in database scorecards.`;
-        }
-      }
-      else if (qLower.includes('herbicide') || qLower.includes('weed')) {
-        const herbicides = syncedTrials.filter(t => t.category === 'herbicide');
-        const activeHerbicides = herbicides.filter(h => !h.isCompleted);
-        const completedHerbicides = herbicides.filter(h => h.isCompleted);
-        responseText = `🌿 **Herbicide Portfolio Intelligence Summary**:\n• **Total Trials**: ${herbicides.length}\n• **Active Field Trials**: ${activeHerbicides.length}\n• **Completed Trials**: ${completedHerbicides.length}\n• **Key Targets**: Broadleaf & grass weed suppression with zero crop phytotoxicity.`;
-      }
-      else {
-        // Fallback default overview
-        const active = syncedTrials.filter(t => !t.isCompleted).length;
-        const done = syncedTrials.filter(t => t.isCompleted).length;
-        const totalLogMins = (logs || []).reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0);
-        responseText = `💡 **Miklens Gemini Scientific R&D Executive Overview**:\n• **Field Trials**: ${syncedTrials.length} tracked (${active} active, ${done} finalized).\n• **Total R&D Hours Logged**: ${(totalLogMins / 60).toFixed(1)} Hours.\n• **Active Scientists**: ${users.length} registered.\n\nAsk me about today's scientist timesheets, Bindushree's work logs, delayed trials, or Herbicide vs Fungicide performance!`;
-      }
-
-      const aiMsg: ChatMessage = {
+    setMessages((prev) => [
+      ...prev,
+      {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: responseText,
+        text: result.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-      setIsTyping(false);
-    }, 500);
+      },
+    ]);
+    setIsTyping(false);
   };
 
   const QUICK_PROMPTS = [

@@ -1,27 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Send, Bot, User, RefreshCw, ChevronDown, Award, Beaker } from 'lucide-react';
+import { Sparkles, X, Send, Bot, User, RefreshCw, ChevronDown, Download, FileSpreadsheet, ShieldCheck, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useExperiments } from '../contexts/ExperimentContext';
+import { useUsers } from '../hooks/useUsers';
+import { useDailyLogs } from '../hooks/useDailyLogs';
+import { querySuperpoweredGemini } from '../services/geminiEngine';
+import { exportMasterExecutiveReportPDF, exportMasterExcelWorkbook } from '../services/executiveReportGenerator';
+import { getSyncedTrials } from '../services/trialManagerSync';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'ai';
   text: string;
   timestamp: string;
+  actionButton?: {
+    label: string;
+    type: 'pdf' | 'excel';
+  };
 }
 
 export const GeminiAIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputMsg, setInputMsg] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const { experiments, labTests, stabilityLogs, fieldTrials } = useExperiments();
+  const [keyStatusInfo, setKeyStatusInfo] = useState<string>('Live Connected');
+
+  const { experiments, labTests, stabilityLogs } = useExperiments();
+  const { data: users } = useUsers();
+  const { data: logs } = useDailyLogs();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'm1',
       sender: 'ai',
-      text: 'Hello! I am your Gemini AI Scientific & R&D Assistant. Ask me anything about active formulation chemistry, pathogen inhibition assays, CIPAC heat stability, or scientist daily activity reports.',
+      text: 'Hello! I am your Superpowered Gemini AI R&D Officer. Connected live to your field trials, daily scientist timesheets, and lab assays. Ask me anything or click a quick action below!',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -34,10 +47,10 @@ export const GeminiAIChatbot: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = (textToSend?: string) => {
-    if (!inputMsg.trim() && !textToSend) return;
-
+  const handleSend = async (textToSend?: string) => {
     const query = textToSend || inputMsg;
+    if (!query.trim()) return;
+
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       sender: 'user',
@@ -49,44 +62,84 @@ export const GeminiAIChatbot: React.FC = () => {
     if (!textToSend) setInputMsg('');
     setIsTyping(true);
 
-    // AI Response Synthesizer
-    setTimeout(() => {
-      let responseText = '';
-      const qLower = query.toLowerCase();
+    // App Automation Trigger Intercepts
+    const qLower = query.toLowerCase();
 
-      if (qLower.includes('stability') || qLower.includes('cipac') || qLower.includes('heat')) {
-        const passedStab = stabilityLogs.filter(s => s.outcomeStatus === 'Passed').length;
-        responseText = `Stability Logs: We have compiled ${stabilityLogs.length} accelerated heat stability testing runs (${passedStab} passed) at 54°C. Active formulation chemical profiles are operating within tolerance limits.`;
-      } else if (qLower.includes('assay') || qLower.includes('ph') || qLower.includes('titration') || qLower.includes('viscosity')) {
-        const activeLab = labTests.filter(l => l.outcomeStatus === 'Pending').length;
-        responseText = `Pathogen Inhibition Assays (Lab & Greenhouse): Tracking ${labTests.length} assays (${activeLab} in progress). Average pH targets 6.2 with viscosity parameters recorded within normal specs.`;
-      } else if (qLower.includes('field') || qLower.includes('trial') || qLower.includes('yield')) {
-        const activeField = fieldTrials.filter(f => f.outcomeStatus === 'Pending').length;
-        responseText = `Field Trials Output: Tracking ${fieldTrials.length} trials (${activeField} active). Evaluators submit daily plot mapping and SPAD leaf chlorophyll check updates.`;
-      } else if (qLower.includes('scientist') || qLower.includes('agronomist') || qLower.includes('microbiologist') || qLower.includes('sarah') || qLower.includes('jenkins')) {
-        responseText = `R&D Team Tracker: The laboratory team has logged daily updates across PDA agar plating assays and CIPAC heat stability titrations.`;
-      } else {
-        const totalVerdict = experiments.filter(e => e.outcomeStatus === 'Passed').length + labTests.filter(l => l.outcomeStatus === 'Passed').length;
-        responseText = `R&D Summary: Currently tracking ${experiments.length + labTests.length} total active assays (${totalVerdict} passed scientific verdicts). All parameters meet target viscosity and safety specifications.`;
-      }
-
-      const aiMsg: ChatMessage = {
-        id: `ai-${Date.now()}`,
-        sender: 'ai',
-        text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
+    if (qLower.includes('export pdf') || qLower.includes('pdf report') || qLower.includes('generate pdf')) {
+      const syncedTrials = getSyncedTrials();
+      exportMasterExecutiveReportPDF(syncedTrials, (users || []).length, (logs || []).length, logs || []);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          sender: 'ai',
+          text: '⚡ **App Automation Triggered**: Master Executive PDF Report has been generated and downloaded to your computer!',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          actionButton: { label: 'Download PDF Report Again', type: 'pdf' },
+        },
+      ]);
       setIsTyping(false);
-    }, 800);
+      return;
+    }
+
+    if (qLower.includes('export excel') || qLower.includes('excel report') || qLower.includes('excel workbook')) {
+      const syncedTrials = getSyncedTrials();
+      exportMasterExcelWorkbook(syncedTrials, users || [], logs || []);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `ai-${Date.now()}`,
+          sender: 'ai',
+          text: '⚡ **App Automation Triggered**: Master 5-Sheet Excel Audit Workbook has been generated and downloaded!',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          actionButton: { label: 'Download Excel Workbook Again', type: 'excel' },
+        },
+      ]);
+      setIsTyping(false);
+      return;
+    }
+
+    // Call Superpowered Gemini Engine
+    const result = await querySuperpoweredGemini(query, {
+      users: users || [],
+      logs: logs || [],
+      experiments: experiments || [],
+      labTests: labTests || [],
+      stabilityLogs: stabilityLogs || [],
+    });
+
+    if (result.keyIndexUsed > 0) {
+      setKeyStatusInfo(`Key #${result.keyIndexUsed} (${result.modelUsed})`);
+    } else {
+      setKeyStatusInfo('Offline Rule Engine');
+    }
+
+    const aiMsg: ChatMessage = {
+      id: `ai-${Date.now()}`,
+      sender: 'ai',
+      text: result.text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, aiMsg]);
+    setIsTyping(false);
   };
 
-  const QUICK_PROMPTS = [
-    '🧪 Active Formulation Stability Status',
-    '🧫 Pathogen Assay Inhibition Rate',
-    '🌾 Synced Field Trial Results',
-    '📊 Summary of Scientist Work Today',
+  const handleActionClick = (type: 'pdf' | 'excel') => {
+    const syncedTrials = getSyncedTrials();
+    if (type === 'pdf') {
+      exportMasterExecutiveReportPDF(syncedTrials, (users || []).length, (logs || []).length, logs || []);
+    } else {
+      exportMasterExcelWorkbook(syncedTrials, logs || [], users || []);
+    }
+  };
+
+  const SUPER_ACTION_PROMPTS = [
+    { label: '📊 Today Scientist Timesheets', query: 'What did scientists log today?' },
+    { label: '📄 Auto-Export PDF Report', query: 'export pdf report' },
+    { label: '📈 Auto-Export Excel Audit', query: 'export excel report' },
+    { label: '🌿 Active Herbicide Trials', query: 'Give me active herbicide trial progress' },
+    { label: '🚀 Product Readiness Audit', query: 'Which products have high efficacy delayed trials ready for launch?' },
   ];
 
   return (
@@ -97,7 +150,7 @@ export const GeminiAIChatbot: React.FC = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 text-white rounded-full shadow-2xl hover:shadow-purple-500/25 border border-white/20 font-bold text-xs"
+          className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 text-white rounded-full shadow-2xl hover:shadow-purple-500/25 border border-white/20 font-bold text-xs cursor-pointer"
         >
           <div className="relative">
             <Sparkles className="w-5 h-5 animate-pulse text-amber-300" />
@@ -115,7 +168,7 @@ export const GeminiAIChatbot: React.FC = () => {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-22 right-6 z-50 w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[560px]"
+            className="fixed bottom-22 right-6 z-50 w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[580px]"
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-slate-900 via-gray-900 to-purple-950 text-white flex items-center justify-between border-b border-white/10">
@@ -125,12 +178,12 @@ export const GeminiAIChatbot: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-white flex items-center gap-1.5">
-                    Gemini AI R&D Assistant
+                    Gemini AI R&D Officer
                     <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                      LIVE
+                      SUPERPOWERED
                     </span>
                   </h3>
-                  <p className="text-[11px] text-gray-400">Scientific R&D Intelligence & Audit Assistant</p>
+                  <p className="text-[10px] text-gray-300">{keyStatusInfo}</p>
                 </div>
               </div>
 
@@ -142,15 +195,15 @@ export const GeminiAIChatbot: React.FC = () => {
               </button>
             </div>
 
-            {/* Quick Prompts Bar */}
+            {/* Quick Action Shortcuts Bar */}
             <div className="p-2.5 bg-purple-50/50 dark:bg-purple-950/20 border-b border-purple-100 dark:border-purple-900/30 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              {QUICK_PROMPTS.map((prompt) => (
+              {SUPER_ACTION_PROMPTS.map((item) => (
                 <button
-                  key={prompt}
-                  onClick={() => handleSend(prompt.replace(/^[^\s]+\s*/, ''))}
-                  className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-900 rounded-full text-[11px] font-semibold text-purple-700 dark:text-purple-300 whitespace-nowrap hover:bg-purple-100/50 transition-colors shrink-0"
+                  key={item.label}
+                  onClick={() => handleSend(item.query)}
+                  className="px-2.5 py-1 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-900 rounded-full text-[11px] font-bold text-purple-700 dark:text-purple-300 whitespace-nowrap hover:bg-purple-100/50 transition-colors shrink-0 cursor-pointer"
                 >
-                  {prompt}
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -173,13 +226,24 @@ export const GeminiAIChatbot: React.FC = () => {
                   </div>
 
                   <div
-                    className={`max-w-[80%] p-3 rounded-2xl text-xs space-y-1 ${
+                    className={`max-w-[85%] p-3.5 rounded-2xl text-xs space-y-2 ${
                       msg.sender === 'user'
                         ? 'bg-emerald-500 text-white rounded-tr-none'
                         : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none shadow-sm'
                     }`}
                   >
-                    <p className="leading-relaxed font-medium">{msg.text}</p>
+                    <p className="leading-relaxed font-medium whitespace-pre-line">{msg.text}</p>
+
+                    {msg.actionButton && (
+                      <button
+                        onClick={() => handleActionClick(msg.actionButton!.type)}
+                        className="w-full mt-2 py-1.5 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition-all cursor-pointer"
+                      >
+                        {msg.actionButton.type === 'pdf' ? <Download className="w-3.5 h-3.5" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+                        {msg.actionButton.label}
+                      </button>
+                    )}
+
                     <span
                       className={`text-[9px] block text-right font-mono ${
                         msg.sender === 'user' ? 'text-emerald-100' : 'text-gray-400'
@@ -194,7 +258,7 @@ export const GeminiAIChatbot: React.FC = () => {
               {isTyping && (
                 <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400 font-semibold p-2">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Gemini AI is analyzing R&D data...
+                  Gemini AI is querying real live database...
                 </div>
               )}
               <div ref={chatEndRef} />
@@ -210,7 +274,7 @@ export const GeminiAIChatbot: React.FC = () => {
             >
               <input
                 type="text"
-                placeholder="Ask Gemini AI about experiments, stability..."
+                placeholder="Ask Gemini AI or type 'export pdf'..."
                 value={inputMsg}
                 onChange={(e) => setInputMsg(e.target.value)}
                 className="flex-1 px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500/30 font-medium"
@@ -218,7 +282,7 @@ export const GeminiAIChatbot: React.FC = () => {
               <button
                 type="submit"
                 disabled={!inputMsg.trim()}
-                className="p-2 bg-gradient-to-r from-purple-600 to-emerald-600 text-white rounded-xl font-bold text-xs disabled:opacity-40 hover:opacity-90 transition-opacity"
+                className="p-2 bg-gradient-to-r from-purple-600 to-emerald-600 text-white rounded-xl font-bold text-xs disabled:opacity-40 hover:opacity-90 transition-opacity cursor-pointer"
               >
                 <Send className="w-4 h-4" />
               </button>
