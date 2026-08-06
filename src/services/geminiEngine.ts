@@ -8,14 +8,20 @@ import { getSyncedTrials, getSyncedFormulations } from './trialManagerSync';
  * - Automated Intelligence Reporting & Risk Auditing
  */
 
-// Models in order of fallback preference
-const GEMINI_MODELS = [
+// Gemini Models in order of fallback preference (Adopted from Trial Manager 7)
+export const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.5-pro',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
   'gemini-1.5-pro',
-  'gemini-pro',
 ];
+
+// Session-level cache of temporarily blocked/unavailable models
+const blockedModelsSet = new Set<string>();
 
 /**
  * Collect all available Gemini API keys from environment variables and localStorage
@@ -34,10 +40,12 @@ export const getAvailableGeminiKeys = (): string[] => {
   // Fallback single env key
   const defaultEnvKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (defaultEnvKey && typeof defaultEnvKey === 'string' && defaultEnvKey.trim()) {
-    keys.push(defaultEnvKey.trim());
+    if (!keys.includes(defaultEnvKey.trim())) {
+      keys.push(defaultEnvKey.trim());
+    }
   }
 
-  // 2. Check localStorage pool
+  // 2. Check localStorage key pool & single key
   try {
     const savedPool = localStorage.getItem('gemini_api_keys_pool');
     if (savedPool) {
@@ -77,10 +85,10 @@ export const buildRealtimeRDContext = (
   const todayStr = new Date().toISOString().split('T')[0];
 
   // 1. Synced Field Trials Summary
-  const trialSummaries = syncedTrials.slice(0, 15).map(t => {
+  const trialSummaries = syncedTrials.slice(0, 20).map(t => {
     const lastEval = t.evaluations && t.evaluations.length > 0 ? t.evaluations[t.evaluations.length - 1] : null;
     const eff = lastEval ? `${lastEval.efficacyPercent}%` : (t.resultRating || 'Good');
-    return `[${t.trialCode}] ${t.productName} on ${t.cropName} (${t.category}) | Lead: ${t.scientistName} | Status: ${t.status} | Efficacy: ${eff}`;
+    return `[${t.trialCode}] ${t.title || t.productName} on ${t.cropName} (${t.category}) | Lead: ${t.scientistName} | Status: ${t.status} | Efficacy: ${eff}`;
   }).join('\n');
 
   // 2. Today's Work Session Logs
@@ -122,7 +130,7 @@ ${trialSummaries || 'Field trials active across Herbicide, Fungicide, Pesticide,
 };
 
 /**
- * Ask Gemini API with automatic key rotation & model fallback
+ * Ask Gemini API with automatic key rotation, model selection & model rollover fallback
  */
 export const querySuperpoweredGemini = async (
   userQuery: string,
@@ -132,7 +140,8 @@ export const querySuperpoweredGemini = async (
     experiments?: any[];
     labTests?: any[];
     stabilityLogs?: any[];
-  } = {}
+  } = {},
+  preferredModel?: string
 ): Promise<{ text: string; keyIndexUsed: number; modelUsed: string }> => {
   const keys = getAvailableGeminiKeys();
   const dbContext = buildRealtimeRDContext(
@@ -156,12 +165,19 @@ INSTRUCTIONS:
 3. If asked about scientists, field trials, daily logs, or product progress, analyze the database state.
 4. Format output cleanly using GitHub Markdown (bolding, bullet points, numbered lists).`;
 
-  // Try each API key across available models
+  // Build model candidate list, starting with preferredModel if specified
+  const modelCandidates = preferredModel
+    ? [preferredModel, ...GEMINI_MODELS.filter(m => m !== preferredModel)]
+    : GEMINI_MODELS;
+
+  // Filter out models known to be 404/unavailable in this session
+  const activeModels = modelCandidates.filter(m => !blockedModelsSet.has(m));
+
   if (keys.length > 0) {
     for (let keyIdx = 0; keyIdx < keys.length; keyIdx++) {
       const apiKey = keys[keyIdx];
 
-      for (const model of GEMINI_MODELS) {
+      for (const model of activeModels) {
         try {
           const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -171,16 +187,22 @@ INSTRUCTIONS:
               body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
                 generationConfig: {
-                  maxOutputTokens: 600,
+                  maxOutputTokens: 800,
                   temperature: 0.7,
                 },
               }),
             }
           );
 
+          if (response.status === 404 || response.status === 400) {
+            console.warn(`Model ${model} returned ${response.status}. Marking model blocked and rolling over...`);
+            blockedModelsSet.add(model);
+            continue; // Rollover to next model
+          }
+
           if (response.status === 429 || response.status === 403) {
-            console.warn(`Gemini key #${keyIdx + 1} (${model}) quota limit. Switching key/model...`);
-            break; // Try next key
+            console.warn(`Gemini key #${keyIdx + 1} (${model}) quota limit. Switching to next API key...`);
+            break; // Switch to next key in rotation
           }
 
           if (response.ok) {
@@ -191,13 +213,13 @@ INSTRUCTIONS:
             }
           }
         } catch (err) {
-          console.warn(`Error querying ${model} with key #${keyIdx + 1}:`, err);
+          console.warn(`Error querying model ${model} with key #${keyIdx + 1}:`, err);
         }
       }
     }
   }
 
-  // Offline / Fallback Intelligent Rule Engine when API keys are exhausted or offline
+  // Fallback Intelligent Rule Engine when API keys are exhausted or offline
   return {
     text: generateOfflineIntelligentResponse(userQuery, contextData),
     keyIndexUsed: 0,

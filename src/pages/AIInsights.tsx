@@ -53,16 +53,19 @@ export const AIInsights: React.FC = () => {
     const single = localStorage.getItem('gemini_api_key');
     return single ? [single] : [];
   });
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('gemini_selected_model') || 'gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('gemini_selected_model') || 'gemini-2.5-flash');
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keysInputText, setKeysInputText] = useState('');
   const [activeKeyInfo, setActiveKeyInfo] = useState<string | null>(null);
 
   const FREE_GEMINI_MODELS = [
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Ultra Fast & Recommended)', desc: 'Standard free tier' },
-    { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B (Lightweight & Low Tokens)', desc: 'Conserves maximum tokens' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Latest Next-Gen)', desc: 'High intelligence & speed' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Deep Scientific Reasoning)', desc: 'Advanced reasoning' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash (Best All-Round & Stable)', desc: 'Recommended default' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite (Ultra Fast & Lightweight)', desc: 'Fastest response' },
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash-Lite (Frontier Lightweight)', desc: 'Next-Gen Fast' },
+    { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (Frontier Intelligence)', desc: 'High intelligence' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Deep Scientific Reasoning)', desc: 'Complex reasoning' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Next-Gen Speed)', desc: 'High speed' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Legacy Stable)', desc: 'Standard fallback' },
   ];
 
   const handleSend = async (textToSend?: string) => {
@@ -80,14 +83,18 @@ export const AIInsights: React.FC = () => {
     if (!textToSend) setInputMsg('');
     setIsTyping(true);
 
-    // Call Superpowered Gemini Engine with full DB Context
-    const result = await querySuperpoweredGemini(queryStr, {
-      users: users || [],
-      logs: logs || [],
-      experiments: experiments || [],
-      labTests: labTests || [],
-      stabilityLogs: stabilityLogs || [],
-    });
+    // Call Superpowered Gemini Engine with full DB Context & selected model
+    const result = await querySuperpoweredGemini(
+      queryStr,
+      {
+        users: users || [],
+        logs: logs || [],
+        experiments: experiments || [],
+        labTests: labTests || [],
+        stabilityLogs: stabilityLogs || [],
+      },
+      selectedModel
+    );
 
     if (result.keyIndexUsed > 0) {
       setActiveKeyInfo(`Key #${result.keyIndexUsed} (${result.modelUsed})`);
