@@ -301,16 +301,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
               </div>
 
               <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Which projects are delayed?</span>
-                <p className="text-base font-black text-rose-600 dark:text-rose-400">
-                  {delayedTrials.length} Trials Delayed
-                </p>
-                <p className="text-[10px] text-gray-550 truncate">
-                  Codes: {delayedTrials.length > 3 ? `${delayedTrials.slice(0, 3).map(t => t.trialCode).join(', ')} and ${delayedTrials.length - 3} others` : delayedTrials.map(t => t.trialCode).join(', ')}
-                </p>
-              </div>
-
-              <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-1">
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Inactive Scientist (Last 7 Days)</span>
                 <p className="text-base font-black text-amber-600 dark:text-amber-500 truncate" title={inactiveScientists.join(', ')}>
                   {inactiveScientists.length > 2 ? `${inactiveScientists.slice(0, 2).join(', ')} and ${inactiveScientists.length - 2} others` : (inactiveScientists.join(', ') || 'None')}
@@ -325,66 +315,13 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                 </p>
                 <p className="text-[10px] text-purple-500 font-medium">Takes {topEffortCategory.percentage}% of total time allocation</p>
               </div>
-
-              <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Percentage of Projects Completed</span>
-                <p className="text-base font-black text-gray-900 dark:text-white">
-                  {projectCompletionStats.percentage}% Completed
-                </p>
-                <p className="text-[10px] text-emerald-600 font-bold">{projectCompletionStats.completed} out of {projectCompletionStats.total} formulations finalized</p>
-              </div>
-
-              <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Likely to Finish This Month</span>
-                <p className="text-base font-black text-emerald-600 dark:text-emerald-500">
-                  {endingThisMonth.length} Trials Ending
-                </p>
-                <p className="text-[10px] text-gray-500 truncate">
-                  {endingThisMonth.map(t => `${t.trialCode} (${t.cropName})`).join(', ')}
-                </p>
-              </div>
             </div>
           </div>
 
           {/* Power BI–Style Visualizations */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Visual Funnel */}
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 space-y-3 md:col-span-1">
-              <h4 className="text-xs font-black uppercase text-gray-400">R&D Formulation pipeline funnel</h4>
-              <div className="space-y-3 pt-2">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
-                    <span>1. Planning & Design</span>
-                    <span>12 Trials (100%)</span>
-                  </div>
-                  <div className="w-full bg-emerald-100 dark:bg-emerald-950 h-3.5 rounded-md" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
-                    <span>2. Lab & Greenhouse Tests</span>
-                    <span>8 Trials (66%)</span>
-                  </div>
-                  <div className="w-full bg-emerald-300 dark:bg-emerald-800 h-3.5 rounded-md" style={{ width: '66%' }} />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
-                    <span>3. Active Field Plot Checks</span>
-                    <span>5 Trials (41%)</span>
-                  </div>
-                  <div className="w-full bg-emerald-500 h-3.5 rounded-md" style={{ width: '41%' }} />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
-                    <span>4. Final Registration Dossier</span>
-                    <span>3 Trials (25%)</span>
-                  </div>
-                  <div className="w-full bg-emerald-600 h-3.5 rounded-md" style={{ width: '25%' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Effort distribution bar chart */}
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 space-y-3 md:col-span-2">
+            {/* Effort distribution bar chart — full width */}
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 space-y-3 md:col-span-3">
               <h4 className="text-xs font-black uppercase text-gray-400">R&D effort trend (Hours Logged by category)</h4>
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
