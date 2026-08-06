@@ -323,6 +323,9 @@ export const exportCompanyReportToExcel = (
 /**
  * PDF EXPORT: Export Company R&D Performance Report to PDF
  */
+/**
+ * PDF EXPORT: Export Company R&D Performance Report to PDF
+ */
 export const exportCompanyReportToPDF = (
   syncedTrials: ExternalFieldTrial[],
   activeScientistsCount: number,
@@ -331,9 +334,11 @@ export const exportCompanyReportToPDF = (
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 15;
 
-  const sourceTrials = (syncedTrials && syncedTrials.length > 0) ? syncedTrials : DEFAULT_FALLBACK_TRIALS;
-  const sciCount = activeScientistsCount || 3;
-  const expCount = totalExperimentsCount || 12;
+  const sourceTrials = syncedTrials || [];
+  const sciCount = activeScientistsCount || 0;
+  const expCount = totalExperimentsCount || 0;
+  const completedCount = sourceTrials.filter(t => t.isCompleted).length;
+  const overallSuccessRate = sourceTrials.length > 0 ? Math.round((completedCount / sourceTrials.length) * 100) : 100;
 
   // Header Banner
   doc.setFillColor(16, 185, 129); // Emerald 500
@@ -363,7 +368,7 @@ export const exportCompanyReportToPDF = (
   doc.text(`Active Scientists: ${sciCount}`, 18, y + 15);
   doc.text(`Total Field Trials: ${sourceTrials.length}`, 18, y + 21);
 
-  doc.text(`Success Rate: 88%`, 110, y + 15);
+  doc.text(`Overall Success Rate: ${overallSuccessRate}%`, 110, y + 15);
   doc.text(`Total Lab Assays: ${expCount}`, 110, y + 21);
 
   y += 38;
@@ -381,8 +386,10 @@ export const exportCompanyReportToPDF = (
   doc.setTextColor(55, 65, 81);
 
   categories.forEach((cat) => {
-    const count = sourceTrials.filter(t => t.category === cat).length;
-    doc.text(`• ${cat.toUpperCase()}: ${count} total synced trials (Success Rate: 85%)`, 18, y);
+    const catTrials = sourceTrials.filter(t => t.category === cat);
+    const catCompleted = catTrials.filter(t => t.isCompleted).length;
+    const catRate = catTrials.length > 0 ? Math.round((catCompleted / catTrials.length) * 100) : 100;
+    doc.text(`• ${cat.toUpperCase()}: ${catTrials.length} total synced trials (Completion/Success Rate: ${catRate}%)`, 18, y);
     y += 5.5;
   });
 
@@ -399,7 +406,7 @@ export const exportCompanyReportToPDF = (
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(127, 29, 29);
 
-  const nowBase = new Date('2026-08-04');
+  const nowBase = new Date();
   const delayedTrials = sourceTrials.filter(t => {
     if (t.isCompleted) return false;
     const start = new Date(t.startDate);
@@ -409,9 +416,9 @@ export const exportCompanyReportToPDF = (
 
   const alerts: string[] = [];
   if (delayedTrials.length > 0) {
-    alerts.push(`1. WARNING: Overdue Trial Check - ${delayedTrials[0].trialCode} ${delayedTrials[0].category.toUpperCase()} study is active for ${Math.round((nowBase.getTime() - new Date(delayedTrials[0].startDate).getTime()) / (1000 * 3600 * 24))} days.`);
+    alerts.push(`1. WARNING: Overdue Trial Check - ${delayedTrials[0].trialCode} ${delayedTrials[0].category.toUpperCase()} study active for > 90 days.`);
   } else {
-    alerts.push('1. INFO: Zero delayed trials flagged (all active programs are operating within bounds).');
+    alerts.push('1. INFO: Zero delayed trials flagged (all active programs operating within bounds).');
   }
 
   const highPhytotoxTrials = sourceTrials.filter(t => 
@@ -423,7 +430,7 @@ export const exportCompanyReportToPDF = (
     alerts.push('2. INFO: Formulation phytotoxicity and crop safety values are fully compliant.');
   }
 
-  alerts.push(`3. STATUS: R&D execution operations are operating at optimal load.`);
+  alerts.push(`3. STATUS: R&D execution operations operating at optimal load.`);
 
   alerts.forEach((alert) => {
     doc.text(alert, 16, y);
@@ -453,10 +460,10 @@ export const exportMasterExecutiveReportPDF = (
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 15;
 
-  const sourceTrials = (syncedTrials && syncedTrials.length > 0) ? syncedTrials : DEFAULT_FALLBACK_TRIALS;
-  const sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
-  const sciCount = activeScientistsCount || 3;
-  const expCount = totalExperimentsCount || 12;
+  const sourceTrials = syncedTrials || [];
+  const sourceLogs = logs || [];
+  const sciCount = activeScientistsCount || 0;
+  const expCount = totalExperimentsCount || 0;
 
   // Header Banner
   doc.setFillColor(16, 185, 129); // Emerald
@@ -486,7 +493,7 @@ export const exportMasterExecutiveReportPDF = (
 
   const activeTrialsCount = sourceTrials.filter(t => !t.isCompleted).length;
   const completedTrialsCount = sourceTrials.filter(t => t.isCompleted).length;
-  const totalHoursLogged = Math.round((sourceLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0) / 60) * 10) / 10;
+  const totalHoursLogged = Math.round((sourceLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
 
   doc.text(`Total Synced Field Trials: ${sourceTrials.length}`, 18, y + 16);
   doc.text(`Active Field Programs: ${activeTrialsCount}`, 18, y + 22);
@@ -527,7 +534,7 @@ export const exportMasterExecutiveReportPDF = (
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(55, 65, 81);
   categories.forEach((cat, idx) => {
-    const catTrials = syncedTrials.filter(t => t.category === cat.id);
+    const catTrials = sourceTrials.filter(t => t.category === cat.id);
     const catCompleted = catTrials.filter(t => t.isCompleted).length;
     const rate = catTrials.length > 0 ? Math.round((catCompleted / catTrials.length) * 100) : 100;
     
@@ -555,7 +562,7 @@ export const exportMasterExecutiveReportPDF = (
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(127, 29, 29);
 
-  const delayedTrials = syncedTrials.filter(t => {
+  const delayedTrials = sourceTrials.filter(t => {
     if (t.isCompleted) return false;
     const start = new Date(t.startDate);
     const diffDays = (new Date().getTime() - start.getTime()) / (1000 * 3600 * 24);
@@ -583,230 +590,6 @@ export const exportMasterExecutiveReportPDF = (
   doc.save(`Miklens_Master_Executive_RD_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
-// ── Default Rich Datasets for Guaranteed Non-Empty PDF & Excel Reports ──
-export const DEFAULT_FALLBACK_LOGS = [
-  {
-    id: 'log-1',
-    date: '2026-08-06',
-    userId: 'sandeep.431441',
-    userName: 'Sandeep',
-    startTime: '09:00',
-    endTime: '13:00',
-    timeSpentMinutes: 240,
-    objective: 'CIPAC Thermal Stability Assay & Viscosity Check for Bio-Herbicide MB-H24',
-    activities: 'Evaluated emulsion stability under 54°C thermal stress test. Recorded pH, specific gravity, and layer separation.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-2',
-    date: '2026-08-06',
-    userId: 'bindushree@miklensbio.com',
-    userName: 'Bindushree B U',
-    startTime: '09:30',
-    endTime: '14:30',
-    timeSpentMinutes: 300,
-    objective: 'Fungicidal Efficacy Trial Scoring on Tomato Early Blight (TR-0901d888)',
-    activities: 'Assessed leaf necrosis percentage and disease control index across 12 treatment plots vs chemical control.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-3',
-    date: '2026-08-05',
-    userId: 'pavan@miklensbio.com',
-    userName: 'Pavan Dev',
-    startTime: '10:00',
-    endTime: '17:00',
-    timeSpentMinutes: 420,
-    objective: 'Bio-Insecticide Botanical Extraction & HPLC Active Quantification',
-    activities: 'Executed solvent extraction protocols for azadirachtin formulation batch #402. Analyzed peak purity on HPLC.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-4',
-    date: '2026-08-05',
-    userId: 'sandeep.431441',
-    userName: 'Sandeep',
-    startTime: '14:00',
-    endTime: '18:00',
-    timeSpentMinutes: 240,
-    objective: 'Surfactant Optimization for Rainfastness Improvement in Bio-Herbicide',
-    activities: 'Formulated 4 adjuvant ratios with silicone spreader. Conducted artificial rainfall simulator wash-off tests.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-5',
-    date: '2026-08-04',
-    userId: 'bindushree@miklensbio.com',
-    userName: 'Bindushree B U',
-    startTime: '08:30',
-    endTime: '12:30',
-    timeSpentMinutes: 240,
-    objective: 'Microbial Spore Count & Viability Assay for Soil Bio-Nutrient',
-    activities: 'Serial dilution plating for Trichoderma harzianum spores. Verified CFU/ml count after 48-hour incubation.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-6',
-    date: '2026-08-04',
-    userId: 'pavan@miklensbio.com',
-    userName: 'Pavan Dev',
-    startTime: '13:00',
-    endTime: '17:30',
-    timeSpentMinutes: 270,
-    objective: 'Field Trial Spraying Calibration & Crop Safety Inspection',
-    activities: 'Calibrated knapsack sprayer pressure nozzles for plot trial TR-0882. Monitored phytotoxicity signs on soybean leaves.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-7',
-    date: '2026-08-03',
-    userId: 'sandeep.431441',
-    userName: 'Sandeep',
-    startTime: '09:00',
-    endTime: '16:30',
-    timeSpentMinutes: 450,
-    objective: 'Accelerated Shelf Life Testing for Emulsifiable Concentrate (EC)',
-    activities: 'Placed 5 formulation samples at 45°C incubators. Tested specific gravity and active ingredient retention rate.',
-    completionStatus: 'Completed',
-  },
-  {
-    id: 'log-8',
-    date: '2026-08-03',
-    userId: 'bindushree@miklensbio.com',
-    userName: 'Bindushree B U',
-    startTime: '10:00',
-    endTime: '15:00',
-    timeSpentMinutes: 300,
-    objective: 'Phytotoxicity & Weed Control Efficacy Data Entry',
-    activities: 'Compiled field trial observations for TR-0771. Uploaded trial notes and geo-tagged plot photographs.',
-    completionStatus: 'Completed',
-  }
-];
-
-export const DEFAULT_FALLBACK_TRIALS: ExternalFieldTrial[] = [
-  {
-    id: 'tr-001',
-    trialCode: 'TR-0901d888',
-    title: 'Herbicide Bio-Efficacy & Safety Evaluation on Paddy Field',
-    productName: 'Bio-Herbicide Alpha 500 EC',
-    category: 'herbicide',
-    cropName: 'Paddy / Rice',
-    state: 'Maharashtra',
-    targetWeedOrPathogen: 'Echinochloa crus-galli (Barnyard grass)',
-    designType: 'RCBD',
-    scientistName: 'Bindushree B U',
-    location: 'Nashik R&D Station, Plot B-4',
-    startDate: '2026-05-15',
-    status: 'Active',
-    isCompleted: false,
-    resultRating: 'High Efficacy (92%)',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    evaluations: [
-      { id: 'ev-1', evalDate: '2026-06-01', daysAfterTreatment: 15, efficacyPercent: 88, phytotoxicityScore: 1, weedOrPathogenControlPercent: 88, notes: 'Effective weed mortality observed.' },
-      { id: 'ev-2', evalDate: '2026-07-01', daysAfterTreatment: 45, efficacyPercent: 92, phytotoxicityScore: 1, weedOrPathogenControlPercent: 92, notes: 'Sustained control with zero crop damage.' }
-    ],
-    photos: [],
-    treatments: []
-  },
-  {
-    id: 'tr-002',
-    trialCode: 'TR-0882f421',
-    title: 'Fungicidal Systemic Action Study against Early Blight',
-    productName: 'FungiShield Bio-Pro SL',
-    category: 'fungicide',
-    cropName: 'Tomato',
-    state: 'Maharashtra',
-    targetWeedOrPathogen: 'Alternaria solani',
-    designType: 'RCBD',
-    scientistName: 'Sandeep',
-    location: 'Pune Polyhouse Complex 2',
-    startDate: '2026-06-10',
-    status: 'Completed',
-    isCompleted: true,
-    resultRating: 'Excellent (95%)',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    evaluations: [
-      { id: 'ev-3', evalDate: '2026-06-25', daysAfterTreatment: 15, efficacyPercent: 95, phytotoxicityScore: 0, weedOrPathogenControlPercent: 95, notes: 'Complete disease suppression.' }
-    ],
-    photos: [],
-    treatments: []
-  },
-  {
-    id: 'tr-003',
-    trialCode: 'TR-0771c903',
-    title: 'Botanical Insecticide Field Scale Efficacy Trial',
-    productName: 'Neem-Azadirachtin Super 10000 PPM',
-    category: 'pesticide',
-    cropName: 'Cotton',
-    state: 'Andhra Pradesh',
-    targetWeedOrPathogen: 'Helicoverpa armigera (Bollworm)',
-    designType: 'Demonstration',
-    scientistName: 'Pavan Dev',
-    location: 'Guntur Experimental Farm',
-    startDate: '2026-04-20',
-    status: 'Completed',
-    isCompleted: true,
-    resultRating: 'Good (86%)',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    evaluations: [
-      { id: 'ev-4', evalDate: '2026-05-10', daysAfterTreatment: 20, efficacyPercent: 86, phytotoxicityScore: 1, weedOrPathogenControlPercent: 86, notes: 'Substantial reduction in larval count.' }
-    ],
-    photos: [],
-    treatments: []
-  },
-  {
-    id: 'tr-004',
-    trialCode: 'TR-0654a112',
-    title: 'Biostimulant Root Development & Stress Tolerance Test',
-    productName: 'RhizoBoost Seaweed Extract Liquid',
-    category: 'biostimulant',
-    cropName: 'Wheat',
-    state: 'Haryana',
-    targetWeedOrPathogen: 'Drought & Salinity Stress Response',
-    designType: 'RCBD',
-    scientistName: 'Sandeep',
-    location: 'Karnal Research Plot 7',
-    startDate: '2026-03-01',
-    status: 'Completed',
-    isCompleted: true,
-    resultRating: 'Outstanding (94%)',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    evaluations: [
-      { id: 'ev-5', evalDate: '2026-04-15', daysAfterTreatment: 45, efficacyPercent: 94, phytotoxicityScore: 0, weedOrPathogenControlPercent: 94, notes: 'Significant root biomass expansion.' }
-    ],
-    photos: [],
-    treatments: []
-  },
-  {
-    id: 'tr-005',
-    trialCode: 'TR-0511e990',
-    title: 'Micronutrient Foliar Absorption & Yield Enhancement',
-    productName: 'NutriZinc Bio-Chelate 12%',
-    category: 'nutrition',
-    cropName: 'Maize / Corn',
-    state: 'Maharashtra',
-    targetWeedOrPathogen: 'Zinc Deficiency Chlorosis',
-    designType: 'CRD',
-    scientistName: 'Bindushree B U',
-    location: 'Solapur Demonstration Field',
-    startDate: '2026-05-01',
-    status: 'Active',
-    isCompleted: false,
-    resultRating: 'Very Good (89%)',
-    syncedAt: new Date().toISOString(),
-    sourceApp: 'Miklens Trial Manager 7',
-    evaluations: [
-      { id: 'ev-6', evalDate: '2026-05-20', daysAfterTreatment: 19, efficacyPercent: 89, phytotoxicityScore: 0, weedOrPathogenControlPercent: 89, notes: 'Rapid greening of leaves within 5 days.' }
-    ],
-    photos: [],
-    treatments: []
-  }
-];
-
 /**
  * 2. SCIENTIST ACTIVITY & TIMESHEET AUDIT REPORT (PDF)
  * Complete breakdown of scientist daily work sessions, hours logged, and activities.
@@ -819,17 +602,13 @@ export const exportScientistTimesheetAuditPDF = (
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 15;
 
-  // Ensure logs is not empty
-  let sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
+  const sourceLogs = logs || [];
 
   // Scientist resolution helper
   const resolveName = (uId?: string, uName?: string) => {
     if (uName && uName !== 'Scientist' && !uName.includes('@')) return uName;
     if (!uId) return 'Scientist';
     const clean = uId.toLowerCase();
-    if (clean.includes('sandeep')) return 'Sandeep';
-    if (clean.includes('bindushree')) return 'Bindushree B U';
-    if (clean.includes('pavan')) return 'Pavan Dev';
 
     const uObj = (users || []).find(u => 
       (u.id || '').toLowerCase() === clean || 
@@ -842,28 +621,15 @@ export const exportScientistTimesheetAuditPDF = (
   };
 
   // Filter logs if specific scientist
-  let filteredLogs = sourceLogs;
+  let filteredLogs = [...sourceLogs];
   if (selectedScientist && selectedScientist !== 'all') {
     const target = selectedScientist.toLowerCase().trim();
-    const handle = target.split('@')[0].split('.')[0]; // e.g. "sandeep"
-    const matched = sourceLogs.filter(l => {
+    const handle = target.split('@')[0].split('.')[0];
+    filteredLogs = sourceLogs.filter(l => {
       const lu = (l.userId || '').toLowerCase();
       const un = (l.userName || l.scientistName || '').toLowerCase();
       return lu === target || (handle && lu.includes(handle)) || (handle && un.includes(handle));
     });
-
-    if (matched.length > 0) {
-      filteredLogs = matched;
-    } else {
-      // If user selected a scientist with 0 logs, provide fallback logs for that scientist or default logs
-      filteredLogs = DEFAULT_FALLBACK_LOGS.filter(l => {
-        const lu = l.userId.toLowerCase();
-        return lu.includes(handle) || (handle && l.userName.toLowerCase().includes(handle));
-      });
-      if (filteredLogs.length === 0) {
-        filteredLogs = DEFAULT_FALLBACK_LOGS;
-      }
-    }
   }
 
   // Header Banner
@@ -904,38 +670,42 @@ export const exportScientistTimesheetAuditPDF = (
   doc.setFontSize(8);
   doc.setTextColor(55, 65, 81);
 
-  filteredLogs.forEach((log, idx) => {
-    if (y > 265) {
-      doc.addPage();
-      y = 15;
-      drawTableHeader(y);
-      y += 7;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(55, 65, 81);
-    }
+  if (filteredLogs.length === 0) {
+    doc.text('No genuine daily research log records found in database for the selected criteria.', 14, y + 5);
+  } else {
+    filteredLogs.forEach((log, idx) => {
+      if (y > 265) {
+        doc.addPage();
+        y = 15;
+        drawTableHeader(y);
+        y += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(55, 65, 81);
+      }
 
-    if (idx % 2 === 1) {
-      doc.setFillColor(249, 250, 251);
-      doc.rect(14, y, 182, 7, 'F');
-    }
+      if (idx % 2 === 1) {
+        doc.setFillColor(249, 250, 251);
+        doc.rect(14, y, 182, 7, 'F');
+      }
 
-    const dateStr = log.date ? log.date.split('T')[0] : '2026-08-06';
-    const nameStr = doc.splitTextToSize(resolveName(log.userId, log.userName), 30)[0];
-    const timeSlot = log.startTime && log.endTime ? `${log.startTime}-${log.endTime}` : '09:00-17:00';
-    const hrs = `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`;
-    const objStr = doc.splitTextToSize(log.objective || 'R&D Activity Protocol Execution', 44)[0];
-    const status = log.completionStatus || 'Completed';
+      const dateStr = log.date ? log.date.split('T')[0] : 'N/A';
+      const nameStr = doc.splitTextToSize(resolveName(log.userId, log.userName), 30)[0];
+      const timeSlot = log.startTime && log.endTime ? `${log.startTime}-${log.endTime}` : '09:00-17:00';
+      const hrs = `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`;
+      const objStr = doc.splitTextToSize(log.objective || 'R&D Activity Protocol Execution', 44)[0];
+      const status = log.completionStatus || 'Completed';
 
-    doc.text(dateStr, colX[0], y + 5);
-    doc.text(nameStr, colX[1], y + 5);
-    doc.text(timeSlot, colX[2], y + 5);
-    doc.text(hrs, colX[3], y + 5);
-    doc.text(objStr, colX[4], y + 5);
-    doc.text(status, colX[5], y + 5);
+      doc.text(dateStr, colX[0], y + 5);
+      doc.text(nameStr, colX[1], y + 5);
+      doc.text(timeSlot, colX[2], y + 5);
+      doc.text(hrs, colX[3], y + 5);
+      doc.text(objStr, colX[4], y + 5);
+      doc.text(status, colX[5], y + 5);
 
-    y += 7.5;
-  });
+      y += 7.5;
+    });
+  }
 
   // Footer
   doc.setFontSize(8);
@@ -962,12 +732,7 @@ export const exportProductPipelineReportPDF = (
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 15;
 
-  let sourceProds = (productsSummary && productsSummary.length > 0) ? productsSummary : [
-    { productName: 'Bio-Herbicide Alpha 500 EC', currentStage: 'Field Trial Evaluation', verdict: 'Active Testing (92% Efficacy)', cumulativeConclusion: 'Evaluation across 4 paddy field trials.', completionProgress: 80, team: 'Bindushree B U' },
-    { productName: 'FungiShield Bio-Pro SL', currentStage: 'Approved for Commercialization', verdict: 'PASSED / Commercial', cumulativeConclusion: 'Full disease control on tomato & chili crops.', completionProgress: 100, team: 'Sandeep' },
-    { productName: 'Neem-Azadirachtin Super 10000 PPM', currentStage: 'Scale-Up Batch Formulation', verdict: 'Active Scale-Up', cumulativeConclusion: 'Botanical pesticide active retention verified.', completionProgress: 75, team: 'Pavan Dev' },
-    { productName: 'RhizoBoost Seaweed Extract Liquid', currentStage: 'Approved for Scale-Up', verdict: 'PASSED / Commercial', cumulativeConclusion: 'Root growth enhancement verified in wheat trials.', completionProgress: 95, team: 'Sandeep' },
-  ];
+  const sourceProds = productsSummary || [];
 
   // Header Banner
   doc.setFillColor(147, 51, 234); // Purple
@@ -982,35 +747,41 @@ export const exportProductPipelineReportPDF = (
 
   y = 35;
 
-  sourceProds.forEach((prod, idx) => {
-    if (y > 250) {
-      doc.addPage();
-      y = 15;
-    }
+  if (sourceProds.length === 0) {
+    doc.setFontSize(10);
+    doc.setTextColor(55, 65, 81);
+    doc.text('No product pipeline stage records found in database.', 14, y + 5);
+  } else {
+    sourceProds.forEach((prod, idx) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 15;
+      }
 
-    doc.setFillColor(243, 244, 246);
-    doc.roundedRect(14, y, 182, 38, 2, 2, 'F');
+      doc.setFillColor(243, 244, 246);
+      doc.roundedRect(14, y, 182, 38, 2, 2, 'F');
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(147, 51, 234);
-    doc.text(`${idx + 1}. ${prod.productName}`, 18, y + 8);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(147, 51, 234);
+      doc.text(`${idx + 1}. ${prod.productName}`, 18, y + 8);
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(17, 24, 39);
-    doc.text(`Current Stage: ${prod.currentStage}`, 18, y + 15);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(17, 24, 39);
+      doc.text(`Current Stage: ${prod.currentStage}`, 18, y + 15);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(75, 85, 99);
-    doc.text(`Scientific Verdict: ${prod.verdict}`, 18, y + 21);
-    doc.text(`Progress: ${prod.completionProgress}% Complete (${prod.team})`, 18, y + 27);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(75, 85, 99);
+      doc.text(`Scientific Verdict: ${prod.verdict}`, 18, y + 21);
+      doc.text(`Progress: ${prod.completionProgress}% Complete (${prod.team})`, 18, y + 27);
 
-    const concLines = doc.splitTextToSize(`Conclusion: ${prod.cumulativeConclusion}`, 174);
-    doc.text(concLines, 18, y + 33);
+      const concLines = doc.splitTextToSize(`Conclusion: ${prod.cumulativeConclusion}`, 174);
+      doc.text(concLines, 18, y + 33);
 
-    y += 44;
-  });
+      y += 44;
+    });
+  }
 
   // Footer
   doc.setFontSize(8);
@@ -1030,7 +801,7 @@ export const exportFieldTrialsEfficacyReportPDF = (
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   let y = 15;
 
-  const sourceTrials = (syncedTrials && syncedTrials.length > 0) ? syncedTrials : DEFAULT_FALLBACK_TRIALS;
+  const sourceTrials = syncedTrials || [];
 
   // Header Banner
   doc.setFillColor(16, 185, 129); // Emerald
@@ -1069,40 +840,44 @@ export const exportFieldTrialsEfficacyReportPDF = (
   doc.setFontSize(8);
   doc.setTextColor(55, 65, 81);
 
-  sourceTrials.forEach((t, idx) => {
-    if (y > 265) {
-      doc.addPage();
-      y = 15;
-      drawHeaders(y);
-      y += 7;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(55, 65, 81);
-    }
+  if (sourceTrials.length === 0) {
+    doc.text('No genuine field trial records found in database.', 14, y + 5);
+  } else {
+    sourceTrials.forEach((t, idx) => {
+      if (y > 265) {
+        doc.addPage();
+        y = 15;
+        drawHeaders(y);
+        y += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(55, 65, 81);
+      }
 
-    if (idx % 2 === 1) {
-      doc.setFillColor(249, 250, 251);
-      doc.rect(14, y, 182, 7, 'F');
-    }
+      if (idx % 2 === 1) {
+        doc.setFillColor(249, 250, 251);
+        doc.rect(14, y, 182, 7, 'F');
+      }
 
-    const code = t.trialCode || 'TR-N/A';
-    const title = doc.splitTextToSize(`${t.productName || t.title}`, 38)[0];
-    const crop = doc.splitTextToSize(t.cropName || 'Crop', 28)[0];
-    const pest = doc.splitTextToSize(t.targetWeedOrPathogen || 'Target', 28)[0];
-    const sci = doc.splitTextToSize(t.scientistName || 'Scientist', 32)[0];
-    
-    const lastEval = t.evaluations && t.evaluations.length > 0 ? t.evaluations[t.evaluations.length - 1] : null;
-    const effStr = lastEval ? `${lastEval.efficacyPercent}%` : (t.resultRating || '88% High');
+      const code = t.trialCode || 'TR-N/A';
+      const title = doc.splitTextToSize(`${t.productName || t.title}`, 38)[0];
+      const crop = doc.splitTextToSize(t.cropName || 'Crop', 28)[0];
+      const pest = doc.splitTextToSize(t.targetWeedOrPathogen || 'Target', 28)[0];
+      const sci = doc.splitTextToSize(t.scientistName || 'Scientist', 32)[0];
+      
+      const lastEval = t.evaluations && t.evaluations.length > 0 ? t.evaluations[t.evaluations.length - 1] : null;
+      const effStr = lastEval ? `${lastEval.efficacyPercent}%` : (t.resultRating || 'Active');
 
-    doc.text(code, colX[0], y + 5);
-    doc.text(title, colX[1], y + 5);
-    doc.text(crop, colX[2], y + 5);
-    doc.text(pest, colX[3], y + 5);
-    doc.text(sci, colX[4], y + 5);
-    doc.text(effStr, colX[5], y + 5);
+      doc.text(code, colX[0], y + 5);
+      doc.text(title, colX[1], y + 5);
+      doc.text(crop, colX[2], y + 5);
+      doc.text(pest, colX[3], y + 5);
+      doc.text(sci, colX[4], y + 5);
+      doc.text(effStr, colX[5], y + 5);
 
-    y += 7.5;
-  });
+      y += 7.5;
+    });
+  }
 
   // Footer
   doc.setFontSize(8);
@@ -1124,18 +899,10 @@ export const exportMasterExcelWorkbook = (
 ) => {
   const wb = XLSX.utils.book_new();
 
-  const sourceTrials = (syncedTrials && syncedTrials.length > 0) ? syncedTrials : DEFAULT_FALLBACK_TRIALS;
-  const sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
-  const sourceUsers = (users && users.length > 0) ? users : [
-    { name: 'Sandeep', email: 'sandeep.431441@miklensbio.com', role: 'Senior R&D Scientist', department: 'Formulation & Assays' },
-    { name: 'Bindushree B U', email: 'bindushree@miklensbio.com', role: 'Lead Field Trials Scientist', department: 'Agrochemical Trials' },
-    { name: 'Pavan Dev', email: 'pavan@miklensbio.com', role: 'Bio-Pesticide Research Specialist', department: 'Natural Products R&D' },
-  ];
-  const sourceProds = (productsSummary && productsSummary.length > 0) ? productsSummary : [
-    { productName: 'Bio-Herbicide Alpha 500 EC', currentStage: 'Field Trial Evaluation', verdict: 'Active Testing (92% Efficacy)', completionProgress: 80, team: 'Bindushree B U', cumulativeConclusion: 'Evaluation across 4 paddy field trials.' },
-    { productName: 'FungiShield Bio-Pro SL', currentStage: 'Approved for Commercialization', verdict: 'PASSED / Commercial', completionProgress: 100, team: 'Sandeep', cumulativeConclusion: 'Full disease control on tomato & chili crops.' },
-    { productName: 'Neem-Azadirachtin Super 10000 PPM', currentStage: 'Scale-Up Batch Formulation', verdict: 'Active Scale-Up', completionProgress: 75, team: 'Pavan Dev', cumulativeConclusion: 'Botanical pesticide active retention verified.' },
-  ];
+  const sourceTrials = syncedTrials || [];
+  const sourceLogs = logs || [];
+  const sourceUsers = users || [];
+  const sourceProds = productsSummary || [];
 
   // Tab 1: Executive KPI Overview
   const kpiRows = [
@@ -1158,7 +925,7 @@ export const exportMasterExcelWorkbook = (
     '#': idx + 1,
     'Trial Code': t.trialCode,
     'Title': t.title,
-    'Category': t.category.toUpperCase(),
+    'Category': (t.category || '').toUpperCase(),
     'Crop': t.cropName,
     'Location': t.location,
     'Target Weed/Pathogen': t.targetWeedOrPathogen,
@@ -1168,7 +935,7 @@ export const exportMasterExcelWorkbook = (
     'Rating': t.resultRating || 'N/A',
     'Start Date': t.startDate,
   }));
-  const wsTrials = XLSX.utils.json_to_sheet(trialRows);
+  const wsTrials = XLSX.utils.json_to_sheet(trialRows.length > 0 ? trialRows : [{ '#': 'No Field Trial records found in database' }]);
   XLSX.utils.book_append_sheet(wb, wsTrials, 'Field Trials Log');
 
   // Tab 3: Scientist Daily Work Logs
@@ -1184,7 +951,7 @@ export const exportMasterExcelWorkbook = (
     'Activity Details': l.activities || '',
     'Completion Status': l.completionStatus || 'Completed',
   }));
-  const wsLogs = XLSX.utils.json_to_sheet(logRows);
+  const wsLogs = XLSX.utils.json_to_sheet(logRows.length > 0 ? logRows : [{ '#': 'No Daily Work Session logs found in database' }]);
   XLSX.utils.book_append_sheet(wb, wsLogs, 'Daily Work Sessions');
 
   // Tab 4: Product Pipeline Summary
@@ -1197,7 +964,7 @@ export const exportMasterExcelWorkbook = (
     'Team / Lead': p.team,
     'Executive Conclusion': p.cumulativeConclusion,
   }));
-  const wsProds = XLSX.utils.json_to_sheet(prodRows);
+  const wsProds = XLSX.utils.json_to_sheet(prodRows.length > 0 ? prodRows : [{ '#': 'No Product Pipeline stage records found in database' }]);
   XLSX.utils.book_append_sheet(wb, wsProds, 'Product Pipeline');
 
   // Download

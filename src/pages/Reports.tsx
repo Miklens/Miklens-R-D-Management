@@ -14,8 +14,7 @@ import {
   exportScientistTimesheetAuditPDF, 
   exportProductPipelineReportPDF, 
   exportFieldTrialsEfficacyReportPDF, 
-  exportMasterExcelWorkbook,
-  DEFAULT_FALLBACK_LOGS
+  exportMasterExcelWorkbook
 } from '../services/executiveReportGenerator';
 
 export const Reports: React.FC = () => {
@@ -49,19 +48,13 @@ export const Reports: React.FC = () => {
       }
     }
 
-    if (target.includes('bindushree')) return 'Bindushree B U';
-    if (target.includes('sandeep')) return 'Sandeep';
-    if (target.includes('pavan')) return 'Pavan Dev';
-
-    if (target.length > 20 && !target.includes('@')) {
-      return 'Bindushree B U';
-    }
-
+    if (target.includes('@')) return target.split('@')[0];
+    if (target.includes('.')) return target.split('.')[0];
     return userId;
   };
 
   const handleExportCSV = (exportScope: 'all' | 'filtered') => {
-    let sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
+    let sourceLogs = logs || [];
     let filteredLogs = [...sourceLogs];
 
     if (exportScope === 'filtered') {
@@ -89,7 +82,8 @@ export const Reports: React.FC = () => {
     }
 
     if (filteredLogs.length === 0) {
-      filteredLogs = DEFAULT_FALLBACK_LOGS;
+      alert('No genuine daily research log records found for the selected scope.');
+      return;
     }
 
     // Sort

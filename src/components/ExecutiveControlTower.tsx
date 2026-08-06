@@ -19,8 +19,7 @@ import {
   exportScientistTimesheetAuditPDF,
   exportProductPipelineReportPDF,
   exportFieldTrialsEfficacyReportPDF,
-  exportMasterExcelWorkbook,
-  DEFAULT_FALLBACK_LOGS
+  exportMasterExcelWorkbook
 } from '../services/executiveReportGenerator';
 import { ScientistLivePulse } from './ScientistLivePulse';
 import { ProductPipelineTracker } from './ProductPipelineTracker';
@@ -686,7 +685,7 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                 <button
                   type="button"
                   onClick={() => {
-                    let sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
+                    let sourceLogs = logs || [];
                     let exportLogs = [...sourceLogs];
                     if (timesheetScientistFilter !== 'all') {
                       const sf = timesheetScientistFilter.toLowerCase();
@@ -702,9 +701,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                     }
                     if (timesheetDateFilter) {
                       exportLogs = exportLogs.filter(l => (l.date || '').split('T')[0] === timesheetDateFilter);
-                    }
-                    if (exportLogs.length === 0) {
-                      exportLogs = DEFAULT_FALLBACK_LOGS;
                     }
                     const scopeName = timesheetScientistFilter !== 'all' ? timesheetScientistFilter.split('@')[0] : 'all';
                     exportScientistTimesheetAuditPDF(exportLogs, users || [], scopeName);
@@ -720,14 +716,15 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                     const resolveName = (uId?: string) => {
                       if (!uId) return 'Scientist';
                       const target = uId.toLowerCase();
-                      if (target.includes('sandeep')) return 'Sandeep';
-                      if (target.includes('bindushree')) return 'Bindushree B U';
-                      if (target.includes('pavan')) return 'Pavan Dev';
                       const m = (users || []).find(u => (u.email || '').toLowerCase() === target || (u.id || '').toLowerCase() === target);
-                      return m?.name || m?.email || uId;
+                      if (m?.name) return m.name;
+                      if (m?.email) return m.email.split('@')[0];
+                      if (target.includes('@')) return target.split('@')[0];
+                      if (target.includes('.')) return target.split('.')[0];
+                      return uId;
                     };
 
-                    let sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
+                    let sourceLogs = logs || [];
                     let exportLogs = [...sourceLogs];
                     if (timesheetScientistFilter !== 'all') {
                       const sf = timesheetScientistFilter.toLowerCase();
@@ -745,7 +742,8 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                       exportLogs = exportLogs.filter(l => (l.date || '').split('T')[0] === timesheetDateFilter);
                     }
                     if (exportLogs.length === 0) {
-                      exportLogs = DEFAULT_FALLBACK_LOGS;
+                      alert('No genuine daily research log records found for the selected scope.');
+                      return;
                     }
 
                     const headers = ['Date', 'Scientist Name', 'User Email / ID', 'Time Slot', 'Duration (Minutes)', 'Hours Logged', 'Work Objective / Focus', 'Activity Details', 'Status'];
