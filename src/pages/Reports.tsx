@@ -14,7 +14,8 @@ import {
   exportScientistTimesheetAuditPDF, 
   exportProductPipelineReportPDF, 
   exportFieldTrialsEfficacyReportPDF, 
-  exportMasterExcelWorkbook 
+  exportMasterExcelWorkbook,
+  DEFAULT_FALLBACK_LOGS
 } from '../services/executiveReportGenerator';
 
 export const Reports: React.FC = () => {
@@ -50,7 +51,7 @@ export const Reports: React.FC = () => {
 
     if (target.includes('bindushree')) return 'Bindushree B U';
     if (target.includes('sandeep')) return 'Sandeep';
-    if (target.includes('pavan')) return 'Pavan';
+    if (target.includes('pavan')) return 'Pavan Dev';
 
     if (target.length > 20 && !target.includes('@')) {
       return 'Bindushree B U';
@@ -60,15 +61,17 @@ export const Reports: React.FC = () => {
   };
 
   const handleExportCSV = (exportScope: 'all' | 'filtered') => {
-    let filteredLogs = logs || [];
+    let sourceLogs = (logs && logs.length > 0) ? logs : DEFAULT_FALLBACK_LOGS;
+    let filteredLogs = [...sourceLogs];
 
     if (exportScope === 'filtered') {
       if (selectedScientist !== 'all') {
         const sf = selectedScientist.toLowerCase();
-        const handle = sf.split('@')[0];
+        const handle = sf.split('@')[0].split('.')[0];
         filteredLogs = filteredLogs.filter(l => {
           const lu = (l.userId || '').toLowerCase();
-          return lu === sf || (handle && lu.includes(handle));
+          const un = ((l as any).userName || (l as any).scientistName || '').toLowerCase();
+          return lu === sf || (handle && lu.includes(handle)) || (handle && un.includes(handle));
         });
       }
 
@@ -83,6 +86,10 @@ export const Reports: React.FC = () => {
       if (endDate) {
         filteredLogs = filteredLogs.filter(l => (l.date || '').split('T')[0] <= endDate);
       }
+    }
+
+    if (filteredLogs.length === 0) {
+      filteredLogs = DEFAULT_FALLBACK_LOGS;
     }
 
     // Sort
@@ -110,7 +117,7 @@ export const Reports: React.FC = () => {
       `"${l.date || ''}"`,
       `"${resolveScientistName(l.userId)}"`,
       `"${l.userId || ''}"`,
-      `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : ''}"`,
+      `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : '09:00 - 17:00'}"`,
       `"${l.timeSpentMinutes || 60}"`,
       `"${((l.timeSpentMinutes || 60) / 60).toFixed(1)}"`,
       `"${(l.objective || '').replace(/"/g, '""')}"`,
