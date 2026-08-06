@@ -826,59 +826,87 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  const resolveName = (uId?: string) => {
-                    if (!uId) return 'Scientist';
-                    const target = uId.toLowerCase();
-                    const m = (users || []).find(u => (u.email || '').toLowerCase() === target || (u.id || '').toLowerCase() === target);
-                    return m?.name || m?.email || uId;
-                  };
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    let exportLogs = logs || [];
+                    if (timesheetScientistFilter !== 'all') {
+                      const sf = timesheetScientistFilter.toLowerCase();
+                      const handle = sf.split('@')[0];
+                      exportLogs = exportLogs.filter(l => {
+                        const lu = (l.userId || '').toLowerCase();
+                        return lu === sf || (handle && lu.includes(handle));
+                      });
+                    }
+                    if (timesheetMonthFilter !== 'all') {
+                      exportLogs = exportLogs.filter(l => (l.date || '').startsWith(timesheetMonthFilter));
+                    }
+                    if (timesheetDateFilter) {
+                      exportLogs = exportLogs.filter(l => (l.date || '').split('T')[0] === timesheetDateFilter);
+                    }
+                    const scopeName = timesheetScientistFilter !== 'all' ? timesheetScientistFilter.split('@')[0] : 'all';
+                    exportScientistTimesheetAuditPDF(exportLogs, users || [], scopeName);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> PDF Timesheet Audit
+                </button>
 
-                  let exportLogs = logs || [];
-                  if (timesheetScientistFilter !== 'all') {
-                    const sf = timesheetScientistFilter.toLowerCase();
-                    const handle = sf.split('@')[0];
-                    exportLogs = exportLogs.filter(l => {
-                      const lu = (l.userId || '').toLowerCase();
-                      return lu === sf || (handle && lu.includes(handle));
-                    });
-                  }
-                  if (timesheetMonthFilter !== 'all') {
-                    exportLogs = exportLogs.filter(l => (l.date || '').startsWith(timesheetMonthFilter));
-                  }
-                  if (timesheetDateFilter) {
-                    exportLogs = exportLogs.filter(l => (l.date || '').split('T')[0] === timesheetDateFilter);
-                  }
+                <button
+                  type="button"
+                  onClick={() => {
+                    const resolveName = (uId?: string) => {
+                      if (!uId) return 'Scientist';
+                      const target = uId.toLowerCase();
+                      const m = (users || []).find(u => (u.email || '').toLowerCase() === target || (u.id || '').toLowerCase() === target);
+                      return m?.name || m?.email || uId;
+                    };
 
-                  const headers = ['Date', 'Scientist Name', 'User Email / ID', 'Time Slot', 'Duration (Minutes)', 'Hours Logged', 'Work Objective / Focus', 'Activity Details', 'Status'];
-                  const rows = exportLogs.map(l => [
-                    `"${l.date || ''}"`,
-                    `"${resolveName(l.userId)}"`,
-                    `"${l.userId || ''}"`,
-                    `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : ''}"`,
-                    `"${l.timeSpentMinutes || 60}"`,
-                    `"${((l.timeSpentMinutes || 60) / 60).toFixed(1)}"`,
-                    `"${(l.objective || '').replace(/"/g, '""')}"`,
-                    `"${(l.activities || '').replace(/"/g, '""')}"`,
-                    `"${l.completionStatus || 'Completed'}"`
-                  ]);
+                    let exportLogs = logs || [];
+                    if (timesheetScientistFilter !== 'all') {
+                      const sf = timesheetScientistFilter.toLowerCase();
+                      const handle = sf.split('@')[0];
+                      exportLogs = exportLogs.filter(l => {
+                        const lu = (l.userId || '').toLowerCase();
+                        return lu === sf || (handle && lu.includes(handle));
+                      });
+                    }
+                    if (timesheetMonthFilter !== 'all') {
+                      exportLogs = exportLogs.filter(l => (l.date || '').startsWith(timesheetMonthFilter));
+                    }
+                    if (timesheetDateFilter) {
+                      exportLogs = exportLogs.filter(l => (l.date || '').split('T')[0] === timesheetDateFilter);
+                    }
 
-                  const fileNameScope = timesheetScientistFilter !== 'all' ? timesheetScientistFilter.split('@')[0] : 'All_Scientists';
-                  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement('a');
-                  link.setAttribute('href', encodedUri);
-                  link.setAttribute('download', `Miklens_Scientist_Timesheet_${fileNameScope}_${timesheetMonthFilter}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer shrink-0"
-              >
-                <Download className="w-4 h-4" /> Download Timesheet (CSV)
-              </button>
+                    const headers = ['Date', 'Scientist Name', 'User Email / ID', 'Time Slot', 'Duration (Minutes)', 'Hours Logged', 'Work Objective / Focus', 'Activity Details', 'Status'];
+                    const rows = exportLogs.map(l => [
+                      `"${l.date || ''}"`,
+                      `"${resolveName(l.userId)}"`,
+                      `"${l.userId || ''}"`,
+                      `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : ''}"`,
+                      `"${l.timeSpentMinutes || 60}"`,
+                      `"${((l.timeSpentMinutes || 60) / 60).toFixed(1)}"`,
+                      `"${(l.objective || '').replace(/"/g, '""')}"`,
+                      `"${(l.activities || '').replace(/"/g, '""')}"`,
+                      `"${l.completionStatus || 'Completed'}"`
+                    ]);
+
+                    const fileNameScope = timesheetScientistFilter !== 'all' ? timesheetScientistFilter.split('@')[0] : 'All_Scientists';
+                    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', encodedUri);
+                    link.setAttribute('download', `Miklens_Scientist_Timesheet_${fileNameScope}_${timesheetMonthFilter}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> CSV Export
+                </button>
+              </div>
             </div>
           </div>
 
