@@ -54,6 +54,29 @@ export const parseFlexibleDateObj = (dateStr?: any): Date => {
   return new Date(iso);
 };
 
+export const computeCorrectWCE = (r: any, overallResult?: string): number => {
+  if (!r) return 0;
+  if (r.WCE !== undefined && r.WCE !== null && r.WCE !== '') return parseFloat(String(r.WCE)) || 0;
+  if (r.wce !== undefined && r.wce !== null && r.wce !== '') return parseFloat(String(r.wce)) || 0;
+  if (r.controlPct !== undefined && r.controlPct !== null && r.controlPct !== '') return parseFloat(String(r.controlPct)) || 0;
+  if (r.efficacyPercent !== undefined && r.efficacyPercent !== null && r.efficacyPercent !== '') return parseFloat(String(r.efficacyPercent)) || 0;
+
+  // If weedCover is provided (e.g. 5% cover -> 95% WCE control)
+  if (r.weedCover !== undefined && r.weedCover !== null && r.weedCover !== '') {
+    const cover = parseFloat(String(r.weedCover)) || 0;
+    return Math.max(0, 100 - cover);
+  }
+
+  const rawEff = parseFloat(String(r.Efficacy ?? r.Control ?? r.diseaseSeverity ?? r.pestCount ?? r.visualVigor ?? '0')) || 0;
+
+  // If Result is 'Excellent' or 'Good' but rawEff is <= 30 (e.g. 5%), it's raw weed cover %!
+  if (rawEff <= 30 && (overallResult === 'Excellent' || r.Result === 'Excellent' || overallResult === 'Good' || r.Result === 'Good')) {
+    return Math.max(0, 100 - rawEff);
+  }
+
+  return rawEff;
+};
+
 export interface FirebaseConnectionConfig {
   apiKey: string;
   authDomain?: string;
@@ -326,14 +349,14 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         photos = [];
       }
 
+      const overallResult = data.Result || data.resultRating || '';
       let latestEfficacy = 0;
       let latestPhytotox = 0;
       let notesStr = data.Conclusion || data.conclusion || data.Notes || '';
 
       if (ratings && ratings.length > 0) {
         const last = ratings[ratings.length - 1];
-        const rawLastEff = last.WCE ?? last.Efficacy ?? last.efficacyPercent ?? last.controlPct ?? last.weedCover ?? last.diseaseSeverity ?? last.pestCount ?? last.visualVigor ?? last.Control ?? '0';
-        latestEfficacy = parseFloat(String(rawLastEff)) || 0;
+        latestEfficacy = computeCorrectWCE(last, overallResult);
         const rawLastPhyto = last.Phytotoxicity ?? last.phytotoxicityScore ?? last.phytotoxicity ?? '0';
         latestPhytotox = parseFloat(String(rawLastPhyto)) || 0;
         notesStr = last.Notes || last.notes || last.ObsNotes || last.Observation || notesStr;
@@ -395,8 +418,7 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
           }
         ],
         evaluations: ratings.map((r: any, rIdx: number) => {
-          const rawEff = r.WCE ?? r.Efficacy ?? r.efficacyPercent ?? r.controlPct ?? r.weedCover ?? r.diseaseSeverity ?? r.pestCount ?? r.visualVigor ?? r.Control ?? '0';
-          const effVal = parseFloat(String(rawEff)) || 0;
+          const effVal = computeCorrectWCE(r, overallResult);
           const rawPhyto = r.Phytotoxicity ?? r.phytotoxicityScore ?? r.phytotoxicity ?? '0';
           const phytoVal = parseFloat(String(rawPhyto)) || 0;
           const rawDaa = r.daa ?? r.DAT ?? r.daysAfterTreatment ?? (rIdx * 7);
