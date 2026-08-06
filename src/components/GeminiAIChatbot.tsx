@@ -21,6 +21,7 @@ interface ChatMessage {
 
 export const GeminiAIChatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [inputMsg, setInputMsg] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [keyStatusInfo, setKeyStatusInfo] = useState<string>('Live Connected');
@@ -144,22 +145,48 @@ export const GeminiAIChatbot: React.FC = () => {
 
   return (
     <>
-      {/* Floating Toggle Launcher Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 text-white rounded-full shadow-2xl hover:shadow-purple-500/25 border border-white/20 font-bold text-xs cursor-pointer"
+      {/* Draggable Movable Floating Launcher Button */}
+      {!isMinimized && (
+        <motion.div
+          drag
+          dragMomentum={false}
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 touch-none select-none"
         >
-          <div className="relative">
-            <Sparkles className="w-5 h-5 animate-pulse text-amber-300" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-900" />
+          <div className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 text-white rounded-full p-2 sm:px-4 sm:py-3 shadow-2xl border border-white/30 font-bold text-xs cursor-grab active:cursor-grabbing">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex items-center gap-2 cursor-pointer focus:outline-none"
+            >
+              <div className="relative shrink-0">
+                <Sparkles className="w-5 h-5 animate-pulse text-amber-300" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-900" />
+              </div>
+              <span className="hidden sm:inline font-black text-xs">Gemini AI Assistant</span>
+              <span className="sm:hidden font-black text-[11px]">AI Assistant</span>
+              {isOpen ? <ChevronDown className="w-4 h-4" /> : null}
+            </button>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
+              className="p-1 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition-colors cursor-pointer ml-1"
+              title="Minimize floating button"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <span>Gemini AI Assistant</span>
-          {isOpen ? <ChevronDown className="w-4 h-4 ml-1" /> : null}
-        </motion.button>
-      </div>
+        </motion.div>
+      )}
+
+      {/* Tiny edge restore icon when minimized */}
+      {isMinimized && (
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="fixed bottom-4 right-4 z-50 w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-emerald-600 text-white flex items-center justify-center shadow-2xl border border-white/30 cursor-pointer"
+          title="Restore Gemini AI Assistant"
+        >
+          <Sparkles className="w-5 h-5 text-amber-300" />
+        </button>
+      )}
 
       {/* Floating Chatbot Modal Window */}
       <AnimatePresence>
