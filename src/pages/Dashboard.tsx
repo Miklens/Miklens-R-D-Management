@@ -109,45 +109,7 @@ export const Dashboard: React.FC = () => {
     return `During the selected time frame (${horizonText}), ${totalTrialsCount} trials were active or initiated. Herbicide research accounts for ${herbicideRatio}% of these deployments. ${passedVerdicts} trials reached validation with Good or Excellent efficacy rates, while ${delayedCount} active trials are currently flagged with delayed progress based on their start dates. ${displayScientist} shows the highest field logging productivity with ${maxEvals} completed plot observations.`;
   }, [filteredTrials, timeHorizon]);
 
-  // Predictive Analytics Calculations
-  const predictiveMetrics = useMemo(() => {
-    const activeTrials = filteredTrials.filter(t => !t.isCompleted);
-    
-    const delayedTrials = activeTrials.filter(t => {
-      const start = new Date(t.startDate);
-      const diffDays = (now.getTime() - start.getTime()) / (1000 * 3600 * 24);
-      return diffDays > 90;
-    });
 
-    const delayPct = activeTrials.length > 0 
-      ? Math.round((delayedTrials.length / activeTrials.length) * 100) 
-      : 0;
-
-    const activeCounts: Record<string, number> = {};
-    activeTrials.forEach(t => {
-      activeCounts[t.scientistName] = (activeCounts[t.scientistName] || 0) + 1;
-    });
-    const overloaded = Object.entries(activeCounts)
-      .filter(([, count]) => count > 20)
-      .map(([name]) => formatName(name));
-
-    const overloadMsg = overloaded.length > 0
-      ? `High workload on ${overloaded.join(', ')}`
-      : 'Normal distribution';
-
-    const riskScore = (10 - (delayPct / 20)).toFixed(1);
-
-    const completionEst = activeTrials.length > 0 
-      ? format(new Date(Date.now() + 14 * 24 * 3600 * 1000), 'yyyy-MM-dd')
-      : 'Completed';
-
-    return {
-      estCompletionDate: completionEst,
-      delayProbability: `${delayPct}%`,
-      overloadWarning: overloadMsg,
-      resourceRiskScore: `${riskScore} / 10`
-    };
-  }, [filteredTrials]);
 
   // Breakthrough Formulations (Excellent/Good Efficacy or high WCE rating)
   const breakthroughs = useMemo(() => {
@@ -436,32 +398,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Predictive Analytics Cards */}
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
-              <h3 className="text-xs font-black uppercase text-gray-400 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-emerald-500" />
-                R&D Predictive Analytics Indicators
-              </h3>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                <div className="bg-gray-50 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <span className="font-bold text-gray-400 block uppercase text-[10px]">Est. Completion</span>
-                  <span className="text-sm font-black text-gray-900 dark:text-white">{predictiveMetrics.estCompletionDate}</span>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <span className="font-bold text-gray-400 block uppercase text-[10px]">Delay Probability</span>
-                  <span className="text-sm font-black text-rose-600 dark:text-rose-400">{predictiveMetrics.delayProbability}</span>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <span className="font-bold text-gray-400 block uppercase text-[10px]">Workload Check</span>
-                  <span className="text-sm font-black text-amber-600 dark:text-amber-400 truncate block">{predictiveMetrics.overloadWarning}</span>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/40 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <span className="font-bold text-gray-400 block uppercase text-[10px]">Resource Risk Score</span>
-                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">{predictiveMetrics.resourceRiskScore}</span>
-                </div>
-              </div>
-            </div>
+
 
             {/* R&D Executive Control Tower Component */}
             {isManagement && <ExecutiveControlTower trials={syncedTrials} />}
