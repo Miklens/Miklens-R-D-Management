@@ -232,57 +232,59 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Search Header Container */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl">
-        <div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-gray-900 p-5 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl">
+        <div className="min-w-0">
           <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Home Portal</span>
-          <h2 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-            Good Morning, {formatName(profile?.name || '')}
-            <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-200">
+          <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
+            <span>Good Morning, {formatName(profile?.name || '')}</span>
+            <span className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
               R&D Health: Excellent
             </span>
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-medium">Enterprise Microsoft Fabric Executive Landing Dashboard</p>
         </div>
 
-        {/* View Switch Tab Selector (only for Admin cum Scientist role Pavan) */}
-        {userRole === 'Admin' && (
-          <div className="flex bg-gray-100 dark:bg-gray-855 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => setViewMode('executive')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                viewMode === 'executive'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Executive View
-            </button>
-            <button
-              onClick={() => setViewMode('scientist')}
-              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                viewMode === 'scientist'
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Scientist Hub
-            </button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {/* View Switch Tab Selector (only for Admin cum Scientist role Pavan) */}
+          {userRole === 'Admin' && (
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 shrink-0">
+              <button
+                onClick={() => setViewMode('executive')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  viewMode === 'executive'
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                Executive View
+              </button>
+              <button
+                onClick={() => setViewMode('scientist')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  viewMode === 'scientist'
+                    ? 'bg-emerald-500 text-white shadow-md'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                Scientist Hub
+              </button>
+            </div>
+          )}
 
-        {/* GitHub style Universal Search Bar */}
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search trials, chemical crop, target, or scientists..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setIsSearching(e.target.value.length > 0);
-            }}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors"
-          />
+          {/* GitHub style Universal Search Bar */}
+          <div className="relative w-full lg:w-72">
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search trials, chemical crop, target..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearching(e.target.value.length > 0);
+              }}
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
         </div>
       </div>
 

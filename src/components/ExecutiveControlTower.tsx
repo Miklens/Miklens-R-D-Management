@@ -247,59 +247,60 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
   return (
     <div className="p-6 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              Executive Control Tower
-            </span>
-            <span className="text-xs text-gray-400 font-medium">Live Scientist Scorecard & Performance Metrics</span>
+      <div className="space-y-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+        {/* Row 1: Title and Export Action Buttons */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                Executive Control Tower
+              </span>
+              <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Live Scientist Scorecard & Performance Metrics</span>
+            </div>
+            <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-500 shrink-0" />
+              <span>Management Scientist Command & Output Center</span>
+            </h3>
           </div>
-          <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-            <Activity className="w-5 h-5 text-emerald-500" />
-            Management Scientist Command & Output Center
-          </h3>
-        </div>
 
-        {/* Corporate Exporters & Tab Selector */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => exportCompanyReportToPDF(syncedTrials, scientistScorecards.length, totalExperiments)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 text-xs font-bold rounded-lg border border-emerald-200 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-600 text-xs font-bold rounded-xl border border-emerald-200 cursor-pointer transition-colors"
             >
               <Download className="w-3.5 h-3.5" /> Company PDF Report
             </button>
             <button
               onClick={() => exportCompanyReportToExcel(syncedTrials, scientistScorecards.length, totalExperiments)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 text-xs font-bold rounded-lg border border-emerald-200 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-600 text-xs font-bold rounded-xl border border-emerald-200 cursor-pointer transition-colors"
             >
               <Download className="w-3.5 h-3.5" /> Company Excel Report
             </button>
           </div>
+        </div>
 
-          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl shrink-0 overflow-x-auto">
-            {[
-              { id: 'overview', label: '📊 OVERVIEW' },
-              { id: 'live_pulse', label: '⚡ LIVE SCIENTIST PULSE' },
-              { id: 'pipeline', label: '🚀 R&D PIPELINE' },
-              { id: 'categories', label: '🏷️ CATEGORIES' },
-              { id: 'projects', label: '📁 PROJECTS' },
-              { id: 'timesheets', label: '⏱️ TIMESHEETS' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        {/* Row 2: Full Width Horizontal Tab Navigation Strip */}
+        <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl overflow-x-auto gap-1">
+          {[
+            { id: 'overview', label: '📊 OVERVIEW' },
+            { id: 'live_pulse', label: '⚡ LIVE SCIENTIST PULSE' },
+            { id: 'pipeline', label: '🚀 R&D PIPELINE' },
+            { id: 'categories', label: '🏷️ CATEGORIES' },
+            { id: 'projects', label: '📁 PROJECTS' },
+            { id: 'timesheets', label: '⏱️ TIMESHEETS' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-md'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
