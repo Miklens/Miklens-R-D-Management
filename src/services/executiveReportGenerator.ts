@@ -892,6 +892,28 @@ export const exportFieldTrialsEfficacyReportPDF = (
  * 5. MASTER MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
  * Raw and aggregated multi-tab excel export.
  */
+/**
+ * Helper to resolve scientist name cleanly
+ */
+const resolveScientistName = (uId?: string, usersList: any[] = []): string => {
+  if (!uId) return 'Scientist';
+  const target = uId.toLowerCase();
+  const m = usersList.find(u => (u.email || '').toLowerCase() === target || (u.id || '').toLowerCase() === target);
+  if (m?.name) return m.name;
+  if (m?.email) return m.email.split('@')[0];
+  if (target.includes('@')) return target.split('@')[0];
+  if (target.includes('.')) return target.split('.')[0];
+  return uId;
+};
+
+/**
+ * 5. MASTER MULTI-TAB EXCEL WORKBOOK GENERATOR (.xlsx)
+ * Exports ALL scientist data into a single Excel workbook containing:
+ * 1. Executive Summary & Scientist Directory Sheet
+ * 2. Dedicated individual sheet tab for EACH scientist (Bindushree B U, Sandeep, Pavan Dev, etc.) with day-by-day logs
+ * 3. All Scientists Combined Logs Master Sheet
+ * 4. Field Trials Master Sheet
+ */
 export const exportMasterExcelWorkbook = (
   syncedTrials: ExternalFieldTrial[],
   logs: any[] = [],
@@ -903,25 +925,156 @@ export const exportMasterExcelWorkbook = (
   const sourceTrials = syncedTrials || [];
   const sourceLogs = logs || [];
   const sourceUsers = users || [];
-  const sourceProds = productsSummary || [];
 
-  // Tab 1: Executive KPI Overview
+  const usedSheetNames = new Set<string>();
+
+  const getUniqueSheetName = (rawName: string, fallbackIndex: number): string => {
+    let clean = (rawName || '').replace(/[\\/?*\[\]:]/g, ' ').trim();
+    if (!clean) clean = `Scientist ${fallbackIndex + 1}`;
+    if (clean.length > 25) clean = clean.substring(0, 25);
+    
+    let finalName = clean;
+    let counter = 1;
+    while (usedSheetNames.has(finalName.toLowerCase())) {
+      finalName = `${clean.substring(0, 22)} (${counter})`;
+      counter++;
+    }
+    usedSheetNames.add(finalName.toLowerCase());
+    return finalName;
+  };
+
+  // Group logs by scientist
+  const scientistMap = new Map<string, { name: string; email: string; logs: any[] }>();
+
+  sourceUsers.forEach(u => {
+    const sName = u.name || (u.email ? u.email.split('@')[0] : 'Scientist');
+    const key = (u.email || u.id || sName).toLowerCase();
+    scientistMap.set(key, { name: sName, email: u.email || u.id || '', logs: [] });
+  });
+
+  sourceLogs.forEach(l => {
+    const target = (l.userId || l.userName || 'Scientist').toLowerCase();
+    let matchedKey: string | null = null;
+
+    for (const [key, val] of scientistMap.entries()) {
+      const handle = val.email ? val.email.split('@')[0].toLowerCase() : '';
+      if (key === target || (handle && target.includes(handle))) {
+        matchedKey = key;
+        break;
+      }
+    }
+
+    if (matchedKey) {
+      scientistMap.get(matchedKey)!.logs.push(l);
+    } else {
+      const sName = l.userName || (target.includes('@') ? target.split('@')[0] : target);
+      scientistMap.set(target, { name: sName, email: target, logs: [l] });
+    }
+  });
+
+  // Tab 1: Executive KPI Overview & Scientist Directory
+  const totalHoursAll = calculateTotalHours(sourceLogs);
+  const scientistRosterRows: any[] = [];
+  
+  let sIdx = 1;
+  for (const [, val] of scientistMap.entries()) {
+    const sHours = calculateTotalHours(val.logs);
+    scientistRosterRows.push({
+      '#': sIdx++,
+      'Scientist Name': val.name,
+      'User Email / ID': val.email,
+      'Total Work Sessions Logged': val.logs.length,
+      'Total Research Hours Logged': `${sHours} Hours`,
+      'Dedicated Excel Tab': val.name.substring(0, 25)
+    });
+  }
+
   const kpiRows = [
-    ['MIKLENS BIOTECH R&D PLATFORM - MASTER DATA EXPORT'],
-    ['Export Date', new Date().toLocaleString()],
+    ['MIKLENS BIOTECH R&D PLATFORM - ALL SCIENTISTS MASTER WORKBOOK'],
+    ['Generated Date', new Date().toLocaleString()],
+    ['Report Scope', '1-Click Complete Scientist Timesheet & Daily Research Log Export'],
     [''],
-    ['METRIC SUMMARY', 'VALUE'],
+    ['EXECUTIVE SUMMARY METRICS', 'VALUE'],
+    ['Total Registered Scientists', sourceUsers.length],
+    ['Scientists With Active Logs', scientistMap.size],
+    ['Total Daily Work Session Logs', sourceLogs.length],
+    ['Total Research Hours Logged Across All Scientists', `${totalHoursAll} Hours`],
     ['Total Field Trials Synced', sourceTrials.length],
     ['Active Field Trials', sourceTrials.filter(t => !t.isCompleted).length],
-    ['Completed Field Trials', sourceTrials.filter(t => t.isCompleted).length],
-    ['Total Daily Work Logs', sourceLogs.length],
-    ['Total Registered Scientists', sourceUsers.length],
-    ['Total Products Tracked', sourceProds.length],
+    [''],
+    ['SCIENTIST TEAM ROSTER & LOGGED OUTPUT SUMMARY'],
   ];
-  const wsKPI = XLSX.utils.aoa_to_sheet(kpiRows);
-  XLSX.utils.book_append_sheet(wb, wsKPI, 'Executive Summary');
 
-  // Tab 2: Synced Field Trials
+  const wsKPI = XLSX.utils.aoa_to_sheet(kpiRows);
+  if (scientistRosterRows.length > 0) {
+    XLSX.utils.sheet_add_json(wsKPI, scientistRosterRows, { origin: 'A14' });
+  }
+  const summarySheetName = getUniqueSheetName('Executive Summary', 0);
+  XLSX.utils.book_append_sheet(wb, wsKPI, summarySheetName);
+
+  // Dedicated Sheet Tabs for Each Scientist
+  let sheetIdx = 1;
+  for (const [, val] of scientistMap.entries()) {
+    const tabName = getUniqueSheetName(val.name, sheetIdx++);
+    const sLogs = [...val.logs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const sTotalHours = calculateTotalHours(sLogs);
+
+    const sHeader = [
+      [`MIKLENS R&D DAILY RESEARCH LOGS - ${val.name.toUpperCase()}`],
+      [`Scientist Name: ${val.name}`, `Email/ID: ${val.email}`, `Total Hours: ${sTotalHours} hrs`, `Total Sessions: ${sLogs.length}`],
+      ['']
+    ];
+
+    const sRows = sLogs.map((l, idx) => {
+      const mins = calculateLogMinutes(l);
+      const dObj = l.date ? new Date(l.date) : null;
+      const dayOfWeek = dObj && !isNaN(dObj.getTime()) ? dObj.toLocaleDateString('en-US', { weekday: 'short' }) : '';
+      return {
+        '#': idx + 1,
+        'Date': l.date ? l.date.split('T')[0] : '',
+        'Day': dayOfWeek,
+        'Start Time': l.startTime || 'N/A',
+        'End Time': l.endTime || 'N/A',
+        'Duration (Mins)': mins,
+        'Duration (Hours)': (mins / 60).toFixed(1),
+        'Work Objective / Focus': l.objective || '',
+        'Activity & Protocol Details': l.activities || '',
+        'Completion Status': l.completionStatus || 'Completed',
+        'Confidence Rating (%)': l.confidenceLevel || 90,
+      };
+    });
+
+    const wsScientist = XLSX.utils.aoa_to_sheet(sHeader);
+    if (sRows.length > 0) {
+      XLSX.utils.sheet_add_json(wsScientist, sRows, { origin: 'A4' });
+    } else {
+      XLSX.utils.sheet_add_json(wsScientist, [{ '#': `No daily research work logs recorded for ${val.name} in database.` }], { origin: 'A4' });
+    }
+    XLSX.utils.book_append_sheet(wb, wsScientist, tabName);
+  }
+
+  // Combined Master Daily Logs Tab
+  const masterLogRows = sourceLogs.map((l, idx) => {
+    const mins = calculateLogMinutes(l);
+    return {
+      '#': idx + 1,
+      'Date': l.date ? l.date.split('T')[0] : '',
+      'Scientist ID / Email': l.userId || 'Scientist',
+      'Scientist Name': l.userName || resolveScientistName(l.userId, sourceUsers),
+      'Start Time': l.startTime || 'N/A',
+      'End Time': l.endTime || 'N/A',
+      'Duration (Mins)': mins,
+      'Duration (Hours)': (mins / 60).toFixed(1),
+      'Work Objective': l.objective || '',
+      'Activity Details': l.activities || '',
+      'Completion Status': l.completionStatus || 'Completed',
+    };
+  });
+  const allLogsTabName = getUniqueSheetName('All Scientists Combined', 99);
+  const wsAllLogs = XLSX.utils.json_to_sheet(masterLogRows.length > 0 ? masterLogRows : [{ '#': 'No Daily Work Session logs found in database' }]);
+  XLSX.utils.book_append_sheet(wb, wsAllLogs, allLogsTabName);
+
+  // Field Trials Master Tab
   const trialRows = sourceTrials.map((t, idx) => ({
     '#': idx + 1,
     'Trial Code': t.trialCode,
@@ -936,43 +1089,12 @@ export const exportMasterExcelWorkbook = (
     'Rating': t.resultRating || 'N/A',
     'Start Date': t.startDate,
   }));
+  const trialsTabName = getUniqueSheetName('Field Trials Master', 98);
   const wsTrials = XLSX.utils.json_to_sheet(trialRows.length > 0 ? trialRows : [{ '#': 'No Field Trial records found in database' }]);
-  XLSX.utils.book_append_sheet(wb, wsTrials, 'Field Trials Log');
-
-  // Tab 3: Scientist Daily Work Logs
-  const logRows = sourceLogs.map((l, idx) => {
-    const mins = calculateLogMinutes(l);
-    return {
-      '#': idx + 1,
-      'Date': l.date || '',
-      'Scientist ID / Name': l.userName || l.userId || 'Scientist',
-      'Start Time': l.startTime || 'N/A',
-      'End Time': l.endTime || 'N/A',
-      'Duration (Mins)': mins,
-      'Duration (Hours)': (mins / 60).toFixed(1),
-      'Work Objective': l.objective || '',
-      'Activity Details': l.activities || '',
-      'Completion Status': l.completionStatus || 'Completed',
-    };
-  });
-  const wsLogs = XLSX.utils.json_to_sheet(logRows.length > 0 ? logRows : [{ '#': 'No Daily Work Session logs found in database' }]);
-  XLSX.utils.book_append_sheet(wb, wsLogs, 'Daily Work Sessions');
-
-  // Tab 4: Product Pipeline Summary
-  const prodRows = sourceProds.map((p, idx) => ({
-    '#': idx + 1,
-    'Product Name': p.productName,
-    'Current R&D Stage': p.currentStage,
-    'Scientific Verdict': p.verdict,
-    'Completion (%)': p.completionProgress,
-    'Team / Lead': p.team,
-    'Executive Conclusion': p.cumulativeConclusion,
-  }));
-  const wsProds = XLSX.utils.json_to_sheet(prodRows.length > 0 ? prodRows : [{ '#': 'No Product Pipeline stage records found in database' }]);
-  XLSX.utils.book_append_sheet(wb, wsProds, 'Product Pipeline');
+  XLSX.utils.book_append_sheet(wb, wsTrials, trialsTabName);
 
   // Download
-  XLSX.writeFile(wb, `Miklens_Master_RD_Workbook_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `Miklens_All_Scientists_Daily_Logs_Workbook_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };
 
 
