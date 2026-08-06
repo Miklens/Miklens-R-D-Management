@@ -8,6 +8,7 @@ import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useUsers } from '../hooks/useUsers';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
+import { calculateLogMinutes } from '../utils/timeTracking';
 
 export const TeamActivity: React.FC = () => {
   const { data: logs } = useDailyLogs();
@@ -162,7 +163,7 @@ export const TeamActivity: React.FC = () => {
         scientistId: log.userId,
         scientistName: scientistNameMap[log.userId] || users?.find(u => u.id === log.userId)?.name || 'Unknown Scientist',
         productName: (log as any).productName || (allProducts.length > 0 ? allProducts[0] : 'R&D Activity'),
-        hoursLogged: Math.round(((log.timeSpentMinutes || 60) / 60) * 10) / 10,
+        hoursLogged: Math.round((calculateLogMinutes(log) / 60) * 10) / 10,
         objectiveOrTitle: log.objective || 'Daily R&D Work Log',
         activitiesDetail: log.activities || 'General R&D activities completed.',
         status: log.completionStatus || 'Completed',

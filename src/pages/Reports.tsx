@@ -9,6 +9,7 @@ import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useUsers } from '../hooks/useUsers';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { getSyncedTrials, getSyncedFormulations } from '../services/trialManagerSync';
+import { calculateTotalHours, calculateLogMinutes } from '../utils/timeTracking';
 import { 
   exportMasterExecutiveReportPDF, 
   exportScientistTimesheetAuditPDF, 
@@ -92,7 +93,7 @@ export const Reports: React.FC = () => {
     } else if (sortOrder === 'oldest') {
       filteredLogs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     } else if (sortOrder === 'hours_high') {
-      filteredLogs.sort((a, b) => (b.timeSpentMinutes || 60) - (a.timeSpentMinutes || 60));
+      filteredLogs.sort((a, b) => calculateLogMinutes(b) - calculateLogMinutes(a));
     }
 
     const headers = [
@@ -107,17 +108,20 @@ export const Reports: React.FC = () => {
       'Completion Status'
     ];
 
-    const rows = filteredLogs.map(l => [
-      `"${l.date || ''}"`,
-      `"${resolveScientistName(l.userId)}"`,
-      `"${l.userId || ''}"`,
-      `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : '09:00 - 17:00'}"`,
-      `"${l.timeSpentMinutes || 60}"`,
-      `"${((l.timeSpentMinutes || 60) / 60).toFixed(1)}"`,
-      `"${(l.objective || '').replace(/"/g, '""')}"`,
-      `"${(l.activities || '').replace(/"/g, '""')}"`,
-      `"${l.completionStatus || 'Completed'}"`
-    ]);
+    const rows = filteredLogs.map(l => {
+      const mins = calculateLogMinutes(l);
+      return [
+        `"${l.date || ''}"`,
+        `"${resolveScientistName(l.userId)}"`,
+        `"${l.userId || ''}"`,
+        `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : 'N/A'}"`,
+        `"${mins}"`,
+        `"${(mins / 60).toFixed(1)}"`,
+        `"${(l.objective || '').replace(/"/g, '""')}"`,
+        `"${(l.activities || '').replace(/"/g, '""')}"`,
+        `"${l.completionStatus || 'Completed'}"`
+      ];
+    });
 
     const scopeLabel = selectedScientist !== 'all' ? selectedScientist.split('@')[0] : 'All_Scientists';
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -442,7 +446,7 @@ export const Reports: React.FC = () => {
                 <Sparkles className="w-5 h-5 text-purple-500" />
               </div>
               <p className="text-2xl font-black text-gray-900 dark:text-white">
-                {(((logs || []).reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0)) / 60).toFixed(1)} Hours
+                {calculateTotalHours(logs || [])} Hours
               </p>
               <p className="text-xs text-gray-500">Accumulated research time</p>
             </div>

@@ -43,6 +43,8 @@ import { getScientistDashboardStats, getWeeklySummary, getTodayActivities, getAc
 import { ScientistDashboardStats, WeeklySummary, UnifiedActivity, getActivityTypeIcon, getActivityTypeLabel, getStatusColor, ActivityType } from '../types/unifiedTracking';
 import { useAuth } from '../contexts/AuthContext';
 import { useDailyLogs } from '../hooks/useDailyLogs';
+import { useExperiments } from '../contexts/ExperimentContext';
+import { calculateLogMinutes } from '../utils/timeTracking';
 
 interface ScientistHubProps {
   userId?: string;
@@ -124,9 +126,9 @@ export const ScientistHub: React.FC<ScientistHubProps> = memo(({ userId }) => {
         title: parsed.scopeTitle || l.objective || 'R&D Activity',
         description: parsed.desc || l.activities || '',
         date: l.date,
-        startTime: l.startTime || '09:00',
-        endTime: l.endTime || '17:00',
-        durationMinutes: l.timeSpentMinutes || 60,
+        startTime: l.startTime || 'N/A',
+        endTime: l.endTime || 'N/A',
+        durationMinutes: calculateLogMinutes(l),
         activityType: activityType,
         status: 'completed',
         completionStatus: 'completed',
@@ -149,7 +151,7 @@ export const ScientistHub: React.FC<ScientistHubProps> = memo(({ userId }) => {
     const weeklyLogs = scientistLogs.filter(l => (l.date || '') >= weekStartStr);
     const weeklyMapped = weeklyLogs.map(mapLogToActivity);
 
-    const totalMinutesWeek = weeklyLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 0), 0);
+    const totalMinutesWeek = weeklyLogs.reduce((sum, l) => sum + calculateLogMinutes(l), 0);
     const totalHoursWeek = totalMinutesWeek / 60;
 
     let fieldMinutesWeek = 0;
@@ -192,7 +194,7 @@ export const ScientistHub: React.FC<ScientistHubProps> = memo(({ userId }) => {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-01`;
     const monthlyLogs = scientistLogs.filter(l => (l.date || '') >= monthStartStr);
-    const totalMinutesMonth = monthlyLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 0), 0);
+    const totalMinutesMonth = monthlyLogs.reduce((sum, l) => sum + calculateLogMinutes(l), 0);
 
     const statsObj: ScientistDashboardStats = {
       scientistId,

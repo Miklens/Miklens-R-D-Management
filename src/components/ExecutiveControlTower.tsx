@@ -12,6 +12,7 @@ import { useTasks } from '../contexts/TaskContext';
 import { getSyncedTrials, getSyncedProjects } from '../services/trialManagerSync';
 import { getEffectiveAvatar } from '../utils/avatarHelper';
 import { ExternalFieldTrial, TrialCategory } from '../types/trialIntegrationTypes';
+import { calculateLogMinutes, calculateTotalHours } from '../utils/timeTracking';
 import { 
   exportCompanyReportToExcel, 
   exportCompanyReportToPDF,
@@ -194,10 +195,11 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
         }
       }
 
+      const logMins = calculateLogMinutes(l);
       if (matchedCat) {
-        efforts[matchedCat] += l.timeSpentMinutes || 0;
+        efforts[matchedCat] += logMins;
       } else {
-        efforts.herbicide += l.timeSpentMinutes || 0;
+        efforts.herbicide += logMins;
       }
     });
     return efforts;
@@ -747,17 +749,20 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                     }
 
                     const headers = ['Date', 'Scientist Name', 'User Email / ID', 'Time Slot', 'Duration (Minutes)', 'Hours Logged', 'Work Objective / Focus', 'Activity Details', 'Status'];
-                    const rows = exportLogs.map(l => [
-                      `"${l.date || ''}"`,
-                      `"${resolveName(l.userId)}"`,
-                      `"${l.userId || ''}"`,
-                      `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : '09:00 - 17:00'}"`,
-                      `"${l.timeSpentMinutes || 60}"`,
-                      `"${((l.timeSpentMinutes || 60) / 60).toFixed(1)}"`,
-                      `"${(l.objective || '').replace(/"/g, '""')}"`,
-                      `"${(l.activities || '').replace(/"/g, '""')}"`,
-                      `"${l.completionStatus || 'Completed'}"`
-                    ]);
+                    const rows = exportLogs.map(l => {
+                      const mins = calculateLogMinutes(l);
+                      return [
+                        `"${l.date || ''}"`,
+                        `"${resolveName(l.userId)}"`,
+                        `"${l.userId || ''}"`,
+                        `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : 'N/A'}"`,
+                        `"${mins}"`,
+                        `"${(mins / 60).toFixed(1)}"`,
+                        `"${(l.objective || '').replace(/"/g, '""')}"`,
+                        `"${(l.activities || '').replace(/"/g, '""')}"`,
+                        `"${l.completionStatus || 'Completed'}"`
+                      ];
+                    });
 
                     const fileNameScope = timesheetScientistFilter !== 'all' ? timesheetScientistFilter.split('@')[0] : 'All_Scientists';
                     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

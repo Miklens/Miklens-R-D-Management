@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import { ExternalFieldTrial, ScientistExecutiveProfile, DateFilterRange } from '../types/trialIntegrationTypes';
+import { calculateTotalHours, calculateLogMinutes, formatLogHours } from '../utils/timeTracking';
 
 /**
  * EXCEL EXPORT: Export Scientist Executive Profile and Trial records to Excel (.xlsx)
@@ -493,7 +494,7 @@ export const exportMasterExecutiveReportPDF = (
 
   const activeTrialsCount = sourceTrials.filter(t => !t.isCompleted).length;
   const completedTrialsCount = sourceTrials.filter(t => t.isCompleted).length;
-  const totalHoursLogged = Math.round((sourceLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
+  const totalHoursLogged = calculateTotalHours(sourceLogs);
 
   doc.text(`Total Synced Field Trials: ${sourceTrials.length}`, 18, y + 16);
   doc.text(`Active Field Programs: ${activeTrialsCount}`, 18, y + 22);
@@ -691,8 +692,8 @@ export const exportScientistTimesheetAuditPDF = (
 
       const dateStr = log.date ? log.date.split('T')[0] : 'N/A';
       const nameStr = doc.splitTextToSize(resolveName(log.userId, log.userName), 30)[0];
-      const timeSlot = log.startTime && log.endTime ? `${log.startTime}-${log.endTime}` : '09:00-17:00';
-      const hrs = `${((log.timeSpentMinutes || 60) / 60).toFixed(1)}h`;
+      const timeSlot = log.startTime && log.endTime ? `${log.startTime}-${log.endTime}` : 'N/A';
+      const hrs = formatLogHours(log);
       const objStr = doc.splitTextToSize(log.objective || 'R&D Activity Protocol Execution', 44)[0];
       const status = log.completionStatus || 'Completed';
 
@@ -939,18 +940,21 @@ export const exportMasterExcelWorkbook = (
   XLSX.utils.book_append_sheet(wb, wsTrials, 'Field Trials Log');
 
   // Tab 3: Scientist Daily Work Logs
-  const logRows = sourceLogs.map((l, idx) => ({
-    '#': idx + 1,
-    'Date': l.date || '',
-    'Scientist ID / Name': l.userName || l.userId || 'Scientist',
-    'Start Time': l.startTime || '09:00',
-    'End Time': l.endTime || '17:00',
-    'Duration (Mins)': l.timeSpentMinutes || 60,
-    'Duration (Hours)': ((l.timeSpentMinutes || 60) / 60).toFixed(1),
-    'Work Objective': l.objective || '',
-    'Activity Details': l.activities || '',
-    'Completion Status': l.completionStatus || 'Completed',
-  }));
+  const logRows = sourceLogs.map((l, idx) => {
+    const mins = calculateLogMinutes(l);
+    return {
+      '#': idx + 1,
+      'Date': l.date || '',
+      'Scientist ID / Name': l.userName || l.userId || 'Scientist',
+      'Start Time': l.startTime || 'N/A',
+      'End Time': l.endTime || 'N/A',
+      'Duration (Mins)': mins,
+      'Duration (Hours)': (mins / 60).toFixed(1),
+      'Work Objective': l.objective || '',
+      'Activity Details': l.activities || '',
+      'Completion Status': l.completionStatus || 'Completed',
+    };
+  });
   const wsLogs = XLSX.utils.json_to_sheet(logRows.length > 0 ? logRows : [{ '#': 'No Daily Work Session logs found in database' }]);
   XLSX.utils.book_append_sheet(wb, wsLogs, 'Daily Work Sessions');
 

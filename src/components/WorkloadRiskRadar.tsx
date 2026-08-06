@@ -3,6 +3,7 @@ import { ShieldAlert, AlertTriangle, CheckCircle2, UserCheck, Clock, RefreshCw, 
 import { getSyncedTrials } from '../services/trialManagerSync';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
+import { calculateTotalHours } from '../utils/timeTracking';
 
 export const WorkloadRiskRadar: React.FC = () => {
   const syncedTrials = useMemo(() => getSyncedTrials(), []);
@@ -21,7 +22,7 @@ export const WorkloadRiskRadar: React.FC = () => {
     // 1. Scientist Compliance Audit
     const userAudit = (users || []).map(u => {
       const uLogs = (logs || []).filter(l => l.userId === u.id || l.userId === u.email);
-      const totalHours = Math.round((uLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0) / 60) * 10) / 10;
+      const totalHours = calculateTotalHours(uLogs);
       const recentLogs = uLogs.filter(l => new Date(l.date || l.createdAt || '2026-01-01') >= cutoffDate);
 
       let status: 'Optimal' | 'Overburdened' | 'Inactive / Pending';

@@ -4,6 +4,7 @@ import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { getSyncedTrials } from '../services/trialManagerSync';
 import { getEffectiveAvatar } from '../utils/avatarHelper';
+import { calculateTotalHours, formatLogHours } from '../utils/timeTracking';
 import { getExecutiveScientistAISummary } from '../services/geminiEngine';
 import { format } from 'date-fns';
 
@@ -42,8 +43,7 @@ export const ScientistLivePulse: React.FC = () => {
       const todayLogs = userLogs.filter(l => (l.date || '').split('T')[0] === todayStr);
 
       // Compute total hours logged today
-      const todayMinutes = todayLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0);
-      const todayHours = Math.round((todayMinutes / 60) * 10) / 10;
+      const todayHours = calculateTotalHours(todayLogs);
 
       // Compute total hours logged this week (last 7 days)
       const nowMs = new Date().getTime();
@@ -51,7 +51,7 @@ export const ScientistLivePulse: React.FC = () => {
         const dMs = new Date(l.date || l.createdAt || '').getTime();
         return (nowMs - dMs) <= 7 * 24 * 3600 * 1000;
       });
-      const weekHours = Math.round((weekLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0) / 60) * 10) / 10;
+      const weekHours = calculateTotalHours(weekLogs);
 
       // Determine current status & work type badge
       let statusType: 'field' | 'lab' | 'stability' | 'office' | 'idle' = 'idle';
@@ -244,7 +244,7 @@ export const ScientistLivePulse: React.FC = () => {
                       <div key={lIdx} className="p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-[11px] space-y-0.5">
                         <div className="flex justify-between text-gray-400 font-mono text-[9px]">
                           <span>{l.date?.split('T')[0]}</span>
-                          <span>{((l.timeSpentMinutes || 60) / 60).toFixed(1)}h</span>
+                          <span>{formatLogHours(l)}</span>
                         </div>
                         <p className="text-gray-800 dark:text-gray-200 font-medium text-[10px]">{l.activities || l.objective}</p>
                       </div>

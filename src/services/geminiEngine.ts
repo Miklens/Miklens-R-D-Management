@@ -1,4 +1,5 @@
 import { getSyncedTrials, getSyncedFormulations } from './trialManagerSync';
+import { calculateTotalHours, formatLogHours } from '../utils/timeTracking';
 
 /**
  * Superpowered Gemini AI Engine for Miklens R&D Management
@@ -94,8 +95,8 @@ export const buildRealtimeRDContext = (
   // 2. Today's Work Session Logs
   const todayLogs = logs.filter(l => (l.date || '').split('T')[0] === todayStr);
   const todayLogsSummary = todayLogs.map(l => {
-    const hrs = ((l.timeSpentMinutes || 60) / 60).toFixed(1);
-    return `• User ID ${l.userId}: ${hrs}h logged | Obj: ${l.objective || 'Session'} | Work: ${l.activities}`;
+    const hrs = formatLogHours(l);
+    return `• User ID ${l.userId}: ${hrs} logged | Obj: ${l.objective || 'Session'} | Work: ${l.activities}`;
   }).join('\n');
 
   // 3. Scientist Directory
@@ -243,8 +244,8 @@ const generateOfflineIntelligentResponse = (
   if (qLower.includes('today') || qLower.includes('timesheet') || qLower.includes('logged hours')) {
     const todayLogs = logs.filter(l => (l.date || '').split('T')[0] === todayStr);
     if (todayLogs.length > 0) {
-      const totalMins = todayLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0);
-      return `📊 **Today's Scientist Output (${todayStr})**:\n• Total R&D Output: **${(totalMins / 60).toFixed(1)} Hours** across **${todayLogs.length} work session(s)**.\n• Active Loggers: ${Array.from(new Set(todayLogs.map(l => l.userId))).length} scientist(s).`;
+      const totalHrs = calculateTotalHours(todayLogs);
+      return `📊 **Today's Scientist Output (${todayStr})**:\n• Total R&D Output: **${totalHrs} Hours** across **${todayLogs.length} work session(s)**.\n• Active Loggers: ${Array.from(new Set(todayLogs.map(l => l.userId))).length} scientist(s).`;
     }
     return `No timesheet logs entered specifically for today (${todayStr}) yet. Total database log count: ${logs.length} entries.`;
   }
@@ -261,8 +262,8 @@ const generateOfflineIntelligentResponse = (
   }
 
   // Default intelligent overview
-  const totalMins = logs.reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0);
-  return `💡 **Miklens R&D Database Intelligence Overview**:\n• **Field Trials**: ${syncedTrials.length} tracked across 5 categories.\n• **Total Logged Research Time**: ${(totalMins / 60).toFixed(1)} Hours.\n• **Active Scientists**: ${users.length} registered.\n\nAsk me about today's work sessions, specific scientists, herbicide trials, or commercial product readiness!`;
+  const totalHours = calculateTotalHours(logs);
+  return `💡 **Miklens R&D Database Intelligence Overview**:\n• **Field Trials**: ${syncedTrials.length} tracked across 5 categories.\n• **Total Logged Research Time**: ${totalHours} Hours.\n• **Active Scientists**: ${users.length} registered.\n\nAsk me about today's work sessions, specific scientists, herbicide trials, or commercial product readiness!`;
 };
 
 /**

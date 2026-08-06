@@ -11,6 +11,7 @@ import { ExecutiveControlTower } from '../components/ExecutiveControlTower';
 import { exportMasterExecutiveReportPDF, exportMasterExcelWorkbook } from '../services/executiveReportGenerator';
 import { GlobalSearchModal } from '../components/GlobalSearchModal';
 import { format } from 'date-fns';
+import { calculateTotalHours } from '../utils/timeTracking';
 import { 
   Sparkles, Clock, Beaker, Download, Award, Search, AlertTriangle, 
   TrendingUp, Users, ArrowRight 
@@ -207,8 +208,7 @@ export const Dashboard: React.FC = () => {
 
 
   // Top KPI calculations
-  const totalMinsLogged = (logs || []).reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0);
-  const totalHoursLogged = Math.round((totalMinsLogged / 60) * 10) / 10;
+  const totalHoursLogged = calculateTotalHours(logs || []);
   const totalAssays = experiments.length + labTests.length + (stabilityLogs || []).length;
 
   return (
