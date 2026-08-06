@@ -30,7 +30,7 @@ import { format } from 'date-fns';
 
 
 export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> = ({ trials }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'live_pulse' | 'pipeline' | 'risk_radar' | 'categories' | 'projects' | 'timesheets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'timesheets'>('overview');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<TrialCategory>('herbicide');
   const [timesheetScientistFilter, setTimesheetScientistFilter] = useState('all');
   const [timesheetDateFilter, setTimesheetDateFilter] = useState('');
@@ -47,16 +47,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
 
   // Global Key Metric Counts
   const totalExperiments = experiments.length + labTests.length + stabilityLogs.length;
-  const passedVerdicts = [
-    ...experiments.filter(e => e.outcomeStatus === 'Passed'),
-    ...labTests.filter(l => l.outcomeStatus === 'Passed'),
-    ...stabilityLogs.filter(s => s.outcomeStatus === 'Passed'),
-  ].length;
-  const pendingVerdicts = [
-    ...experiments.filter(e => e.outcomeStatus === 'Pending' || !e.outcomeStatus),
-    ...labTests.filter(l => l.outcomeStatus === 'Pending' || !l.outcomeStatus),
-    ...stabilityLogs.filter(s => s.outcomeStatus === 'Pending' || !s.outcomeStatus),
-  ].length;
 
   // Real Scientist Scorecards Aggregation
   const scientistScorecards = useMemo(() => {
@@ -250,47 +240,34 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
     <div className="p-6 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
       {/* Header Banner */}
       <div className="space-y-4 border-b border-gray-100 dark:border-gray-800 pb-4">
-        {/* Row 1: Title and Export Action Buttons */}
+        {/* Title Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
                 Executive Control Tower
               </span>
-              <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Live Scientist Scorecard & Performance Metrics</span>
+              <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Scientist Performance & Field Output Center</span>
             </div>
             <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               <Activity className="w-5 h-5 text-emerald-500 shrink-0" />
-              <span>Management Scientist Command & Output Center</span>
+              <span>Management Scientist Command & Scorecard Hub</span>
             </h3>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => exportCompanyReportToPDF(syncedTrials, scientistScorecards.length, totalExperiments)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-600 text-xs font-bold rounded-xl border border-emerald-200 cursor-pointer transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" /> Company PDF Report
-            </button>
-            <button
-              onClick={() => exportCompanyReportToExcel(syncedTrials, scientistScorecards.length, totalExperiments)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-600 text-xs font-bold rounded-xl border border-emerald-200 cursor-pointer transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" /> Company Excel Report
-            </button>
+          <div className="flex items-center gap-2">
+            <Link to="/reports" className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+              Full Export Center <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
 
-        {/* Row 2: Full Width Horizontal Tab Navigation Strip */}
+        {/* Unified Tab Navigation */}
         <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl overflow-x-auto gap-1">
           {[
-            { id: 'overview', label: '📊 OVERVIEW' },
-            { id: 'live_pulse', label: '⚡ LIVE SCIENTIST PULSE' },
-            { id: 'pipeline', label: '🚀 R&D PIPELINE' },
-            { id: 'risk_radar', label: '🛡️ RISK RADAR & AUDIT' },
-            { id: 'categories', label: '🏷️ CATEGORIES' },
-            { id: 'projects', label: '📁 PROJECTS' },
-            { id: 'timesheets', label: '⏱️ TIMESHEETS' },
+            { id: 'overview', label: '📊 STRATEGIC OVERVIEW' },
+            { id: 'categories', label: '🏷️ CATEGORIES & EFFORT' },
+            { id: 'timesheets', label: '⏱️ SCIENTIST TIMESHEETS' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -306,18 +283,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
           ))}
         </div>
       </div>
-
-      {activeTab === 'live_pulse' && (
-        <ScientistLivePulse />
-      )}
-
-      {activeTab === 'pipeline' && (
-        <ProductPipelineTracker />
-      )}
-
-      {activeTab === 'risk_radar' && (
-        <WorkloadRiskRadar />
-      )}
 
       {activeTab === 'overview' && (
         <>
@@ -653,117 +618,7 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
         </div>
       )}
 
-      {activeTab === 'projects' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
-            <h4 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-wider">
-              Active Project Portfolios Tracker
-            </h4>
-            <span className="text-xs text-gray-400 font-bold">Progress calculated by finalized trial outputs</span>
-          </div>
 
-          <div className="border border-gray-100 dark:border-gray-800 rounded-3xl overflow-hidden bg-white dark:bg-gray-950">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50 dark:bg-gray-900 text-gray-500 font-extrabold border-b border-gray-100 dark:border-gray-800">
-                  <th className="p-4">PROJECT NAME</th>
-                  <th className="p-4">LEAD OWNER</th>
-                  <th className="p-4">COMPLETION %</th>
-                  <th className="p-4">DUE DATE</th>
-                  <th className="p-4">RISK STATUS</th>
-                  <th className="p-4">TEAM MEMBERS</th>
-                  <th className="p-4">RECENT ACTIVITY</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const syncedProj = getSyncedProjects();
-                  if (syncedProj && syncedProj.length > 0) {
-                    return syncedProj.slice(0, 8).map(p => {
-                      const projTrials = syncedTrials.filter(t => t.projectId === p.id);
-                      const completedCount = projTrials.filter(t => t.isCompleted).length;
-                      const totalCount = projTrials.length;
-                      const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 62;
-                      const leadScientist = p.leadScientistName || 'Lead Scientist';
-                      const isRisk = projTrials.some(t => {
-                        if (t.isCompleted) return false;
-                        const start = new Date(t.startDate);
-                        const diffDays = (new Date().getTime() - start.getTime()) / (1000 * 3600 * 24);
-                        return diffDays > 90;
-                      });
-                      const dueDate = p.targetEndDate || '2026-08-30';
-                      const teamMembers = Array.from(new Set(projTrials.map(t => t.scientistName ? (t.scientistName.includes('@') ? t.scientistName.split('@')[0] : t.scientistName) : ''))).filter(Boolean).join(', ');
-
-                      return (
-                        <tr key={p.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-900/50">
-                          <td className="p-4 font-black">{p.name} ({p.code})</td>
-                          <td className="p-4 font-bold">{leadScientist}</td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-20 bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
-                                <div className="bg-emerald-500 h-2" style={{ width: `${progressPct}%` }} />
-                              </div>
-                              <span className="font-extrabold">{progressPct}%</span>
-                            </div>
-                          </td>
-                          <td className="p-4">{dueDate}</td>
-                          <td className="p-4">
-                            <span className={`px-2 py-0.5 rounded-full font-bold ${isRisk ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                              {isRisk ? 'HIGH RISK (Overdue)' : 'Stable'}
-                            </span>
-                          </td>
-                          <td className="p-4">{teamMembers || 'Agronomist Team'}</td>
-                          <td className="p-4 font-medium italic">"{projTrials[0]?.summaryConclusion || p.description || 'Active Formulation'}"</td>
-                        </tr>
-                      );
-                    });
-                  }
-
-                  // Fallback grouping by product name if no projects synced
-                  return Array.from(new Set(syncedTrials.map(t => t.productName))).slice(0, 8).map(projName => {
-                    const projTrials = syncedTrials.filter(t => t.productName === projName);
-                    const completedCount = projTrials.filter(t => t.isCompleted).length;
-                    const totalCount = projTrials.length;
-                    const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 100;
-                    const leadScientist = projTrials[0]?.scientistName ? (projTrials[0].scientistName.includes('@') ? projTrials[0].scientistName.split('@')[0] : projTrials[0].scientistName) : 'Senior Agronomist';
-                    const isRisk = projTrials.some(t => {
-                      if (t.isCompleted) return false;
-                      const start = new Date(t.startDate);
-                      const diffDays = (new Date().getTime() - start.getTime()) / (1000 * 3600 * 24);
-                      return diffDays > 90;
-                    });
-                    const dueDate = projTrials[0]?.startDate ? format(new Date(new Date(projTrials[0].startDate).getTime() + 90 * 24 * 3600 * 1000), 'yyyy-MM-dd') : '2026-08-30';
-                    const teamMembers = Array.from(new Set(projTrials.map(t => t.scientistName ? (t.scientistName.includes('@') ? t.scientistName.split('@')[0] : t.scientistName) : ''))).filter(Boolean).join(', ');
-
-                    return (
-                      <tr key={projName} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50/50 dark:hover:bg-gray-900/50">
-                        <td className="p-4 font-black">{projName} Formulation</td>
-                        <td className="p-4 font-bold">{leadScientist}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
-                              <div className="bg-emerald-500 h-2" style={{ width: `${progressPct}%` }} />
-                            </div>
-                            <span className="font-extrabold">{progressPct}%</span>
-                          </div>
-                        </td>
-                        <td className="p-4">{dueDate}</td>
-                        <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded-full font-bold ${isRisk ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                            {isRisk ? 'HIGH RISK (Overdue)' : 'Stable'}
-                          </span>
-                        </td>
-                        <td className="p-4">{teamMembers || 'Agronomist Team'}</td>
-                        <td className="p-4 font-medium italic">"{projTrials[0]?.summaryConclusion || 'Awaiting final dosage assay'}"</td>
-                      </tr>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'timesheets' && (
         <div className="space-y-4">

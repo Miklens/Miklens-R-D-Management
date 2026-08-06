@@ -9,10 +9,11 @@ import { getSyncedTrials } from '../services/trialManagerSync';
 import { ScientistHub } from '../components/ScientistHub';
 import { ExecutiveControlTower } from '../components/ExecutiveControlTower';
 import { exportMasterExecutiveReportPDF, exportMasterExcelWorkbook } from '../services/executiveReportGenerator';
+import { GlobalSearchModal } from '../components/GlobalSearchModal';
 import { format } from 'date-fns';
 import { 
   Sparkles, Clock, Beaker, Download, Award, Search, AlertTriangle, 
-  TrendingUp, Users, CheckCircle2, ShieldCheck, Zap, ArrowRight, LayoutDashboard, Sliders
+  TrendingUp, Users, ArrowRight 
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -44,9 +45,8 @@ export const Dashboard: React.FC = () => {
   // Time Horizon filter state
   const [timeHorizon, setTimeHorizon] = useState<'week' | 'month' | 'year' | 'all'>('all');
 
-  // Global Search State
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  // Global Search Modal trigger state
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   // Helper to format email handles
   const formatName = (name: string) => {
@@ -204,28 +204,7 @@ export const Dashboard: React.FC = () => {
     return risks;
   }, [filteredTrials]);
 
-  // Universal Search Result Filtering
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    const q = searchQuery.toLowerCase().trim();
-    return {
-      trials: syncedTrials.filter(t => 
-        (t.trialCode || '').toLowerCase().includes(q) ||
-        (t.title || '').toLowerCase().includes(q) ||
-        (t.productName || '').toLowerCase().includes(q) ||
-        (t.cropName || '').toLowerCase().includes(q) ||
-        (t.targetWeedOrPathogen || '').toLowerCase().includes(q)
-      ),
-      scientists: (users || []).filter(u => 
-        (u.name || '').toLowerCase().includes(q) || 
-        (u.email || '').toLowerCase().includes(q)
-      ),
-      experiments: (experiments || []).filter(e => 
-        e.name?.toLowerCase().includes(q) || 
-        e.productName?.toLowerCase().includes(q)
-      )
-    };
-  }, [searchQuery, users, syncedTrials, experiments]);
+
 
   // Top KPI calculations
   const totalMinsLogged = (logs || []).reduce((sum, l) => sum + (l.timeSpentMinutes || 60), 0);
@@ -325,74 +304,21 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search trials, crops, targets..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearching(e.target.value.length > 0);
-              }}
-              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
+          <button
+            onClick={() => setShowGlobalSearch(true)}
+            className="w-full sm:w-64 flex items-center gap-2 pl-3 pr-4 py-2 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-400 text-left transition-all cursor-pointer"
+          >
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <span className="flex-1 truncate">Global Ctrl+K Search...</span>
+            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-mono font-bold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+              ⌘K
+            </kbd>
+          </button>
         </div>
       </div>
 
-      {/* Global Search Overlay Dropdown */}
-      {isSearching && searchResults && (
-        <div className="bg-white dark:bg-gray-900 rounded-3xl border border-emerald-500 p-6 shadow-2xl space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
-            <h4 className="text-xs font-black uppercase text-emerald-600">Search Results for "{searchQuery}"</h4>
-            <button 
-              onClick={() => { setSearchQuery(''); setIsSearching(false); }}
-              className="text-xs text-gray-400 hover:text-gray-600 font-bold"
-            >
-              Clear
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-            <div className="space-y-2">
-              <span className="font-extrabold text-purple-600 uppercase tracking-wider block">Field Trials ({searchResults.trials.length})</span>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {searchResults.trials.slice(0, 5).map(t => (
-                  <div key={t.id} className="p-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800">
-                    <p className="font-black text-gray-900 dark:text-white">{t.trialCode} - {t.productName}</p>
-                    <p className="text-[10px] text-gray-550 font-medium">Crop: {t.cropName} | Target: {t.targetWeedOrPathogen}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="font-extrabold text-blue-600 uppercase tracking-wider block">Scientists ({searchResults.scientists.length})</span>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {searchResults.scientists.map(u => (
-                  <Link key={u.id} to={`/profile/${u.id}`} className="block p-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-emerald-500">
-                    <p className="font-black text-gray-900 dark:text-white">{u.name}</p>
-                    <p className="text-[10px] text-gray-550">{u.email}</p>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="font-extrabold text-amber-600 uppercase tracking-wider block">Assays & Labs ({searchResults.experiments.length})</span>
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                {searchResults.experiments.slice(0, 5).map(e => (
-                  <div key={e.id} className="p-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800">
-                    <p className="font-black text-gray-900 dark:text-white">{e.name}</p>
-                    <p className="text-[10px] text-gray-555 font-medium">Product: {e.productName} | Outcome: {e.outcomeStatus || 'Pending'}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Global Search Modal */}
+      <GlobalSearchModal isOpen={showGlobalSearch} onClose={() => setShowGlobalSearch(false)} />
 
       {/* ── High-Level Metric Cards Strip ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
