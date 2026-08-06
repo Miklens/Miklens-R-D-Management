@@ -327,16 +327,27 @@ const TrialCard: React.FC<{
           {/* Latest Efficacy Badge */}
           <div className="text-right shrink-0">
             <div
-              className="text-2xl font-black"
+              className="text-2xl font-black tracking-tight"
               style={{ color: latestEfficacy > 0 ? getEfficacyColor(latestEfficacy) : '#9ca3af' }}
             >
               {latestEfficacy > 0 ? `${latestEfficacy}%` : '—'}
             </div>
-            <div className="text-[10px] text-gray-500 font-medium">Latest Efficacy</div>
-            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black ${ratingCfg.badge}`}>
+            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Efficacy (WCE)</div>
+            <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-black ${ratingCfg.badge}`}>
               {rating}
             </span>
           </div>
+        </div>
+
+        {/* Efficacy Progress Meter Bar */}
+        <div className="mt-3.5 w-full bg-gray-200 dark:bg-gray-800 h-2 rounded-full overflow-hidden p-0.5 border border-gray-200/50 dark:border-gray-700">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.max(4, Math.min(100, latestEfficacy))}%`,
+              background: `linear-gradient(90deg, ${getEfficacyColor(latestEfficacy)}, ${catCfg.color})`,
+            }}
+          />
         </div>
       </div>
 
@@ -799,9 +810,89 @@ export const TrialProgressReport: React.FC = () => {
 
     const targetsList = Array.from(new Set(filtered.map(t => t.targetWeedOrPathogen).filter(Boolean))).slice(0, 5).join(', ');
     const p4 = `Target Bio-Agent & Agronomic Focus: Field trials focused on suppressing key target weeds and bio-agents including ${targetsList || 'Bermuda Grass, Smooth Pigweed, and Carrot Weed'}. Crop safety remains 100% compliant across all plot evaluations.`;
-
     return { p1, p2, p3, p4 };
   }, [filtered, kpis, scientistDigest, catChartData, timeHorizon]);
+
+  // Print/Export Executive Summary PDF Brief
+  const handlePrintExecutiveBrief = () => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const periodLabel = timeHorizon === '7d' ? 'Last 7 Days (This Week)' : timeHorizon === '30d' ? 'Last 30 Days' : timeHorizon === '90d' ? 'Last 90 Days' : 'All Time';
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Miklens R&D Executive Trial Brief — ${periodLabel}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 30px; color: #1e293b; }
+          h1 { color: #065f46; margin-bottom: 4px; font-size: 22px; }
+          .subtitle { color: #64748b; font-size: 12px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+          .box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+          .box-title { font-weight: bold; color: #047857; font-size: 11px; text-transform: uppercase; margin-bottom: 6px; }
+          .para { font-size: 13px; line-height: 1.6; color: #334155; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+          th { background: #065f46; color: white; text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; }
+          td { border-bottom: 1px solid #e2e8f0; padding: 8px 12px; }
+          .footer { margin-top: 30px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <h1>MIKLENS BIO R&D MANAGEMENT — EXECUTIVE FIELD BRIEF</h1>
+        <div class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | Period: ${periodLabel} | Total Active/Evaluated Trials: ${filtered.length}</div>
+
+        <div class="box">
+          <div class="box-title">📊 1. Overall Activity & Field Coverage</div>
+          <div class="para">${executiveParagraphs.p1}</div>
+        </div>
+
+        <div class="box">
+          <div class="box-title">🎯 2. Efficacy Outcomes & Key Breakthroughs</div>
+          <div class="para">${executiveParagraphs.p2}</div>
+        </div>
+
+        <div class="box">
+          <div class="box-title">👤 3. Scientist Portfolio Breakdown</div>
+          <div class="para">${executiveParagraphs.p3}</div>
+        </div>
+
+        <div class="box">
+          <div class="box-title">🌿 4. Bio-Agent Target & Agronomic Focus</div>
+          <div class="para">${executiveParagraphs.p4}</div>
+        </div>
+
+        <h2 style="font-size: 16px; color: #0f172a; margin-top: 24px;">Scientist Field Performance Matrix</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Scientist</th>
+              <th>Trials Worked On</th>
+              <th>Observations Logged</th>
+              <th>Avg WCE Efficacy</th>
+              <th>Top Formulation</th>
+              <th>Latest Observation</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${scientistDigest.map(s => `
+              <tr>
+                <td><strong>${s.name}</strong></td>
+                <td>${s.trialsWorked.size} Trials</td>
+                <td>${s.obsCount} Logged</td>
+                <td><strong style="color: ${getEfficacyColor(s.avgEff)}">${s.avgEff > 0 ? s.avgEff + '%' : '—'}</strong></td>
+                <td>${s.topFormulation}</td>
+                <td>${fmtDate(s.latestDate)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">Confidential — Miklens Bio R&D Executive Management System</div>
+        <script>window.print();</script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  };
 
   return (
     <div className="space-y-6 max-w-screen-2xl mx-auto">
@@ -846,11 +937,20 @@ export const TrialProgressReport: React.FC = () => {
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             {isLoading ? 'Syncing…' : 'Refresh'}
           </button>
+
+          <button
+            onClick={handlePrintExecutiveBrief}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-gray-800 dark:hover:bg-gray-700 text-white text-xs font-black transition-all shadow-md"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            Print Brief (PDF)
+          </button>
+
           <button
             onClick={() => exportTrialProgressExcel(filtered)}
             disabled={!filtered.length}
