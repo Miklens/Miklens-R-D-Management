@@ -166,21 +166,11 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
       herbicide: 0, fungicide: 0, pesticide: 0, nutrition: 0, biostimulant: 0
     };
 
-    // 1. Calculate genuine effort hours from synced field trial evaluations
-    syncedTrials.forEach(t => {
-      const cat = t.category;
-      if (efforts[cat] !== undefined) {
-        const evalCount = t.evaluations ? t.evaluations.length : 0;
-        const mins = evalCount > 0 ? evalCount * 90 : 60;
-        efforts[cat] += mins;
-      }
-    });
-
-    // 2. Add genuine effort hours from daily research logs
+    // Calculate effort hours strictly from daily research log entries
     (logs || []).forEach(l => {
       const text = `${l.activities || ''} ${l.objective || ''}`.toLowerCase();
-      let logMins = calculateLogMinutes(l);
-      if (logMins <= 0) logMins = 60;
+      const logMins = calculateLogMinutes(l);
+      if (logMins <= 0) return;
 
       // Match category
       let matchedCat: TrialCategory | null = (l as any).category || null;
@@ -209,12 +199,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
 
       if (matchedCat && efforts[matchedCat] !== undefined) {
         efforts[matchedCat] += logMins;
-      } else {
-        efforts.herbicide += Math.round(logMins * 0.5);
-        efforts.fungicide += Math.round(logMins * 0.2);
-        efforts.pesticide += Math.round(logMins * 0.1);
-        efforts.nutrition += Math.round(logMins * 0.1);
-        efforts.biostimulant += Math.round(logMins * 0.1);
       }
     });
 
