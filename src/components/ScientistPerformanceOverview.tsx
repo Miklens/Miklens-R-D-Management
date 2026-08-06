@@ -107,8 +107,8 @@ export const ScientistPerformanceOverview: React.FC<ScientistPerformanceOverview
         setTotalHours(48.5);
         setAverageDailyHours(6.9);
         setEntries([
-          { id: '1', scientistId, date: '2026-07-28', durationMinutes: 180, category: 'experiments', description: 'BioShield Alpha Formulation Trial' },
-          { id: '2', scientistId, date: '2026-07-27', durationMinutes: 240, category: 'trials', description: 'Field Spray Plot 4 Application' }
+          { id: '1', scientistId, date: '2026-07-28', durationMinutes: 180, category: 'experiments', description: 'Active Formulation Efficacy Trial' },
+          { id: '2', scientistId, date: '2026-07-27', durationMinutes: 240, category: 'trials', description: 'Field Spray Plot Application' }
         ] as any);
       } finally {
         setIsLoading(false);

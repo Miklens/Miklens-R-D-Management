@@ -2,13 +2,9 @@ import React, { useState } from 'react';
 import { CalendarDays, Plus, X, ChevronLeft, ChevronRight, Clock, MapPin, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
-
-const mockEvents = [
-  { id: 1, title: 'R&D Team Sync', date: new Date(), time: '10:00 AM', type: 'meeting', attendees: 5 },
-  { id: 2, title: 'Field Trial Review', date: new Date(), time: '2:00 PM', type: 'review', attendees: 3 },
-  { id: 3, title: 'Lab Equipment Calibration', date: new Date(Date.now() + 86400000), time: '9:00 AM', type: 'task', attendees: 1 },
-  { id: 4, title: 'Product Launch Discussion', date: new Date(Date.now() + 172800000), time: '11:00 AM', type: 'meeting', attendees: 8 },
-];
+import { getSyncedTrials } from '../services/trialManagerSync';
+import { useDailyLogs } from '../hooks/useDailyLogs';
+import { useExperiments } from '../contexts/ExperimentContext';
 
 export const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -16,12 +12,74 @@ export const Calendar: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [view, setView] = useState<'month' | 'week'>('month');
 
+  const syncedTrials = getSyncedTrials();
+  const { data: logs } = useDailyLogs();
+  const { stabilityLogs } = useExperiments();
+
+  // Generate Real-Data Calendar Events
+  const realEvents = React.useMemo(() => {
+    const events: Array<{ id: string; title: string; date: Date; time: string; type: string; attendees: number }> = [];
+
+    // Synced Field Trial events
+    (syncedTrials || []).forEach((t, idx) => {
+      if (t.startDate) {
+        const d = new Date(t.startDate);
+        if (!isNaN(d.getTime())) {
+          events.push({
+            id: `trial-event-${idx}-${t.id}`,
+            title: `Trial Start: ${t.trialCode} (${t.cropName || 'Field'})`,
+            date: d,
+            time: '09:00 AM',
+            type: 'review',
+            attendees: 3
+          });
+        }
+      }
+    });
+
+    // Daily research log events
+    (logs || []).forEach((l, idx) => {
+      if (l.date) {
+        const d = new Date(l.date);
+        if (!isNaN(d.getTime())) {
+          events.push({
+            id: `log-event-${idx}-${l.id}`,
+            title: `Research Log: ${(l.userId || 'Scientist').split('@')[0]}`,
+            date: d,
+            time: '05:00 PM',
+            type: 'task',
+            attendees: 1
+          });
+        }
+      }
+    });
+
+    // Stability log test dates
+    (stabilityLogs || []).forEach((s, idx) => {
+      if (s.nextTestDate) {
+        const d = new Date(s.nextTestDate);
+        if (!isNaN(d.getTime())) {
+          events.push({
+            id: `stab-event-${idx}-${s.id}`,
+            title: `CIPAC Stability Check: Batch ${s.batchNo}`,
+            date: d,
+            time: '11:00 AM',
+            type: 'meeting',
+            attendees: 2
+          });
+        }
+      }
+    });
+
+    return events;
+  }, [syncedTrials, logs, stabilityLogs]);
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const getEventsForDay = (date: Date) => {
-    return mockEvents.filter(e => isSameDay(e.date, date));
+    return realEvents.filter(e => isSameDay(e.date, date));
   };
 
   const getEventColor = (type: string) => {

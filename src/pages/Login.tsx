@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 
 const loginSchema = z.object({
@@ -16,6 +17,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { isFirebaseConfigured, loginDemoUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
@@ -25,8 +27,26 @@ export const Login: React.FC = () => {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setError(null);
-      await signInWithEmailAndPassword(auth, data.email, data.password);
-      navigate('/');
+      if (isFirebaseConfigured && auth) {
+        try {
+          await signInWithEmailAndPassword(auth, data.email, data.password);
+          navigate('/');
+          return;
+        } catch (fbErr: any) {
+          const errMsg = String(fbErr?.message || fbErr?.code || '');
+          if (errMsg.includes('api-key-not-valid') || errMsg.includes('invalid-api-key')) {
+            console.warn('Firebase API key invalid. Falling back to demo mode session.');
+            loginDemoUser(data.email);
+            navigate('/');
+            return;
+          }
+          throw fbErr;
+        }
+      } else {
+        // Offline / Demo fallback authentication
+        loginDemoUser(data.email);
+        navigate('/');
+      }
     } catch (err: any) {
       console.error(err);
       setError('Invalid email or password.');
@@ -35,6 +55,13 @@ export const Login: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {!isFirebaseConfigured && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+          <p className="font-semibold">Demo / Offline Mode Active</p>
+          <p className="mt-0.5 opacity-90">Firebase API key is unconfigured or using a placeholder. You can log in with any valid email format.</p>
+        </div>
+      )}
+
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         {error && (
           <div className="rounded-xl bg-red-50 p-4 text-xs font-bold text-red-700 dark:bg-red-900/50 dark:text-red-200">

@@ -1,21 +1,52 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Database, ShieldAlert, History, Search } from 'lucide-react';
-
-const mockLogs = [
-  { id: 1, action: 'UPDATE_PRODUCT_STAGE', user: 'admin@miklensbio.com', target: 'BioShield Alpha', timestamp: new Date(Date.now() - 3600000).toISOString(), details: 'Changed stage from Lab Testing to Field Trial' },
-  { id: 2, action: 'DELETE_EXPERIMENT', user: 'm.chen@miklensbio.com', target: 'EXP-2026-011', timestamp: new Date(Date.now() - 86400000).toISOString(), details: 'Soft deleted due to erroneous data entry' },
-  { id: 3, action: 'ROLE_CHANGE', user: 'admin@miklensbio.com', target: 'Dr. Aliyah Patel', timestamp: new Date(Date.now() - 172800000).toISOString(), details: 'Changed from Scientist to Field Agronomist' },
-  { id: 4, action: 'FORMULATION_UPDATE', user: 'a.roy@miklensbio.com', target: 'Pseudomonas SC', timestamp: new Date(Date.now() - 259200000).toISOString(), details: 'Adjusted Xanthan Gum concentration to 0.28%' }
-];
+import { useDailyLogs } from '../hooks/useDailyLogs';
+import { getSyncedTrials } from '../services/trialManagerSync';
 
 export const AuditLogs: React.FC = () => {
   const { userRole } = useAuth();
+  const { data: logs } = useDailyLogs();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredLogs = mockLogs.filter(log =>
+  const syncedTrials = getSyncedTrials();
+
+  // Generate Real-Data System Audit Trail
+  const realLogs = React.useMemo(() => {
+    const items: Array<{ id: string; action: string; user: string; target: string; timestamp: string; details: string }> = [];
+
+    // Daily research logs audit entries
+    (logs || []).slice(0, 20).forEach((l, idx) => {
+      const uName = l.userId && l.userId.includes('@') ? l.userId : `${l.userId || 'Scientist'}@miklensbio.com`;
+      items.push({
+        id: `log-audit-${idx}-${l.id}`,
+        action: 'DAILY_RESEARCH_LOG_SAVED',
+        user: uName,
+        target: `Date: ${l.date || 'Today'}`,
+        timestamp: l.updatedAt || l.createdAt || new Date().toISOString(),
+        details: `Logged ${(l.timeSpentMinutes || 60) / 60}h research session: "${(l.activities || l.objective || 'Research task').slice(0, 60)}..."`
+      });
+    });
+
+    // Field trials sync audit entries
+    (syncedTrials || []).slice(0, 15).forEach((t, idx) => {
+      items.push({
+        id: `trial-audit-${idx}-${t.id}`,
+        action: 'FIELD_TRIAL_SYNCHRONIZED',
+        user: t.scientistName || t.creatorEmail || 'system_sync',
+        target: `${t.trialCode} (${t.cropName || 'Crop Plot'})`,
+        timestamp: t.startDate || new Date().toISOString(),
+        details: `Synced ${t.category.toUpperCase()} trial plot in ${t.state || 'India'}. Efficacy rating: ${t.resultRating || 'Good'}`
+      });
+    });
+
+    return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [logs, syncedTrials]);
+
+  const filteredLogs = realLogs.filter(log =>
     log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.target.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.details.toLowerCase().includes(searchTerm.toLowerCase())
   );
 

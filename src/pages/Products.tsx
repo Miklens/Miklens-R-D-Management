@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, AlertCircle, Clock, Plus, X, Building2, Search } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
+import { useAuth } from '../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSyncedFormulations, getSyncedTrials } from '../services/trialManagerSync';
 
 export const Products: React.FC = () => {
+  const { profile, userRole, currentUser } = useAuth();
   const { data: realProducts } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -13,13 +16,72 @@ export const Products: React.FC = () => {
   const [stageInput, setStageInput] = useState('Lab Testing');
   const [productList, setProductList] = useState<Array<{id: string; name: string; category?: string; stage?: string; status?: string; progress?: number; teamSize?: number; lastUpdate?: string}>>([]);
 
+  const isManagement = userRole === 'Admin' || userRole === 'Management';
+
+  useEffect(() => {
+    let syncedFormulations = getSyncedFormulations();
+    let syncedTrials = getSyncedTrials();
+    
+    if (syncedFormulations && syncedFormulations.length > 0) {
+      if (!isManagement) {
+        const email = profile?.email || currentUser?.email || '';
+        if (email) {
+          const userHandle = email.split('@')[0].toLowerCase();
+          syncedTrials = syncedTrials.filter(t => 
+            (t.creatorEmail || '').toLowerCase() === email.toLowerCase() ||
+            (t.scientistName || '').toLowerCase().includes(userHandle)
+          );
+          const myProductNames = new Set(syncedTrials.map(t => t.productName).filter(Boolean));
+          syncedFormulations = syncedFormulations.filter(f => myProductNames.has(f.name));
+        }
+      }
+
+      const mapped = syncedFormulations.map(f => {
+        const associatedTrials = syncedTrials.filter(t => t.productName === f.name);
+        const uniqueScientists = Array.from(new Set(associatedTrials.map(t => t.scientistName))).length;
+
+        return {
+          id: f.id,
+          name: f.name,
+          category: f.category,
+          stage: f.stage || 'Lab Testing',
+          status: f.status || 'Active',
+          progress: f.progress || 35,
+          teamSize: Math.max(1, uniqueScientists),
+          lastUpdate: f.lastUpdate || 'Synced'
+        };
+      });
+      setProductList(mapped);
+    } else {
+      setProductList([
+        { id: '1', name: 'Goweed Ultra', category: 'HERBICIDE', stage: 'Active Field Plot Checks', status: 'Active', progress: 41, teamSize: 3, lastUpdate: '1 day ago' },
+        { id: '2', name: 'MicroShield Bio', category: 'FUNGICIDE', stage: 'Lab Testing', status: 'Active', progress: 66, teamSize: 2, lastUpdate: '2 hours ago' },
+        { id: '3', name: 'ActiGrowth Foliar', category: 'NUTRITION', stage: 'Planning & Design', status: 'Active', progress: 100, teamSize: 1, lastUpdate: 'Just now' },
+      ]);
+    }
+  }, [isManagement, profile, currentUser]);
+
   // Only use real products — no mock/seed data
   const products = (realProducts && realProducts.length > 0 ? realProducts : productList) ?? [];
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.category?.toLowerCase().includes(searchTerm.toLowerCase());
+    if (isManagement) return matchesSearch;
+    
+    // Role filter for scientist
+    const email = profile?.email || currentUser?.email || '';
+    if (!email) return matchesSearch;
+    const userHandle = email.split('@')[0].toLowerCase();
+    const syncedTrials = getSyncedTrials();
+    const myProductNames = new Set(
+      syncedTrials
+        .filter(t => (t.creatorEmail || '').toLowerCase() === email.toLowerCase() || (t.scientistName || '').toLowerCase().includes(userHandle))
+        .map(t => t.productName)
+        .filter(Boolean)
+    );
+    return matchesSearch && (myProductNames.size === 0 || myProductNames.has(p.name));
+  });
 
   const handleCreateProduct = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,16 +144,45 @@ export const Products: React.FC = () => {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Filter products by name or category..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 text-xs font-semibold bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-        />
+      {/* Search & Category Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Filter products by name or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 text-xs font-semibold bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const headers = ['Product Name', 'Category', 'Development Stage', 'Status', 'Progress (%)', 'Team Size'];
+            const rows = filteredProducts.map((p: any) => [
+              `"${p.name || ''}"`,
+              `"${p.category || ''}"`,
+              `"${p.stage || ''}"`,
+              `"${p.status || 'Active'}"`,
+              `"${p.progress || 0}"`,
+              `"${p.teamSize || 1}"`
+            ]);
+
+            const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `Miklens_Product_Portfolio.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-bold shadow-sm hover:bg-emerald-100 transition-all self-start sm:self-auto cursor-pointer"
+        >
+          📊 Export Portfolio CSV
+        </button>
       </div>
 
       {/* Products Grid */}

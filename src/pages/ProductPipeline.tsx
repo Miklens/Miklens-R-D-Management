@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Workflow, Plus, Sparkles, AlertTriangle, CheckCircle, Info, ChevronRight, Activity, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSyncedProjects, getSyncedTrials } from '../services/trialManagerSync';
 
 interface ProductStage {
   id: string;
@@ -83,6 +84,48 @@ export const ProductPipeline: React.FC = () => {
   const [products, setProducts] = useState<PipelineProduct[]>(INITIAL_PRODUCTS);
   const [activeAnalysis, setActiveAnalysis] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
+
+  useEffect(() => {
+    const synced = getSyncedProjects();
+    const syncedTrials = getSyncedTrials();
+    if (synced && synced.length > 0) {
+      const mapped = synced.map(p => {
+        const pTrials = syncedTrials.filter(t => t.projectId === p.id);
+        const hasDelays = pTrials.some(t => {
+          if (t.isCompleted) return false;
+          const start = new Date(t.startDate);
+          const diffDays = (new Date().getTime() - start.getTime()) / (1000 * 3600 * 24);
+          return diffDays > 90;
+        });
+
+        const completed = pTrials.filter(t => t.isCompleted || t.status === 'Completed').length;
+        const pct = pTrials.length > 0 ? Math.round((completed / pTrials.length) * 100) : 0;
+        
+        let stage = 'idea';
+        if (pct > 0 && pct <= 20) stage = 'lit-review';
+        else if (pct > 20 && pct <= 40) stage = 'formulation';
+        else if (pct > 40 && pct <= 60) stage = 'greenhouse';
+        else if (pct > 60 && pct <= 80) stage = 'field-trials';
+        else if (pct > 80 && pct < 100) stage = 'registration';
+        else if (pct === 100) stage = 'launch';
+
+        const lead = p.leadScientistName || 'Agronomist Team';
+        const cleanLead = lead.includes('@') ? lead.split('@')[0] : lead;
+
+        return {
+          id: p.id,
+          name: p.name,
+          category: 'Botanical' as const, // Safe fallback category
+          stage,
+          maturityScore: pct || 10,
+          gateStatus: (hasDelays ? 'warning' : (pct === 100 ? 'pass' : 'pending')) as 'warning' | 'pending' | 'pass',
+          owner: cleanLead,
+          bottleneckReason: hasDelays ? 'Field plot observation updates overdue (>90 days).' : undefined
+        };
+      });
+      setProducts(mapped);
+    }
+  }, []);
 
   const calculateMaturity = (stage: string): number => {
     switch (stage) {

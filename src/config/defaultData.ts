@@ -25,14 +25,8 @@ export interface Experiment {
  * Replace with data loaded from Firestore in production
  */
 export const getDefaultProducts = (): Product[] => {
-  return [
-    {
-      id: 'p1',
-      name: 'BioShield Alpha (Bio-fungicide)',
-      category: 'Bio-fungicide',
-      stage: 'Field Trial',
-    },
-  ];
+  // Returns empty — real products come from user input / Firestore
+  return [];
 };
 
 /**
@@ -40,14 +34,8 @@ export const getDefaultProducts = (): Product[] => {
  * Replace with data loaded from Firestore in production
  */
 export const getDefaultExperiments = (): Experiment[] => {
-  return [
-    {
-      id: 'exp1',
-      name: 'BioShield Efficacy & Heat Stability Assay #101',
-      productId: 'p1',
-      description: 'Testing efficacy against fungal pathogens and heat stability at 54°C',
-    },
-  ];
+  // Returns empty — real experiments come from user input / Firestore
+  return [];
 };
 
 /**
@@ -86,7 +74,7 @@ export const getSampleDailyLogs = (): SampleDailyLogEntry[] => {
     {
       id: 'log1',
       date: new Date().toISOString().split('T')[0],
-      scientist: 'Dr. Sarah Jenkins',
+      scientist: 'Sandeep',
       experiment: 'exp1',
       notes: 'Conducted pathogenic assay testing against Botrytis cinerea',
       status: 'in-progress',
@@ -138,24 +126,24 @@ export const getSampleTeamMembers = (): SampleTeamMember[] => {
   return [
     {
       id: 'user1',
-      name: 'Dr. Sarah Jenkins',
+      name: 'Sandeep',
       role: 'Research Scientist',
       department: 'Research & Development',
-      email: 'sarah.jenkins@miklensbio.com',
+      email: 'sandeep.431441@gmail.com',
     },
     {
       id: 'user2',
-      name: 'Dr. Mik',
+      name: 'Bindu',
       role: 'Senior Research Officer',
       department: 'Research & Development',
-      email: 'mik@miklensbio.com',
+      email: 'bindushreebu01@gmail.com',
     },
     {
       id: 'user3',
-      name: 'Pavan Kumar',
+      name: 'Pavan',
       role: 'Field Trial Manager',
       department: 'Field Operations',
-      email: 'pavan@miklensbio.com',
+      email: 'Pavan@miklensbio.com',
     },
   ];
 };

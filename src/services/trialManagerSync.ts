@@ -1,4 +1,4 @@
-import { ExternalFieldTrial } from '../types/trialIntegrationTypes';
+import { ExternalFieldTrial, TrialCategory, ExternalProject } from '../types/trialIntegrationTypes';
 import Dexie from 'dexie';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, limit, query, where } from 'firebase/firestore';
@@ -23,11 +23,29 @@ export interface FirebaseConnectionConfig {
 export const getSavedFirebaseConfig = (): FirebaseConnectionConfig | null => {
   try {
     const raw = localStorage.getItem(FIREBASE_CONFIG_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.apiKey && parsed.projectId) return parsed;
+    }
   } catch (e) {
-    return null;
+    /* ignore parse error */
   }
+
+  // Fallback to environment variables if configured
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  if (apiKey && projectId && apiKey !== 'mock-api-key' && !apiKey.includes('placeholder')) {
+    return {
+      apiKey,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+      projectId,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+      appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+    };
+  }
+
+  return null;
 };
 
 export const saveFirebaseConfig = (config: FirebaseConnectionConfig): void => {
@@ -43,6 +61,22 @@ const TARGET_COLLECTIONS = [
   'nutrition_trials',
   'biostimulant_trials'
 ];
+
+// Derive trial category from Firestore `Category` field or fallback to collection name
+const deriveCategoryFromCollectionOrField = (collectionName: string, dataCategory?: string): TrialCategory => {
+  const validCategories: TrialCategory[] = ['herbicide', 'fungicide', 'pesticide', 'nutrition', 'biostimulant'];
+  // Prefer the explicit Category field on the document
+  if (dataCategory) {
+    const normalized = dataCategory.toLowerCase().trim() as TrialCategory;
+    if (validCategories.includes(normalized)) return normalized;
+  }
+  // Fallback: derive from collection name prefix (e.g. "fungicide_trials" → "fungicide")
+  for (const cat of validCategories) {
+    if (collectionName.startsWith(cat)) return cat;
+  }
+  // Bare "trials" collection = legacy herbicide
+  return 'herbicide';
+};
 
 // Helper to format Drive image URLs — returns empty string if no real URL is available
 const formatDriveImageUrl = (rawUrl?: string): string => {
@@ -93,7 +127,6 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         }
       } catch (authErr: any) {
         console.warn('[TrialManagerSync] Auth warning:', authErr?.message);
-        throw new Error(`Firebase Auth Failed: ${authErr?.message || 'Check Email & Password'}`);
       }
     }
 
@@ -147,7 +180,6 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
           });
 
           saveUsers(mergedUsers);
-          console.log(`[TrialManagerSync] Dynamically registered ${fetchedAppUsers.length} users from Trial Manager Firestore!`);
         }
       }
     } catch (uErr) {
@@ -156,36 +188,33 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
 
     let allCloudDocs: { id: string; data: any; collection: string }[] = [];
 
-    // Query across exact matching collection names — filtered by logged-in user UID
+    // Query across exact matching collection names from Cloud Firebase
     for (const colName of TARGET_COLLECTIONS) {
       try {
         const trialsRef = collection(firestore, colName);
-        let snapshot;
-        if (authUserUid) {
-          // Strict user isolation: only fetch trials created by the logged-in user
-          const q = query(trialsRef, where('CreatedBy', '==', authUserUid), limit(300));
-          const q2 = query(trialsRef, where('createdBy', '==', authUserUid), limit(300));
-          const [snap1, snap2] = await Promise.all([getDocs(q), getDocs(q2)]);
-          const seenIds = new Set<string>();
-          const docs: { id: string; data: any; collection: string }[] = [];
-          snap1.docs.forEach(d => { if (!seenIds.has(d.id)) { seenIds.add(d.id); docs.push({ id: d.id, data: d.data(), collection: colName }); } });
-          snap2.docs.forEach(d => { if (!seenIds.has(d.id)) { seenIds.add(d.id); docs.push({ id: d.id, data: d.data(), collection: colName }); } });
-          if (docs.length > 0) {
-            console.log(`[TrialManagerSync] Found ${docs.length} records for user ${authUserUid} in "${colName}"`);
-            allCloudDocs.push(...docs);
-          }
-        } else {
-          // No UID — fall back to all (admin use)
-          snapshot = await getDocs(query(trialsRef, limit(300)));
-          if (!snapshot.empty) {
-            console.log(`[TrialManagerSync] Found ${snapshot.size} records in collection "${colName}"`);
-            snapshot.docs.forEach(doc => {
-              allCloudDocs.push({ id: doc.id, data: doc.data(), collection: colName });
-            });
-          }
+        const snapshot = await getDocs(query(trialsRef, limit(500)));
+        if (!snapshot.empty) {
+          console.log(`[TrialManagerSync] Found ${snapshot.size} records in Cloud collection "${colName}"`);
+          snapshot.docs.forEach(doc => {
+            allCloudDocs.push({ id: doc.id, data: doc.data(), collection: colName });
+          });
         }
       } catch (colErr: any) {
-        console.warn(`[TrialManagerSync] Collection "${colName}" fetch status:`, colErr?.message);
+        // If collection fails (e.g. rules), attempt fallback to user-filtered query
+        if (authUserUid) {
+          try {
+            const trialsRef = collection(firestore, colName);
+            const q = query(trialsRef, where('CreatedBy', '==', authUserUid), limit(300));
+            const snap = await getDocs(q);
+            snap.docs.forEach(doc => {
+              allCloudDocs.push({ id: doc.id, data: doc.data(), collection: colName });
+            });
+          } catch (e) {
+            console.warn(`[TrialManagerSync] Collection "${colName}" query failed:`, colErr?.message);
+          }
+        } else {
+          console.warn(`[TrialManagerSync] Collection "${colName}" fetch status:`, colErr?.message);
+        }
       }
     }
 
@@ -198,26 +227,42 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       const data = item.data;
       const id = item.id;
 
-      const title = data.Title || data.title || data.Name || data.name || (data.Crop ? `${data.Crop} Field Trial` : 'Crop Field Trial');
-      const crop = data.Crop || data.crop || data.CropName || 'Crop Field';
-      const location = data.Location || data.location || data.GPS || data.State || 'Research Farm Plot';
-      const weedOrPathogen = data.WeedSpecies || data.DiseaseTarget || data.TargetWeed || data.TargetDisease || data.PestTarget || data.TargetWeedOrPathogen || 'Target Disease / Weed';
+      const title = data.TrialName || data.trialName || data.trial_name ||
+                    data.FormulationName || data.formulationName || data.formulation_name ||
+                    data.Title || data.title ||
+                    data.Name || data.name ||
+                    (data.Crop ? `${data.Crop} Field Trial` : (data.crop ? `${data.crop} Field Trial` : 'Crop Field Trial'));
+
+      const crop = data.Crop || data.crop || data.CropName || data.cropName || 'Crop Field';
+      const location = data.Location || data.location || data.GPS || data.gps || data.State || data.state || 'Research Farm Plot';
+
+      const weedOrPathogen = data.WeedSpecies || data.weedSpecies || data.weed_species ||
+                            data.DiseaseTarget || data.diseaseTarget || data.disease_target ||
+                            data.TargetWeed || data.targetWeed || data.target_weed ||
+                            data.TargetDisease || data.targetDisease || data.target_disease ||
+                            data.PestTarget || data.pestTarget || data.pest_target ||
+                            data.TargetWeedOrPathogen || data.targetWeedOrPathogen || data.target_weed_or_pathogen ||
+                            'Target Disease / Weed';
 
       // ── Dynamic Scientist Ownership Resolution ──
-      const creatorUid = data.CreatedBy || data.userId || data.UID || data.uid || '';
+      const creatorUid = data.CreatedBy || data.createdBy || data.userId || data.UID || data.uid || '';
       let resolvedUser = creatorUid ? userMap.get(creatorUid) : null;
 
-      let scientistName = data.Scientist || data.EvaluatedBy || data.User || (resolvedUser ? resolvedUser.name : '');
+      let scientistName = data.Scientist || data.scientist || data.EvaluatedBy || data.evaluatedBy || data.User || data.user || (resolvedUser ? resolvedUser.name : '');
       if (!scientistName || scientistName.length > 25) {
         scientistName = resolvedUser ? resolvedUser.name : (authUserEmail ? authUserEmail.split('@')[0] : 'Agronomist');
       }
 
-      let creatorEmail = data.UserEmail || data.Username || data.User || data.email || (resolvedUser ? resolvedUser.email : '');
+      let creatorEmail = data.UserEmail || data.userEmail || data.Username || data.username || data.User || data.user || data.email || (resolvedUser ? resolvedUser.email : '');
       if (!creatorEmail && creatorUid === authUserUid) {
         creatorEmail = authUserEmail || '';
       }
 
-      const formulationCode = data.FormulationCode || data.productName || data.Product || 'Treatment Formulation';
+      const formulationCode = data.FormulationName || data.formulationName || data.formulation_name ||
+                              data.FormulationCode || data.formulationCode || data.formulation_code ||
+                              data.productName || data.product || data.Product ||
+                              data.TrialName || data.trialName || data.trial_name ||
+                              'Treatment Formulation';
 
       let ratings: any[] = [];
       try {
@@ -264,10 +309,13 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         // Only keep photos that have a real resolved URL
         .filter(p => p.url && p.url.length > 0);
 
+      const category = deriveCategoryFromCollectionOrField(item.collection, data.Category || data.category);
+
       return {
         id: String(id),
         trialCode: data.TrialCode || data.Code || `TR-${id.slice(0, 8)}`,
         title: title,
+        category,
         cropName: crop,
         location: location,
         state: data.State || 'India',
@@ -277,8 +325,18 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         creatorUid: creatorUid,
         creatorEmail: creatorEmail,
         startDate: data.Date || data.startDate || new Date().toISOString().split('T')[0],
-        status: (data.Status || 'Active') as any,
+        status: (data.IsCompleted === true || data.IsCompleted === 'true' || data.Status === 'Completed') ? 'Completed' : ((data.Status || 'Active') as any),
         productName: formulationCode,
+        dosage: data.Dosage || data.DoseRate || '40ml/l',
+        resultRating: data.Result || data.resultRating || (latestEfficacy >= 80 ? 'Excellent' : latestEfficacy >= 60 ? 'Good' : latestEfficacy >= 40 ? 'Fair' : 'Unrated'),
+        lat: data.Lat || data.lat || '',
+        lon: data.Lon || data.lon || '',
+        projectId: data.ProjectID || data.projectId || '',
+        isCompleted: data.IsCompleted === true || data.IsCompleted === 'true',
+        isControl: data.IsControl === true || data.IsControl === 'true',
+        isBaseline: ratings.some((r: any) => Number(r.DAT || r.daa || 0) === 0),
+        isLive: String(data.IsLive) !== 'false',
+        rawDateStr: data.Date || data.startDate || '',
         syncedAt: new Date().toISOString(),
         sourceApp: 'Miklens Trial Manager 7',
         summaryConclusion: notesStr || `Trial evaluated. Observed control efficacy: ${latestEfficacy}%.`,
@@ -317,7 +375,6 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
   try {
     const dbExists = await IndexedDBDatabaseExists('MiklensTrialManagerDexieDB');
     if (!dbExists) {
-      console.log('[TrialManagerSync] MiklensTrialManagerDexieDB not found on this device.');
       return [];
     }
 
@@ -369,21 +426,51 @@ export const readTrialsFromIndexedDB = async (): Promise<ExternalFieldTrial[]> =
         treatmentName: p.treatment || t.FormulationCode || 'Treatment Plot',
       }));
 
+      // Derive category from IndexedDB record's Category field
+      const idbCategory = deriveCategoryFromCollectionOrField('trials', t.Category || t.category);
+
+      const title = t.TrialName || t.trialName || t.trial_name ||
+                    t.FormulationName || t.formulationName || t.formulation_name ||
+                    t.Title || t.title || t.Name || t.name ||
+                    (t.Crop ? `${t.Crop} Field Trial` : (t.crop ? `${t.crop} Field Trial` : 'Crop Field Trial'));
+
+      const crop = t.Crop || t.crop || t.CropName || t.cropName || 'Crop Field';
+      const location = t.Location || t.location || t.GPS || t.gps || t.State || t.state || 'Research Farm Plot';
+
+      const weedOrPathogen = t.WeedSpecies || t.weedSpecies || t.weed_species ||
+                            t.DiseaseTarget || t.diseaseTarget || t.disease_target ||
+                            t.TargetWeed || t.targetWeed || t.target_weed ||
+                            t.TargetDisease || t.targetDisease || t.target_disease ||
+                            t.PestTarget || t.pestTarget || t.pest_target ||
+                            t.TargetWeedOrPathogen || t.targetWeedOrPathogen || t.target_weed_or_pathogen ||
+                            'Target Disease / Weed';
+
+      const scientistName = t.Scientist || t.scientist || t.EvaluatedBy || t.evaluatedBy || t.User || t.user || 'Agronomist';
+      const creatorUid = t.CreatedBy || t.createdBy || t.userId || t.UID || t.uid || '';
+      const creatorEmail = t.UserEmail || t.userEmail || t.Username || t.username || t.User || t.user || t.email || '';
+
+      const formulationCode = t.FormulationName || t.formulationName || t.formulation_name ||
+                              t.FormulationCode || t.formulationCode || t.formulation_code ||
+                              t.productName || t.product || t.Product ||
+                              t.TrialName || t.trialName || t.trial_name ||
+                              'Treatment Formulation';
+
       return {
         id: String(t.ID || t.id || `trial-${Date.now()}`),
         trialCode: t.TrialCode || t.Code || `TR-${t.ID || '2026'}`,
-        title: t.Title || t.Name || `${t.Crop || 'Crop'} Field Trial - ${t.FormulationCode || 'Treatment'}`,
-        cropName: t.Crop || t.CropName || 'Crop Field',
-        location: t.Location || t.State || 'India Farm Station',
-        state: t.State || 'Punjab',
-        targetWeedOrPathogen: t.TargetWeed || t.TargetDisease || t.WeedSpecies || 'Weed / Pathogen',
+        title: title,
+        category: idbCategory,
+        cropName: crop,
+        location: location,
+        state: t.State || t.state || 'India',
+        targetWeedOrPathogen: weedOrPathogen,
         designType: (t.DesignType || 'RCBD') as any,
-        scientistName: t.EvaluatedBy || t.Scientist || t.User || 'Dr. Mik (Agronomist)',
-        creatorUid: t.CreatedBy || t.userId || '',
-        creatorEmail: t.UserEmail || t.Username || '',
-        startDate: t.Date || new Date().toISOString().split('T')[0],
-        status: (t.Status || 'Active') as any,
-        productName: t.ProductName || t.FormulationCode || 'Goweed Ultra',
+        scientistName: scientistName,
+        creatorUid: creatorUid,
+        creatorEmail: creatorEmail,
+        startDate: t.Date || t.startDate || new Date().toISOString().split('T')[0],
+        status: (t.IsCompleted === true || t.IsCompleted === 'true' || t.Status === 'Completed') ? 'Completed' : ((t.Status || 'Active') as any),
+        productName: formulationCode,
         syncedAt: new Date().toISOString(),
         sourceApp: 'Miklens Trial Manager 7',
         summaryConclusion: t.Conclusion || notesStr || `Field evaluation conducted. Efficacy recorded at ${latestEfficacy}%.`,
@@ -445,5 +532,186 @@ export const saveSyncedTrialsList = (trials: ExternalFieldTrial[]): void => {
     localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(trials));
   } catch (e) {
     console.error('Failed to cache synced trials:', e);
+  }
+};
+
+// ── Projects Synced Storage Helpers ──
+const PROJECTS_SYNC_STORAGE_KEY = 'miklens_rnd_synced_projects_v1';
+const PROJECT_COLLECTIONS = [
+  'projects',
+  'fungicide_projects',
+  'pesticide_projects',
+  'nutrition_projects',
+  'biostimulant_projects'
+];
+
+export const getSyncedProjects = (): ExternalProject[] => {
+  try {
+    const raw = localStorage.getItem(PROJECTS_SYNC_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (err) {
+    return [];
+  }
+};
+
+export const saveSyncedProjectsList = (projects: ExternalProject[]): void => {
+  try {
+    localStorage.setItem(PROJECTS_SYNC_STORAGE_KEY, JSON.stringify(projects));
+  } catch (e) {
+    console.error('Failed to cache synced projects:', e);
+  }
+};
+
+export const fetchProjectsFromFirebaseCloud = async (config: FirebaseConnectionConfig): Promise<ExternalProject[]> => {
+  try {
+    let app;
+    const existingApps = getApps();
+    const existing = existingApps.find(a => a.options.projectId === config.projectId);
+    if (existing) {
+      app = existing;
+    } else {
+      app = initializeApp(config, `trialManagerProjects-${Date.now()}`);
+    }
+
+    const firestore = getFirestore(app);
+    console.log('[TrialManagerSync] Querying Firebase Cloud project collections:', PROJECT_COLLECTIONS);
+
+    let allCloudProjects: { id: string; data: any; collection: string }[] = [];
+
+    for (const colName of PROJECT_COLLECTIONS) {
+      try {
+        const projRef = collection(firestore, colName);
+        const snapshot = await getDocs(query(projRef, limit(300)));
+        if (!snapshot.empty) {
+          console.log(`[TrialManagerSync] Found ${snapshot.size} records in Cloud collection "${colName}"`);
+          snapshot.docs.forEach(doc => {
+            allCloudProjects.push({ id: doc.id, data: doc.data(), collection: colName });
+          });
+        }
+      } catch (colErr: any) {
+        console.warn(`[TrialManagerSync] Collection "${colName}" fetch failed:`, colErr?.message);
+      }
+    }
+
+    const mappedProjects: ExternalProject[] = allCloudProjects.map(item => {
+      const data = item.data;
+      const id = item.id;
+      const category = deriveCategoryFromCollectionOrField(item.collection, data.Category || data.category);
+
+      return {
+        id: String(id),
+        name: data.Name || data.name || 'Unnamed Project',
+        code: data.Code || data.code || `PR-${id.slice(0, 8)}`,
+        category,
+        leadScientistUid: data.leadScientistUid || data.CreatedBy || '',
+        leadScientistName: data.leadScientistName || data.ScientistName || data.InvestigatorName || 'Lead Scientist',
+        startDate: data.StartDate || data.startDate || '',
+        targetEndDate: data.TargetEndDate || data.targetEndDate || '',
+        status: data.Status || data.status || 'Active',
+        description: data.Description || data.description || '',
+        targetWeedsPathogens: data.TargetWeeds || data.targetWeeds || [],
+        targetCrops: data.TargetCrops || data.targetCrops || [],
+      };
+    });
+
+    return mappedProjects;
+  } catch (err: any) {
+    console.error('[TrialManagerSync] Cloud Firebase projects fetch error:', err);
+    return [];
+  }
+};
+
+// ── Formulations Synced Storage Helpers ──
+export interface ExternalFormulation {
+  id: string;
+  name: string;
+  category: string;
+  stage: string;
+  status: string;
+  progress: number;
+  teamSize: number;
+  lastUpdate: string;
+}
+
+const FORMULATIONS_SYNC_STORAGE_KEY = 'miklens_rnd_synced_formulations_v1';
+const FORMULATION_COLLECTIONS = [
+  'formulations',
+  'fungicide_formulations',
+  'pesticide_formulations',
+  'nutrition_formulations',
+  'biostimulant_formulations'
+];
+
+export const getSyncedFormulations = (): ExternalFormulation[] => {
+  try {
+    const raw = localStorage.getItem(FORMULATIONS_SYNC_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch (err) {
+    return [];
+  }
+};
+
+export const saveSyncedFormulationsList = (formulations: ExternalFormulation[]): void => {
+  try {
+    localStorage.setItem(FORMULATIONS_SYNC_STORAGE_KEY, JSON.stringify(formulations));
+  } catch (e) {
+    console.error('Failed to cache synced formulations:', e);
+  }
+};
+
+export const fetchFormulationsFromFirebaseCloud = async (config: FirebaseConnectionConfig): Promise<ExternalFormulation[]> => {
+  try {
+    let app;
+    const existingApps = getApps();
+    const existing = existingApps.find(a => a.options.projectId === config.projectId);
+    if (existing) {
+      app = existing;
+    } else {
+      app = initializeApp(config, `trialManagerFormulations-${Date.now()}`);
+    }
+
+    const firestore = getFirestore(app);
+    console.log('[TrialManagerSync] Querying Firebase Cloud formulation collections:', FORMULATION_COLLECTIONS);
+
+    let allCloudFormulations: { id: string; data: any; collection: string }[] = [];
+
+    for (const colName of FORMULATION_COLLECTIONS) {
+      try {
+        const formRef = collection(firestore, colName);
+        const snapshot = await getDocs(query(formRef, limit(300)));
+        if (!snapshot.empty) {
+          console.log(`[TrialManagerSync] Found ${snapshot.size} records in Cloud collection "${colName}"`);
+          snapshot.docs.forEach(doc => {
+            allCloudFormulations.push({ id: doc.id, data: doc.data(), collection: colName });
+          });
+        }
+      } catch (colErr: any) {
+        console.warn(`[TrialManagerSync] Collection "${colName}" fetch failed:`, colErr?.message);
+      }
+    }
+
+    const mappedFormulations: ExternalFormulation[] = allCloudFormulations.map(item => {
+      const data = item.data;
+      const id = item.id;
+      const category = deriveCategoryFromCollectionOrField(item.collection, data.Category || data.category);
+
+      return {
+        id: String(id),
+        name: data.Name || data.name || data.FormulationCode || 'Unnamed Formulation',
+        category: category.toUpperCase(),
+        stage: data.Stage || data.stage || 'Lab Testing',
+        status: data.Status || data.status || 'Active',
+        progress: data.Progress || data.progress || 15,
+        teamSize: data.TeamSize || data.teamSize || 2,
+        lastUpdate: data.LastUpdate || data.lastUpdate || 'Synced'
+      };
+    });
+
+    return mappedFormulations;
+  } catch (err: any) {
+    console.error('[TrialManagerSync] Cloud Firebase formulations fetch error:', err);
+    return [];
   }
 };

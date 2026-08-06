@@ -13,8 +13,15 @@ import { getEntriesByScientist } from '../services/timeTracking';
 import type { TimeMotionEntry } from '../types/timeTracking';
 import { format, subDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useExperiments } from '../contexts/ExperimentContext';
+import { getSyncedTrials } from '../services/trialManagerSync';
+import { Leaf, Shield, Bug, Beaker, Sprout, ShieldCheck, Activity as ActivityIcon } from 'lucide-react';
 import { Calendar, Camera, Trash2 } from 'lucide-react';
 import { getEffectiveAvatar, setUserCustomAvatar, removeUserCustomAvatar } from '../utils/avatarHelper';
+import { DateFilterRange, DateRangePreset, ScientistExecutiveProfile } from '../types/trialIntegrationTypes';
+import { buildScientistExecutiveProfile, filterTrialsByDateRange } from '../services/executiveAnalytics';
+import { exportScientistToExcel, exportScientistToPDF } from '../services/executiveReportGenerator';
+
 
 const buildMonthlyTrend = (logs: { createdAt: string; completionStatus: string; confidenceLevel: number }[]) => {
   const months: { key: string; label: string }[] = [];
@@ -47,7 +54,9 @@ export const EmployeeProfile: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [timeEntriesLoading, setTimeEntriesLoading] = useState(false);
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter'>('month');
+  const [execFilter, setExecFilter] = useState<DateFilterRange>({ preset: '30d' });
   const [showExportModal, setShowExportModal] = useState(false);
+
 
   const targetId = userId || currentProfile?.id;
   const isSelf = targetId === currentProfile?.id;
@@ -83,7 +92,149 @@ export const EmployeeProfile: React.FC = () => {
     [allLogs, targetId]
   );
 
+  const { experiments, labTests } = useExperiments();
+  const syncedTrials = useMemo(() => getSyncedTrials(), []);
+
+  const personScorecard = useMemo(() => {
+    if (!person) return null;
+    const pEmail = (person.email || '').toLowerCase();
+    const pHandle = pEmail ? pEmail.split('@')[0] : person.name?.toLowerCase();
+
+    const matchesScientist = (sciName?: string, email?: string, uid?: string) => {
+      if (uid && uid === person.id) return true;
+      const sName = (sciName || '').toLowerCase();
+      const sEmail = (email || '').toLowerCase();
+      return (
+        (pEmail && sEmail.includes(pEmail)) ||
+        (pHandle && sName.includes(pHandle)) ||
+        (person.name && sName.includes(person.name.toLowerCase()))
+      );
+    };
+
+    const myTrials = syncedTrials.filter(t => matchesScientist(t.scientistName, t.creatorEmail, t.creatorUid));
+    const trialsByCategory = {
+      herbicide: myTrials.filter(t => t.category === 'herbicide').length,
+      fungicide: myTrials.filter(t => t.category === 'fungicide').length,
+      pesticide: myTrials.filter(t => t.category === 'pesticide').length,
+      nutrition: myTrials.filter(t => t.category === 'nutrition').length,
+      biostimulant: myTrials.filter(t => t.category === 'biostimulant').length,
+    };
+
+    const withEvals = myTrials.filter(t => t.evaluations && t.evaluations.length > 0);
+    const avgEfficacy = withEvals.length > 0
+      ? Math.round(withEvals.reduce((s, t) => s + (t.evaluations[t.evaluations.length - 1]?.efficacyPercent || 0), 0) / withEvals.length)
+      : null;
+
+    const myExp = experiments.filter(e => matchesScientist(e.name, '', '') || e.productName);
+    const myLab = labTests.filter(l => matchesScientist(l.name, '', ''));
+
+    const passedVerdicts = [
+      ...myExp.filter(e => e.outcomeStatus === 'Passed'),
+      ...myLab.filter(l => l.outcomeStatus === 'Passed')
+    ].length;
+
+    const totalExpCount = myExp.length + myLab.length;
+    const successRate = totalExpCount > 0 ? Math.round((passedVerdicts / totalExpCount) * 100) : (avgEfficacy !== null ? avgEfficacy : 100);
+
+    return {
+      totalTrials: myTrials.length,
+      trialsByCategory,
+      avgEfficacy,
+      passedVerdicts,
+      totalExpCount,
+      successRate,
+      myTrials,
+    };
+  }, [person, syncedTrials, experiments, labTests]);
+
+  const executiveProfile = useMemo(() => {
+    if (!person) return null;
+    return buildScientistExecutiveProfile(person.name || person.email, syncedTrials);
+  }, [person, syncedTrials]);
+
+  const dateFilteredTrials = useMemo(() => {
+    if (!personScorecard?.myTrials) return [];
+    return filterTrialsByDateRange(personScorecard.myTrials, execFilter);
+  }, [personScorecard, execFilter]);
+
+
   const trendData = useMemo(() => buildMonthlyTrend(personLogs), [personLogs]);
+
+  const scientistTimelineEvents = useMemo(() => {
+    const events: { date: string; type: string; title: string; desc: string; icon: string; color: string }[] = [];
+
+    // 1. Add Trial Start dates
+    dateFilteredTrials.forEach((t) => {
+      if (t.startDate) {
+        events.push({
+          date: t.startDate,
+          type: 'trial_start',
+          title: `Trial Initiated: ${t.trialCode}`,
+          desc: `Started ${t.category.toUpperCase()} field trial on ${t.cropName} targeting ${t.targetWeedOrPathogen} (Product: ${t.productName}) at ${t.location}.`,
+          icon: 'play',
+          color: 'bg-emerald-500 text-white'
+        });
+      }
+      
+      // 2. Add Trial Evaluations
+      t.evaluations.forEach((ev, idx) => {
+        if (ev.evalDate) {
+          events.push({
+            date: ev.evalDate,
+            type: 'eval',
+            title: `Evaluation Recorded: ${t.trialCode}`,
+            desc: `Log #${idx + 1}: Recorded ${ev.daysAfterTreatment} DAT assessment. Efficacy: ${ev.efficacyPercent}% with phytotoxicity score of ${ev.phytotoxicityScore || 0}/10. Notes: "${ev.notes || 'N/A'}"`,
+            icon: 'clipboard',
+            color: 'bg-blue-500 text-white'
+          });
+        }
+      });
+
+      // 3. Add Photos taken
+      t.photos.forEach((ph) => {
+        if (ph.takenAt) {
+          events.push({
+            date: ph.takenAt,
+            type: 'photo',
+            title: `Field Photo Captured: ${t.trialCode}`,
+            desc: `Uploaded progress image for treatment plot ${ph.treatmentName || t.productName}. Caption: "${ph.caption || 'N/A'}"`,
+            icon: 'image',
+            color: 'bg-purple-500 text-white'
+          });
+        }
+      });
+
+      // 4. Add Completion / Conclusion dates
+      if (t.isCompleted) {
+        events.push({
+          date: t.endDate || t.startDate,
+          type: 'trial_complete',
+          title: `Trial Finalized: ${t.trialCode}`,
+          desc: `Completed final field evaluation. Efficacy verdict: ${t.resultRating || 'Good'}. Conclusion notes: "${t.summaryConclusion || 'N/A'}"`,
+          icon: 'check',
+          color: 'bg-violet-600 text-white'
+        });
+      }
+    });
+
+    // 5. Add Daily Work Logs
+    personLogs.forEach((log) => {
+      if (log.date) {
+        events.push({
+          date: log.date,
+          type: 'work_log',
+          title: `Daily Log: ${getProductName(log.productId || '')}`,
+          desc: `Objective: "${log.objective || 'N/A'}". Achievements: "${log.achievements || 'N/A'}". Status: ${log.completionStatus}.`,
+          icon: 'edit',
+          color: 'bg-amber-500 text-white'
+        });
+      }
+    });
+
+    // Sort descending chronologically
+    return events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 12);
+  }, [dateFilteredTrials, personLogs]);
+
 
   useEffect(() => {
     if (targetId) {
@@ -97,8 +248,8 @@ export const EmployeeProfile: React.FC = () => {
         .then((res: any) => setTimeEntries(res))
         .catch(() => {
           setTimeEntries([
-            { id: '1', scientistId: targetId, date: '2026-07-28', durationMinutes: 180, category: 'experiments', description: 'BioShield Alpha Efficacy Check' },
-            { id: '2', scientistId: targetId, date: '2026-07-27', durationMinutes: 240, category: 'trials', description: 'NemaKill Pro CIPAC Heat Stability' }
+            { id: '1', scientistId: targetId, date: '2026-07-28', durationMinutes: 180, category: 'experiments', description: 'Formulation Efficacy Check' },
+            { id: '2', scientistId: targetId, date: '2026-07-27', durationMinutes: 240, category: 'trials', description: 'CIPAC Heat Stability Check' }
           ] as any);
         })
         .finally(() => setTimeEntriesLoading(false));
@@ -244,10 +395,8 @@ export const EmployeeProfile: React.FC = () => {
       doc.setTextColor(55, 65, 81);
 
       const entriesList = getFilteredEntries.length > 0 ? getFilteredEntries : [
-        { date: '2026-07-28', projectName: 'BioShield Alpha', category: 'Efficacy Check', durationMinutes: 180, description: 'Microbial CFU count & spore stability' },
-        { date: '2026-07-27', projectName: 'NemaKill Pro', category: 'CIPAC Heat Stability', durationMinutes: 240, description: '54°C thermal stress test for 14 days' },
-        { date: '2026-07-26', projectName: 'RootBoost X', category: 'Field Spray Trial', durationMinutes: 210, description: 'Foliar application spray monitoring in Plot 4' },
-        { date: '2026-07-25', projectName: 'AeroSpore V2', category: 'Surfactant Trial', durationMinutes: 120, description: 'Wetting agent dispersion optimization' }
+        { date: '2026-07-28', projectName: 'Active Formulation', category: 'Efficacy Check', durationMinutes: 180, description: 'Microbial CFU count & spore stability' },
+        { date: '2026-07-27', projectName: 'Trial Plot Check', category: 'CIPAC Heat Stability', durationMinutes: 240, description: '54°C thermal stress test for 14 days' }
       ];
 
       entriesList.forEach((entry, idx) => {
@@ -264,7 +413,7 @@ export const EmployeeProfile: React.FC = () => {
         const duration = entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : '2h 0m';
         
         doc.text(entry.date || '2026-07-28', 17, y + 5.5);
-        doc.text((entry.projectName || 'BioShield Alpha').substring(0, 22), 42, y + 5.5);
+        doc.text((entry.projectName || 'Active Formulation').substring(0, 22), 42, y + 5.5);
         doc.text((entry.category || 'Lab Check').substring(0, 24), 92, y + 5.5);
         doc.text(duration, 142, y + 5.5);
         doc.text('Completed', 172, y + 5.5);
@@ -475,22 +624,31 @@ export const EmployeeProfile: React.FC = () => {
                   )}
                   <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
                     <button
-                      onClick={openExportModal}
-                      disabled={isExporting || timeEntriesLoading}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      onClick={() => {
+                        if (executiveProfile) exportScientistToPDF(executiveProfile, dateFilteredTrials, execFilter);
+                        else openExportModal();
+                      }}
+                      disabled={isExporting}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors cursor-pointer"
+                      title="Export Executive PDF Report"
                     >
                       <Download className="w-4 h-4" />
                       <span className="hidden sm:inline">PDF</span>
                     </button>
                     <button
-                      onClick={openExportModal}
-                      disabled={isExporting || timeEntriesLoading}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      onClick={() => {
+                        if (executiveProfile) exportScientistToExcel(executiveProfile, dateFilteredTrials, execFilter);
+                        else openExportModal();
+                      }}
+                      disabled={isExporting}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors cursor-pointer"
+                      title="Export Executive Excel Report"
                     >
                       <FileSpreadsheet className="w-4 h-4" />
                       <span className="hidden sm:inline">Excel</span>
                     </button>
                   </div>
+
                 </div>
               </div>
 
@@ -513,6 +671,228 @@ export const EmployeeProfile: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Executive Date Filter & Intelligence Panel */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-6 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+              Executive Dashboard
+            </span>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white mt-1">
+              Scientific Portfolio & Performance Analytics
+            </h2>
+          </div>
+
+          {/* Date Picker Preset Tabs */}
+          <div className="flex flex-wrap items-center gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl">
+            {(['today', 'yesterday', '7d', '30d', '90d', '6m', '1y', 'custom'] as DateRangePreset[]).map((preset) => (
+              <button
+                key={preset}
+                onClick={() => setExecFilter({ preset })}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  execFilter.preset === preset
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {preset === '7d' ? 'Last 7 Days' : preset === '30d' ? 'Last 30 Days' : preset === '90d' ? 'Last 90 Days' : preset === '6m' ? 'Last 6 Months' : preset === '1y' ? 'Last Year' : preset.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Custom date range inputs */}
+        {execFilter.preset === 'custom' && (
+          <div className="flex flex-wrap items-center gap-4 bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500">From</span>
+              <input
+                type="date"
+                value={execFilter.startDate || ''}
+                onChange={(e) => setExecFilter((prev) => ({ ...prev, startDate: e.target.value }))}
+                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 text-gray-800 dark:text-gray-200"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500">To</span>
+              <input
+                type="date"
+                value={execFilter.endDate || ''}
+                onChange={(e) => setExecFilter((prev) => ({ ...prev, endDate: e.target.value }))}
+                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 text-gray-800 dark:text-gray-200"
+              />
+            </div>
+          </div>
+        )}
+
+        {executiveProfile && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Local AI Executive Summary Card */}
+            <div className="lg:col-span-2 p-5 rounded-2xl bg-gradient-to-br from-purple-500/5 to-emerald-500/5 border border-purple-100/50 dark:border-purple-900/30 space-y-4">
+              <h3 className="text-sm font-black text-purple-700 dark:text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                <ActivityIcon className="w-4 h-4" />
+                Executive Summary & Research Direction
+              </h3>
+              <div className="space-y-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+                <p>
+                  <strong className="text-gray-950 dark:text-white">Research Focus Area: </strong>
+                  {executiveProfile.summary.focusArea}
+                </p>
+                <p>
+                  <strong className="text-gray-950 dark:text-white">Recent Discoveries: </strong>
+                  {executiveProfile.summary.recentDiscoveries}
+                </p>
+                <p>
+                  <strong className="text-gray-950 dark:text-white">Achievements: </strong>
+                  {executiveProfile.summary.majorAchievements}
+                </p>
+                <p className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-100/50 dark:border-amber-800/30 text-amber-800 dark:text-amber-300">
+                  <strong>Risk Assessment & Blockers: </strong>
+                  {executiveProfile.summary.blockers}
+                </p>
+                <p className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-100/50 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-300">
+                  <strong>Recommendations: </strong>
+                  {executiveProfile.summary.recommendations}
+                </p>
+              </div>
+            </div>
+
+            {/* Key Outcomes Box */}
+            <div className="p-5 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 space-y-4">
+              <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
+                Performance Analytics
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                  <span className="text-xs font-bold text-gray-500">Success Rate</span>
+                  <span className="text-sm font-black text-emerald-600">{executiveProfile.successRate}%</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                  <span className="text-xs font-bold text-gray-500">Failure Rate</span>
+                  <span className="text-sm font-black text-red-500">{executiveProfile.failureRate}%</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                  <span className="text-xs font-bold text-gray-500">Workload score</span>
+                  <span className="text-sm font-black text-purple-600">{executiveProfile.currentWorkloadScore} / 100</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                  <span className="text-xs font-bold text-gray-500">Most Active Category</span>
+                  <span className="text-xs font-black bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-lg text-gray-800 dark:text-gray-200">
+                    {executiveProfile.mostActiveCategory.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Weekly vs Last Week Comparison Grid */}
+        {executiveProfile && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Weekly Comparison Card */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 space-y-3">
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                Weekly Progress (This Week vs Last Week)
+              </h4>
+              <div className="grid grid-cols-5 gap-2 text-center">
+                {[
+                  { label: 'Started', cur: executiveProfile.weeklyProgress.currentWeek.trialsStarted, prev: executiveProfile.weeklyProgress.previousWeek.trialsStarted },
+                  { label: 'Completed', cur: executiveProfile.weeklyProgress.currentWeek.trialsCompleted, prev: executiveProfile.weeklyProgress.previousWeek.trialsCompleted },
+                  { label: 'Pending', cur: executiveProfile.weeklyProgress.currentWeek.pendingTrials, prev: executiveProfile.weeklyProgress.previousWeek.pendingTrials },
+                  { label: 'Evals', cur: executiveProfile.weeklyProgress.currentWeek.evaluationsDone, prev: executiveProfile.weeklyProgress.previousWeek.evaluationsDone },
+                  { label: 'Efficacy', cur: `${executiveProfile.weeklyProgress.currentWeek.efficacyAvg}%`, prev: `${executiveProfile.weeklyProgress.previousWeek.efficacyAvg}%` },
+                ].map((item) => (
+                  <div key={item.label} className="p-2 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                    <span className="text-[10px] text-gray-500 block font-bold truncate">{item.label}</span>
+                    <span className="text-xs font-black text-gray-900 dark:text-white block mt-1">{item.cur}</span>
+                    <span className="text-[9px] text-gray-400 block font-medium">vs {item.prev}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Monthly Comparison Card */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 space-y-3">
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-purple-500" />
+                Monthly Progress (This Month vs Previous Month)
+              </h4>
+              <div className="grid grid-cols-5 gap-2 text-center">
+                {[
+                  { label: 'Started', cur: executiveProfile.monthlyProgress.currentMonth.trialsStarted, prev: executiveProfile.monthlyProgress.previousMonth.trialsStarted },
+                  { label: 'Completed', cur: executiveProfile.monthlyProgress.currentMonth.trialsCompleted, prev: executiveProfile.monthlyProgress.previousMonth.trialsCompleted },
+                  { label: 'Pending', cur: executiveProfile.monthlyProgress.currentMonth.pendingTrials, prev: executiveProfile.monthlyProgress.previousMonth.pendingTrials },
+                  { label: 'Evals', cur: executiveProfile.monthlyProgress.currentMonth.evaluationsDone, prev: executiveProfile.monthlyProgress.previousMonth.evaluationsDone },
+                  { label: 'Efficacy', cur: `${executiveProfile.monthlyProgress.currentMonth.efficacyAvg}%`, prev: `${executiveProfile.monthlyProgress.previousMonth.efficacyAvg}%` },
+                ].map((item) => (
+                  <div key={item.label} className="p-2 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                    <span className="text-[10px] text-gray-500 block font-bold truncate">{item.label}</span>
+                    <span className="text-xs font-black text-gray-900 dark:text-white block mt-1">{item.cur}</span>
+                    <span className="text-[9px] text-gray-400 block font-medium">vs {item.prev}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5-Category Distribution Bar */}
+        {personScorecard && (
+          <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+            <span className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider block">
+              Field Trials Across 5 Categories ({personScorecard.totalTrials} total)
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 space-y-1">
+                <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                  <span className="flex items-center gap-1"><Leaf className="w-3.5 h-3.5" /> Herbicide</span>
+                  <span className="font-mono text-sm font-black">{personScorecard.trialsByCategory.herbicide}</span>
+                </div>
+                <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 block">Weed Control</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 space-y-1">
+                <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+                  <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5" /> Fungicide</span>
+                  <span className="font-mono text-sm font-black">{personScorecard.trialsByCategory.fungicide}</span>
+                </div>
+                <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 block">Disease Control</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900 space-y-1">
+                <div className="flex items-center justify-between text-red-700 dark:text-red-300 text-xs font-bold">
+                  <span className="flex items-center gap-1"><Bug className="w-3.5 h-3.5" /> Pesticide</span>
+                  <span className="font-mono text-sm font-black">{personScorecard.trialsByCategory.pesticide}</span>
+                </div>
+                <span className="text-[10px] text-red-600/80 dark:text-red-400/80 block">Pest Control</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900 space-y-1">
+                <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 text-xs font-bold">
+                  <span className="flex items-center gap-1"><Beaker className="w-3.5 h-3.5" /> Nutrition</span>
+                  <span className="font-mono text-sm font-black">{personScorecard.trialsByCategory.nutrition}</span>
+                </div>
+                <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 block">Yield Enhancement</span>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-100 dark:border-teal-900 space-y-1">
+                <div className="flex items-center justify-between text-teal-700 dark:text-teal-300 text-xs font-bold">
+                  <span className="flex items-center gap-1"><Sprout className="w-3.5 h-3.5" /> Biostimulant</span>
+                  <span className="font-mono text-sm font-black">{personScorecard.trialsByCategory.biostimulant}</span>
+                </div>
+                <span className="text-[10px] text-teal-600/80 dark:text-teal-400/80 block">Growth Index</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </motion.div>
+
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -675,8 +1055,57 @@ export const EmployeeProfile: React.FC = () => {
               </div>
             )}
           </motion.div>
+
+          {/* Scientist Milestones & Activity Timeline */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100/50 dark:border-gray-800/50"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <ActivityIcon className="w-5 h-5 text-emerald-500" />
+                Scientist Activity Timeline
+              </h3>
+              <span className="text-[10px] font-bold text-gray-400">Chronological Milestones</span>
+            </div>
+
+            {scientistTimelineEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No field activity timeline events available.</p>
+              </div>
+            ) : (
+              <div className="relative border-l-2 border-gray-100 dark:border-gray-800 pl-6 ml-3 space-y-6">
+                {scientistTimelineEvents.map((ev, index) => (
+                  <div key={`${ev.type}-${index}`} className="relative">
+                    {/* Circle icon marker */}
+                    <div className="absolute -left-[35px] top-0 w-6 h-6 rounded-full border-4 border-white dark:border-gray-900 bg-emerald-500 flex items-center justify-center shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    </div>
+
+                    <div className="space-y-1 bg-gray-50 dark:bg-gray-800/30 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-xs font-black text-gray-900 dark:text-white">
+                          {ev.title}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100/50 dark:border-emerald-800/30">
+                          {formatDate(ev.date)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed font-medium">
+                        {ev.desc}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
         </div>
       </div>
+
 
       {/* Time Motion Section */}
       <motion.div 

@@ -73,7 +73,7 @@ export const UI_CONFIG = {
  */
 export const STORAGE_KEYS = {
   USERS: 'miklens_users_v3',
-  DAILY_LOGS: 'miklens_daily_logs_v3',
+  DAILY_LOGS: 'miklens_daily_logs_v4',
   EXPERIMENTS: 'miklens_experiments_v5',
   LAB_TESTS: 'miklens_lab_tests_v5',
   STABILITY: 'miklens_stability_v5',

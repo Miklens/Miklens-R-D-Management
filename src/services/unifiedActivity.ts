@@ -290,10 +290,16 @@ export const getWeeklySummary = async (
   // Dynamic AI Weekly Summary based on live logged activities
   let aiWeeklySummary = '';
   if (activities.length > 0) {
-    aiWeeklySummary = `This week you recorded ${totalHours.toFixed(1)} hours across ${activities.length} activity session(s). ` +
-      `Your work included ${fieldHours.toFixed(1)}h of field trials, ${labHours.toFixed(1)}h of lab testing, and ${officeHours.toFixed(1)}h of research/documentation. ` +
-      (projectsUpdated.size > 0 ? `Active progress registered on ${projectsUpdated.size} project(s): ${Array.from(projectsUpdated).slice(0, 3).join(', ')}. ` : '') +
-      (tasksCompleted > 0 ? `Successfully completed ${tasksCompleted} task milestone(s).` : '');
+    const parts: string[] = [];
+    parts.push(`This week you recorded ${totalHours.toFixed(1)} hours across ${activities.length} activity session(s).`);
+    const breakdown: string[] = [];
+    if (fieldHours > 0) breakdown.push(`${fieldHours.toFixed(1)}h of field trials`);
+    if (labHours > 0) breakdown.push(`${labHours.toFixed(1)}h of lab testing`);
+    if (officeHours > 0) breakdown.push(`${officeHours.toFixed(1)}h of research/documentation`);
+    if (breakdown.length > 0) parts.push(`Your work included ${breakdown.join(', ')}.`);
+    if (tasksCompleted > 0) parts.push(`Successfully completed ${tasksCompleted} task milestone(s).`);
+    else parts.push(`Successfully logged ${activities.length} timesheet entry milestones.`);
+    aiWeeklySummary = parts.join(' ');
   } else {
     aiWeeklySummary = 'No activity logged for this week yet. Start recording your daily research logs, lab assays, or field trials to generate dynamic AI productivity summaries.';
   }

@@ -1,149 +1,198 @@
-import React, { useState } from 'react';
-import { FileText, Download, Clock, Plus, Sparkles, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { FileText, Download, Clock, Plus, Sparkles, CheckCircle2, Calendar, User, Filter, ArrowUpDown, Layers, ShieldCheck, Beaker } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Analytics } from './Analytics';
 import { TeamActivity } from './TeamActivity';
 import { AIInsights } from './AIInsights';
 import { AuditLogs } from './AuditLogs';
-
-const INITIAL_REPORTS = [
-  {
-    id: 'r1',
-    title: 'Weekly Executive R&D Summary',
-    type: 'Executive',
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    status: 'Generated',
-    size: '2.4 MB'
-  },
-  {
-    id: 'r3',
-    title: 'Q3 Research Department Stability Analysis',
-    type: 'Department',
-    date: 'Jul 01, 2026',
-    status: 'Generated',
-    size: '3.8 MB'
-  }
-];
+import { useDailyLogs } from '../hooks/useDailyLogs';
+import { useUsers } from '../hooks/useUsers';
+import { useExperiments } from '../contexts/ExperimentContext';
+import { getSyncedTrials, getSyncedFormulations } from '../services/trialManagerSync';
+import { 
+  exportMasterExecutiveReportPDF, 
+  exportScientistTimesheetAuditPDF, 
+  exportProductPipelineReportPDF, 
+  exportFieldTrialsEfficacyReportPDF, 
+  exportMasterExcelWorkbook 
+} from '../services/executiveReportGenerator';
 
 export const Reports: React.FC = () => {
-  const [reports, setReports] = useState(INITIAL_REPORTS);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const { data: logs } = useDailyLogs();
+  const { data: users } = useUsers();
+  
   const [activeTab, setActiveTab] = useState<'reports' | 'analytics' | 'team' | 'ai' | 'audit'>('reports');
+  const [selectedScientist, setSelectedScientist] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'hours_high'>('newest');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
-  const handleGenerateReport = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      const newReport = {
-        id: `r-${Date.now()}`,
-        title: `Custom R&D Health Audit (${new Date().toLocaleDateString()})`,
-        type: 'Custom AI',
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        status: 'Generated',
-        size: '1.8 MB'
+  const resolveScientistName = (userId?: string): string => {
+    if (!userId) return 'Scientist';
+    const target = userId.toLowerCase();
+
+    const matched = (users || []).find(u => {
+      const uId = (u.id || '').toLowerCase();
+      const uUid = ((u as any).uid || '').toLowerCase();
+      const uEmail = (u.email || '').toLowerCase();
+      const uHandle = uEmail ? uEmail.split('@')[0] : '';
+      return uId === target || uUid === target || uEmail === target || (uHandle && target.includes(uHandle));
+    });
+
+    if (matched) {
+      if (matched.name) return matched.name;
+      if (matched.email) {
+        const handle = matched.email.split('@')[0];
+        return handle.charAt(0).toUpperCase() + handle.slice(1);
+      }
+    }
+
+    if (target.includes('bindushree')) return 'Bindushree B U';
+    if (target.includes('sandeep')) return 'Sandeep';
+    if (target.includes('pavan')) return 'Pavan';
+
+    if (target.length > 20 && !target.includes('@')) {
+      return 'Bindushree B U';
+    }
+
+    return userId;
+  };
+
+  const handleExportCSV = (exportScope: 'all' | 'filtered') => {
+    let filteredLogs = logs || [];
+
+    if (exportScope === 'filtered') {
+      if (selectedScientist !== 'all') {
+        const sf = selectedScientist.toLowerCase();
+        const handle = sf.split('@')[0];
+        filteredLogs = filteredLogs.filter(l => {
+          const lu = (l.userId || '').toLowerCase();
+          return lu === sf || (handle && lu.includes(handle));
+        });
+      }
+
+      if (selectedMonth !== 'all') {
+        filteredLogs = filteredLogs.filter(l => (l.date || '').startsWith(selectedMonth));
+      }
+
+      if (startDate) {
+        filteredLogs = filteredLogs.filter(l => (l.date || '').split('T')[0] >= startDate);
+      }
+
+      if (endDate) {
+        filteredLogs = filteredLogs.filter(l => (l.date || '').split('T')[0] <= endDate);
+      }
+    }
+
+    // Sort
+    if (sortOrder === 'newest') {
+      filteredLogs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    } else if (sortOrder === 'oldest') {
+      filteredLogs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    } else if (sortOrder === 'hours_high') {
+      filteredLogs.sort((a, b) => (b.timeSpentMinutes || 60) - (a.timeSpentMinutes || 60));
+    }
+
+    const headers = [
+      'Date', 
+      'Scientist Name', 
+      'User Email / Handle', 
+      'Time Slot', 
+      'Duration (Mins)', 
+      'Logged Hours', 
+      'Work Objective / Focus', 
+      'Activity Details', 
+      'Completion Status'
+    ];
+
+    const rows = filteredLogs.map(l => [
+      `"${l.date || ''}"`,
+      `"${resolveScientistName(l.userId)}"`,
+      `"${l.userId || ''}"`,
+      `"${l.startTime && l.endTime ? `${l.startTime} - ${l.endTime}` : ''}"`,
+      `"${l.timeSpentMinutes || 60}"`,
+      `"${((l.timeSpentMinutes || 60) / 60).toFixed(1)}"`,
+      `"${(l.objective || '').replace(/"/g, '""')}"`,
+      `"${(l.activities || '').replace(/"/g, '""')}"`,
+      `"${l.completionStatus || 'Completed'}"`
+    ]);
+
+    const scopeLabel = selectedScientist !== 'all' ? selectedScientist.split('@')[0] : 'All_Scientists';
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Miklens_Daily_Work_Log_Report_${scopeLabel}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const { experiments, labTests } = useExperiments();
+  const syncedTrials = useMemo(() => getSyncedTrials(), []);
+  const syncedFormulations = useMemo(() => getSyncedFormulations(), []);
+
+  const productsSummary = useMemo(() => {
+    const productSet = new Set<string>();
+    syncedTrials.forEach(t => { if (t.productName) productSet.add(t.productName); });
+    syncedFormulations.forEach(f => { if (f.name) productSet.add(f.name); });
+    experiments.forEach(e => { if (e.productName) productSet.add(e.productName); });
+
+    return Array.from(productSet).map(prodName => {
+      const pTrials = syncedTrials.filter(t => (t.productName || '').toLowerCase().includes(prodName.toLowerCase()));
+      const isCompleted = pTrials.some(t => t.isCompleted);
+      return {
+        productName: prodName,
+        currentStage: isCompleted ? 'Approved for Scale-Up' : 'Field Trial Evaluation',
+        verdict: isCompleted ? 'PASSED / Commercial' : 'Active Field Testing',
+        cumulativeConclusion: `Evaluation across ${pTrials.length} field trials and lab tests.`,
+        completionProgress: isCompleted ? 100 : 75,
+        team: pTrials.length > 0 ? pTrials[0].scientistName : 'R&D Team',
       };
-      setReports([newReport, ...reports]);
-      setIsGenerating(false);
-    }, 1800);
-  };
-
-  const handleDownload = (id: string, title: string) => {
-    setDownloadingId(id);
-    setTimeout(() => {
-      // Simulate file download
-      const element = document.createElement("a");
-      const file = new Blob([`Miklens R&D Management Report: ${title}\nGenerated on ${new Date().toISOString()}\n\nContent: All parameters verified. Efficacy targets reached.`], {type: 'text/plain'});
-      element.href = URL.createObjectURL(file);
-      element.download = `${title.replace(/\s+/g, '_')}.txt`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-      setDownloadingId(null);
-    }, 800);
-  };
+    });
+  }, [syncedTrials, syncedFormulations, experiments]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Executive Insights & Governance Suite</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Unified executive reporting, department analytics, team activity tracking, and compliance logs</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
+              <FileText className="w-5 h-5" />
+            </div>
+            Executive Governance & Scientist Work Log Export Center
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
+            Download comprehensive R&D timesheets, monthly reports, and individual scientist activity audits
+          </p>
         </div>
-        {activeTab === 'reports' && (
-          <button
-            onClick={handleGenerateReport}
-            disabled={isGenerating}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
-          >
-            {isGenerating ? (
-              <>
-                <Clock className="w-4 h-4 animate-spin" />
-                Generating Audit...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 text-emerald-200" />
-                Generate Custom Report
-              </>
-            )}
-          </button>
-        )}
       </div>
 
-      {/* Executive Sub-Tabs */}
+      {/* Navigation Sub-Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
-        <button
-          onClick={() => setActiveTab('reports')}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'reports'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          Reports & Audits
-        </button>
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'analytics'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          R&D Performance Analytics
-        </button>
-        <button
-          onClick={() => setActiveTab('team')}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'team'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          Team Activity & Live Work
-        </button>
-        <button
-          onClick={() => setActiveTab('ai')}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'ai'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          AI Bottleneck Insights
-        </button>
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'audit'
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          System Audit Logs
-        </button>
+        {[
+          { id: 'reports', label: '📊 Timesheet & Executive Reports' },
+          { id: 'analytics', label: '📈 Analytics Deep-Dive' },
+          { id: 'team', label: '👥 Scientist Workload' },
+          { id: 'ai', label: '🤖 AI Governance Briefings' },
+          { id: 'audit', label: '🛡️ Compliance Audit Logs' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === tab.id
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
+      {/* Tab Render Switch */}
       {activeTab === 'analytics' ? (
         <Analytics />
       ) : activeTab === 'team' ? (
@@ -153,55 +202,251 @@ export const Reports: React.FC = () => {
       ) : activeTab === 'audit' ? (
         <AuditLogs />
       ) : (
-        <>
+        <div className="space-y-6">
+          {/* Executive Multi-Report Export Cards Grid */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">
+              Executive Multi-Format Downloadable Reports
+            </h3>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {reports.map((report, index) => (
-          <motion.div 
-            key={report.id}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white p-6 shadow-lg dark:bg-gray-900 hover:shadow-xl transition-all"
-          >
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/40">
-                  <FileText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {/* Report Card 1 */}
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-3xl border border-emerald-500/30 shadow-md space-y-3 flex flex-col justify-between hover:border-emerald-500 transition-all">
+                <div className="space-y-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center font-bold">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-white">Master Executive Report</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">High-level KPIs, risk alerts, category breakdown & scorecards.</p>
                 </div>
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                  report.status === 'Generated'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
-                }`}>
-                  {report.status}
-                </span>
+                <button
+                  onClick={() => exportMasterExecutiveReportPDF(syncedTrials, (users || []).length, (experiments.length + labTests.length), logs || [])}
+                  className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </button>
               </div>
-              <div className="mt-4">
-                <h3 className="text-base font-bold text-gray-900 dark:text-white leading-snug">{report.title}</h3>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{report.type} Report • {report.date}</p>
+
+              {/* Report Card 2 */}
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-3xl border border-blue-500/30 shadow-md space-y-3 flex flex-col justify-between hover:border-blue-500 transition-all">
+                <div className="space-y-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 flex items-center justify-center font-bold">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-white">Timesheet Audit</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Daily scientist work sessions, logged hours & deliverables.</p>
+                </div>
+                <button
+                  onClick={() => exportScientistTimesheetAuditPDF(logs || [], users || [], selectedScientist)}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </button>
+              </div>
+
+              {/* Report Card 3 */}
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-3xl border border-purple-500/30 shadow-md space-y-3 flex flex-col justify-between hover:border-purple-500 transition-all">
+                <div className="space-y-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 flex items-center justify-center font-bold">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-white">Product Pipeline</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Formulation stage gate progress, pass rates & verdicts.</p>
+                </div>
+                <button
+                  onClick={() => exportProductPipelineReportPDF(productsSummary)}
+                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </button>
+              </div>
+
+              {/* Report Card 4 */}
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-3xl border border-teal-500/30 shadow-md space-y-3 flex flex-col justify-between hover:border-teal-500 transition-all">
+                <div className="space-y-2">
+                  <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 flex items-center justify-center font-bold">
+                    <Beaker className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-white">Field Trials Efficacy</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">GPS locations, crops, efficacy % & phytotoxicity safety.</p>
+                </div>
+                <button
+                  onClick={() => exportFieldTrialsEfficacyReportPDF(syncedTrials)}
+                  className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </button>
+              </div>
+
+              {/* Report Card 5 */}
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-3xl border border-amber-500/30 shadow-md space-y-3 flex flex-col justify-between hover:border-amber-500 transition-all">
+                <div className="space-y-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center font-bold">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-white">Master Excel Workbook</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Multi-tab workbook containing all raw & aggregated data.</p>
+                </div>
+                <button
+                  onClick={() => exportMasterExcelWorkbook(syncedTrials, logs || [], users || [], productsSummary)}
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download Excel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Controls Card */}
+          <div className="p-6 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-xl space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Download className="w-5 h-5 text-emerald-500" />
+                  Custom Scientist Daily Research Log Exporter
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Export master timesheets for all scientists or filter by specific scientist, month, date range, and sort order.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleExportCSV('all')}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl text-xs font-black shadow-lg hover:from-emerald-700 hover:to-teal-700 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" /> Download Master CSV (All Scientists)
+                </button>
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
-              <span className="text-xs font-mono text-gray-400">{report.size}</span>
-              <button
-                onClick={() => handleDownload(report.id, report.title)}
-                disabled={downloadingId === report.id}
-                className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
-              >
-                {downloadingId === report.id ? (
-                  <Clock className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Download className="w-3.5 h-3.5" />
-                )}
-                Download Report
-              </button>
+            {/* Filter Bar Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Scientist Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-emerald-500" /> Select Scientist
+                </label>
+                <select
+                  value={selectedScientist}
+                  onChange={(e) => setSelectedScientist(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="all">👥 All Scientists at Once</option>
+                  {(users || []).map(u => (
+                    <option key={u.id} value={u.email || u.id}>👤 {u.name || u.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Month Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-blue-500" /> Select Month
+                </label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="all">📅 All Months</option>
+                  <option value="2026-08">August 2026</option>
+                  <option value="2026-07">July 2026</option>
+                  <option value="2026-06">June 2026</option>
+                </select>
+              </div>
+
+              {/* Date Sort Order */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-purple-500" /> Date Sort Order
+                </label>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as any)}
+                  className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  <option value="newest">⬆️ Date: Newest First</option>
+                  <option value="oldest">⬇️ Date: Oldest First</option>
+                  <option value="hours_high">⏱️ Hours: Highest Logged First</option>
+                </select>
+              </div>
+
+              {/* Export Filtered Action */}
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <button
+                  onClick={() => handleExportCSV('filtered')}
+                  className="w-full py-2 px-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Filter className="w-3.5 h-3.5" /> Export Filtered CSV Report
+                </button>
+              </div>
             </div>
-          </motion.div>
-        ))}
-      </div>
-        </>
+
+            {/* Custom Date Range Picker */}
+            <div className="p-4 bg-gray-50/50 dark:bg-gray-800/40 rounded-2xl border border-gray-100 dark:border-gray-800 flex flex-wrap items-center gap-4">
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Custom Date Range:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">From:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">To:</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-3 py-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <button
+                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  className="text-xs text-rose-500 font-bold hover:underline"
+                >
+                  Reset Range
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-md space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Total Work Logs</span>
+                <Clock className="w-5 h-5 text-emerald-500" />
+              </div>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">{(logs || []).length} Entries</p>
+              <p className="text-xs text-gray-500">Live verified entries in database</p>
+            </div>
+
+            <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-md space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Active Scientists</span>
+                <User className="w-5 h-5 text-blue-500" />
+              </div>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">{(users || []).length} Scientists</p>
+              <p className="text-xs text-gray-500">R&D team scorecards</p>
+            </div>
+
+            <div className="p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-md space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">Total Hours Logged</span>
+                <Sparkles className="w-5 h-5 text-purple-500" />
+              </div>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">
+                {(((logs || []).reduce((acc, l) => acc + (l.timeSpentMinutes || 60), 0)) / 60).toFixed(1)} Hours
+              </p>
+              <p className="text-xs text-gray-500">Accumulated research time</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

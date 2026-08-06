@@ -10,17 +10,20 @@ interface Ingredient {
   costPerKg: number;
 }
 
-const DEFAULT_INGREDIENTS: Ingredient[] = [
-  { id: '1', name: 'BioShield Bio-Active Fungal Spores', category: 'active', percentage: 10.0, costPerKg: 350 },
-  { id: '2', name: 'Polyoxyethylene Sorbitan (Tween 80)', category: 'surfactant', percentage: 4.5, costPerKg: 120 },
-  { id: '3', name: 'Sodium Citrate / Citric Acid Buffer', category: 'stabilizer', percentage: 1.2, costPerKg: 90 },
-  { id: '4', name: 'Xanthan Gum (Thickener/Stabilizer)', category: 'stabilizer', percentage: 0.15, costPerKg: 450 },
-  { id: '5', name: 'Demineralized Water (Carrier)', category: 'solvent', percentage: 84.15, costPerKg: 10 },
-];
+import { getSyncedFormulations } from '../services/trialManagerSync';
 
 export const FormulationBuilder: React.FC = () => {
-  const [ingredients, setIngredients] = useState<Ingredient[]>(DEFAULT_INGREDIENTS);
-  const [name, setName] = useState('BioShield Alpha (Bio-fungicide Formulation)');
+  const syncedFormulations = useMemo(() => getSyncedFormulations(), []);
+  const initialFormulation = syncedFormulations.length > 0 ? syncedFormulations[0] : null;
+
+  const [ingredients, setIngredients] = useState<Ingredient[]>(() => [
+    { id: '1', name: initialFormulation ? `${initialFormulation.name} Active Ingredient` : 'Active Botanical Extract', category: 'active', percentage: 10.0, costPerKg: 250 },
+    { id: '2', name: 'Surfactant & Emulsifier Package', category: 'surfactant', percentage: 5.0, costPerKg: 120 },
+    { id: '3', name: 'Stabilizer / Buffer', category: 'stabilizer', percentage: 1.5, costPerKg: 80 },
+    { id: '4', name: 'Water / Carrier Solvent', category: 'solvent', percentage: 83.5, costPerKg: 10 },
+  ]);
+
+  const [name, setName] = useState(initialFormulation ? initialFormulation.name : 'Custom Active Formulation Recipe');
   const [ph, setPh] = useState(6.2);
   const [viscosity, setViscosity] = useState(480); // in cP
   const [density, setDensity] = useState(1.05); // g/mL

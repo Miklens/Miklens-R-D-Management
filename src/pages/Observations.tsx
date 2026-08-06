@@ -11,7 +11,7 @@ export const Observations: React.FC = () => {
 
   // Modal State
   const [titleInput, setTitleInput] = useState('');
-  const [productInput, setProductInput] = useState('BioShield Alpha (Bio-fungicide)');
+  const [productInput, setProductInput] = useState(() => allProducts.length > 0 ? allProducts[0] : 'Active Formulation');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductInput, setCustomProductInput] = useState('');
   const [typeInput, setTypeInput] = useState('Visual');
@@ -202,7 +202,7 @@ export const Observations: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. BioShield Alpha - Rapid fungal cell lysis observed"
+                    placeholder="e.g. Active Formulation - Rapid fungal cell lysis observed at 48h DAT"
                     value={titleInput}
                     onChange={(e) => setTitleInput(e.target.value)}
                     required

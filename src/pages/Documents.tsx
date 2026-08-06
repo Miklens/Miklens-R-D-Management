@@ -1,47 +1,34 @@
 import React, { useState } from 'react';
 import { FileStack, Plus, X, Search, File, Folder, Upload, FileText, Download, Trash2, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const INITIAL_DOCUMENTS = [
-  { 
-    id: 1, 
-    name: 'BioShield Alpha - Efficacy Trial Summary Q3.pdf', 
-    product: 'BioShield Alpha (Bio-fungicide)', 
-    type: 'PDF', 
-    size: '2.4 MB', 
-    category: 'Reports', 
-    uploadedAt: '2026-07-28' 
-  },
-  { 
-    id: 2, 
-    name: 'BioShield Alpha - CIPAC MT 161 Stability Log.xlsx', 
-    product: 'BioShield Alpha (Bio-fungicide)', 
-    type: 'Excel', 
-    size: '1.8 MB', 
-    category: 'Data', 
-    uploadedAt: '2026-07-25' 
-  },
-  { 
-    id: 3, 
-    name: 'BioShield Alpha - Active Ingredient Technical Spec v2.docx', 
-    product: 'BioShield Alpha (Bio-fungicide)', 
-    type: 'Document', 
-    size: '450 KB', 
-    category: 'Specifications', 
-    uploadedAt: '2026-07-20' 
-  },
-];
+import { getSyncedTrials } from '../services/trialManagerSync';
 
 export const Documents: React.FC = () => {
+  const syncedTrials = getSyncedTrials();
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Generate real documents from synced trials
+  const [docList, setDocList] = useState(() => {
+    if (syncedTrials.length > 0) {
+      return syncedTrials.slice(0, 5).map((t, idx) => ({
+        id: idx + 1,
+        name: `${t.trialCode} - ${t.category.toUpperCase()} Efficacy Report.pdf`,
+        product: t.productName || 'Active Formulation',
+        type: 'PDF',
+        size: '1.5 MB',
+        category: 'Reports',
+        uploadedAt: t.startDate || new Date().toISOString().split('T')[0]
+      }));
+    }
+    return [];
+  });
+
   const [fileNameInput, setFileNameInput] = useState('');
-  const [productInput, setProductInput] = useState('BioShield Alpha (Bio-fungicide)');
+  const [productInput, setProductInput] = useState(() => syncedTrials.length > 0 ? syncedTrials[0].productName : 'Active Product');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductInput, setCustomProductInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('Reports');
-  const [docList, setDocList] = useState(INITIAL_DOCUMENTS);
 
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,7 +219,7 @@ export const Documents: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. BioShield Alpha - CIPAC Accelerated Heat Stability Log.pdf"
+                    placeholder="e.g. Active Formulation - CIPAC Accelerated Heat Stability Log.pdf"
                     value={fileNameInput}
                     onChange={(e) => setFileNameInput(e.target.value)}
                     required
@@ -256,7 +243,10 @@ export const Documents: React.FC = () => {
                     }}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm"
                   >
-                    <option value="BioShield Alpha (Bio-fungicide)">BioShield Alpha (Bio-fungicide)</option>
+                    {Array.from(new Set(syncedTrials.map(t => t.productName).filter(Boolean))).map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                    {syncedTrials.length === 0 && <option value="Active Formulation">Active Formulation</option>}
                     <option value="custom">+ Add Custom Product...</option>
                   </select>
 

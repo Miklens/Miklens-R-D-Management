@@ -177,10 +177,7 @@ export const Employees: React.FC = () => {
       doc.setTextColor(55, 65, 81);
 
       const entries = employeeTimeEntries.length > 0 ? employeeTimeEntries : [
-        { date: '2026-07-28', projectName: 'BioShield Alpha', category: 'Efficacy Check', durationMinutes: 120, description: 'Microbial CFU count verification' },
-        { date: '2026-07-27', projectName: 'NemaKill Pro', category: 'CIPAC Heat Stability', durationMinutes: 180, description: '54°C 14-day accelerated thermal stability' },
-        { date: '2026-07-26', projectName: 'RootBoost X', category: 'Field Spray Trial', durationMinutes: 240, description: 'Plot 4 foliar application efficacy monitoring' },
-        { date: '2026-07-25', projectName: 'AeroSpore V2', category: 'Surfactant Trial', durationMinutes: 90, description: 'Dispersibility trial & wetting agent adjustment' },
+        { date: '2026-07-28', projectName: 'Active Formulation', category: 'Efficacy Check', durationMinutes: 120, description: 'Microbial CFU count verification' }
       ];
 
       entries.forEach((entry, idx) => {
@@ -197,7 +194,7 @@ export const Employees: React.FC = () => {
         const duration = entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : '1h 0m';
         
         doc.text(entry.date || '2026-07-28', 17, y + 5.5);
-        doc.text((entry.projectName || 'BioShield Alpha').substring(0, 22), 42, y + 5.5);
+        doc.text((entry.projectName || 'Active Formulation').substring(0, 22), 42, y + 5.5);
         doc.text((entry.category || 'Lab Trial').substring(0, 24), 92, y + 5.5);
         doc.text(duration, 142, y + 5.5);
         doc.text('Completed', 172, y + 5.5);
@@ -406,7 +403,7 @@ export const Employees: React.FC = () => {
                 <div className="mt-4 p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 text-xs">
                   <span className="font-bold text-emerald-700 dark:text-emerald-400">Current Focus: </span>
                   <span className="text-gray-600 dark:text-gray-300">
-                    {empLogs[0]?.objective || 'BioShield Alpha Formulation & CIPAC Heat Stability Testing'}
+                    {empLogs[0]?.objective || 'Active Formulation & CIPAC Heat Stability Testing'}
                   </span>
                 </div>
                 

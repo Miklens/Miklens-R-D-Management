@@ -13,7 +13,7 @@ export const LaboratoryTests: React.FC = () => {
 
   // Modal State
   const [nameInput, setNameInput] = useState('');
-  const [productInput, setProductInput] = useState('BioShield Alpha (Bio-fungicide)');
+  const [productInput, setProductInput] = useState(() => allProducts.length > 0 ? allProducts[0] : 'Active Formulation');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductInput, setCustomProductInput] = useState('');
   const [typeInput, setTypeInput] = useState('Efficacy');
@@ -246,7 +246,7 @@ export const LaboratoryTests: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. BioShield Active Ingredient Concentration Assay"
+                    placeholder="e.g. Active Ingredient Concentration Assay"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     required

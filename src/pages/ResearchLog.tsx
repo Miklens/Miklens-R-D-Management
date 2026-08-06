@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Clock, Plus, Trash2, CheckCircle2, Save,
   Zap, AlertTriangle, ShieldCheck, Package2, Pencil, X
@@ -6,12 +6,11 @@ import {
 import { format } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  getLogsByUser,
   addLog,
   updateLog,
   deleteLog,
-  subscribeToStoreChanges
 } from '../services/localStore';
+import { useDailyLogs } from '../hooks/useDailyLogs';
 import type { DailyLog } from '../types';
 import { useExperiments } from '../contexts/ExperimentContext';
 
@@ -130,7 +129,7 @@ const DEFAULT_SESSIONS: DailyActivityRow[] = [blankRow()];
 export const ResearchLog: React.FC = () => {
   const { profile } = useAuth();
   const userId = profile?.id || 'sci-1';
-  const { experiments, addDailyRun } = useExperiments();
+  const { experiments, addDailyRun, allProducts } = useExperiments();
 
   const [logDate, setLogDate]   = useState(format(new Date(), 'yyyy-MM-dd'));
   const [dayFocus, setDayFocus] = useState('');
@@ -139,21 +138,30 @@ export const ResearchLog: React.FC = () => {
   const [collisionError, setCollisionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [historyLogs, setHistoryLogs] = useState<DailyLog[]>([]);
-
-  /* ---------- store sync ---------- */
-  const loadLogs = () => setHistoryLogs(getLogsByUser(userId));
-  useEffect(() => {
-    loadLogs();
-    const unsub = subscribeToStoreChanges(loadLogs);
-    return () => { unsub(); };
-  }, [userId]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  // Use Firestore-backed hook so sessions saved to Firebase are visible here
+  const { data: allLogs } = useDailyLogs();
+  const historyLogs = useMemo(
+    () => allLogs.filter(l => (l.userId || '') === userId ||
+          (l.userId || '').toLowerCase() === (profile?.email || '').toLowerCase()),
+    [allLogs, userId, profile?.email]
+  );
 
   /* ---------- derived ---------- */
   const logsOnDate = useMemo(
     () => historyLogs.filter((l) => l.date?.split('T')[0] === logDate),
     [historyLogs, logDate]
   );
+  const pastLogs = useMemo(
+    () => historyLogs.filter((l) => l.date?.split('T')[0] !== logDate)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [historyLogs, logDate]
+  );
+
+  const handleDeleteAll = () => {
+    if (!window.confirm(`Delete ALL ${historyLogs.length} of your logged sessions? This cannot be undone.`)) return;
+    historyLogs.forEach(l => deleteLog(l.id));
+  };
   const totalMinutes = useMemo(() => activities.reduce((a, c) => a + c.durationMinutes, 0), [activities]);
   const totalHours   = (totalMinutes / 60).toFixed(1);
 
@@ -195,7 +203,7 @@ export const ResearchLog: React.FC = () => {
     const ne = `${((h+2)%24).toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
     setActivities(p => [...p, {
       id: `row-${Date.now()}`, category: 'lab', customCategory: '',
-      productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+      productId: 'p1', productName: (allProducts[0] || 'Active Formulation'), customProductName: '',
       startTime: ns, endTime: ne, durationMinutes: calcDurationMinutes(ns, ne), description: '',
     }]);
     setCollisionError(null);
@@ -233,11 +241,39 @@ export const ResearchLog: React.FC = () => {
     setActivities(p => [...p, {
       id: `row-${Date.now()}`,
       category: 'lab', customCategory: '',
-      productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+      productId: 'p1', productName: (allProducts[0] || 'Active Formulation'), customProductName: '',
       startTime: start, endTime: end,
       durationMinutes: calcDurationMinutes(start, end),
       description: '',
     }]);
+    setCollisionError(null);
+  };
+
+  const handleCopyYesterdayLog = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = format(yesterday, 'yyyy-MM-dd');
+    const yLogs = historyLogs.filter(l => (l.date || '').split('T')[0] === yStr);
+
+    if (yLogs.length === 0) {
+      setCollisionError(`No work session records found for yesterday (${yStr}).`);
+      return;
+    }
+
+    const copiedRows: DailyActivityRow[] = yLogs.map((l, idx) => ({
+      id: `copy-${Date.now()}-${idx}`,
+      category: 'lab',
+      customCategory: '',
+      productId: 'p1',
+      productName: (allProducts[0] || 'Active Formulation'),
+      customProductName: '',
+      startTime: l.startTime || '09:00',
+      endTime: l.endTime || '10:00',
+      durationMinutes: l.timeSpentMinutes || 60,
+      description: l.activities || ''
+    }));
+
+    setActivities(copiedRows);
     setCollisionError(null);
   };
 
@@ -249,7 +285,7 @@ export const ResearchLog: React.FC = () => {
     setActivities([{
       id: `edit-${log.id}`,
       category: 'lab', customCategory: '',
-      productId: 'p1', productName: 'BioShield Alpha (Bio-fungicide)', customProductName: '',
+      productId: 'p1', productName: (allProducts[0] || 'Active Formulation'), customProductName: '',
       startTime: log.startTime || '09:00',
       endTime:   log.endTime   || '10:00',
       durationMinutes: log.timeSpentMinutes || calcDurationMinutes(log.startTime || '09:00', log.endTime || '10:00'),
@@ -272,10 +308,16 @@ export const ResearchLog: React.FC = () => {
     const err = validateTimeSlots();
     if (err) { setCollisionError(err); return; }
 
+    const validSessions = activities.filter(a => a.description.trim().length > 0 && a.durationMinutes > 0);
+    if (validSessions.length === 0) {
+      setCollisionError('⚠️ Please enter an activity description for your work session before saving.');
+      return;
+    }
+
     setIsSubmitting(true);
     setCollisionError(null);
 
-    activities.forEach(act => {
+    validSessions.forEach(act => {
       const workType = act.category === 'custom'
         ? (act.customCategory || 'Custom R&D')
         : (WORK_TYPE_OPTIONS.find(c => c.value === act.category)?.label || act.category);
@@ -324,7 +366,6 @@ export const ResearchLog: React.FC = () => {
       setIsSubmitting(false);
       setSubmitSuccess(true);
       setEditingLogId(null);
-      loadLogs();
       setTimeout(() => setSubmitSuccess(false), 3500);
     }, 400);
   };
@@ -366,7 +407,7 @@ export const ResearchLog: React.FC = () => {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1">Main Focus / Objective of the Day</label>
-                <input type="text" placeholder="e.g. BioShield volume makeup, App update v2.1, Label design for BioCide Pro, Vendor call..."
+                <input type="text" placeholder="e.g. Formulation volume makeup, App update v2.1, Label design for Active Product, Vendor call..."
                   value={dayFocus} onChange={e => setDayFocus(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium" />
               </div>
@@ -425,10 +466,16 @@ export const ResearchLog: React.FC = () => {
                   <Zap className="w-4 h-4 text-emerald-500" />
                   Work Sessions & Time Breakdown ({activities.length} Sessions)
                 </h3>
-                <button type="button" onClick={addRow}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> + Add Manually
-                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={handleCopyYesterdayLog}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-100 transition-all">
+                    📋 Copy Yesterday's Sessions
+                  </button>
+                  <button type="button" onClick={addRow}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all">
+                    <Plus className="w-3.5 h-3.5" /> + Add Manually
+                  </button>
+                </div>
               </div>
 
               {activities.map((act, idx) => {
@@ -552,7 +599,16 @@ export const ResearchLog: React.FC = () => {
                         placeholder="Describe the work performed, measurements, meeting outcomes, code changes, label specs..."
                         value={act.description}
                         onChange={e => updateRow(act.id, { description: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                        className={`w-full px-3.5 py-2.5 bg-white dark:bg-gray-900 border rounded-xl text-xs font-medium outline-none focus:ring-2 ${
+                          !act.description.trim()
+                            ? 'border-amber-300 dark:border-amber-800/80 focus:ring-amber-500/30'
+                            : 'border-gray-200 dark:border-gray-700 focus:ring-emerald-500/30'
+                        }`} />
+                      {!act.description.trim() && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block mt-1">
+                          ⚠️ Enter description above to save Session #{idx + 1}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -569,8 +625,8 @@ export const ResearchLog: React.FC = () => {
                 <span className="text-xs text-gray-400 font-medium">🔒 De-duplication enabled — overlapping time slots are blocked</span>
               )}
               <button type="submit"
-                disabled={isSubmitting || activities.some(a => !a.description.trim() || a.durationMinutes <= 0)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl text-xs font-black shadow-lg hover:from-emerald-600 hover:to-teal-700 disabled:opacity-40 transition-all whitespace-nowrap">
+                disabled={isSubmitting || activities.length === 0}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl text-xs font-black shadow-lg disabled:opacity-40 transition-all cursor-pointer whitespace-nowrap">
                 <Save className="w-4 h-4" /> Save Daily Session Logs
               </button>
             </div>
@@ -585,9 +641,18 @@ export const ResearchLog: React.FC = () => {
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 Logged Sessions
               </h3>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                {logsOnDate.length} on {logDate}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  {logsOnDate.length} on {logDate}
+                </span>
+                {historyLogs.length > 0 && (
+                  <button onClick={handleDeleteAll}
+                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950 dark:text-red-400 transition-colors"
+                    title="Delete all your logged sessions from Firestore">
+                    🗑 Delete All ({historyLogs.length})
+                  </button>
+                )}
+              </div>
             </div>
 
             {logsOnDate.length === 0 ? (
@@ -620,6 +685,36 @@ export const ResearchLog: React.FC = () => {
                     <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2">{log.activities}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Past Sessions from Other Dates */}
+            {pastLogs.length > 0 && (
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                <button
+                  onClick={() => setShowAllHistory(h => !h)}
+                  className="w-full flex items-center justify-between text-xs font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                >
+                  <span>📋 Past Sessions ({pastLogs.length} entries from other dates)</span>
+                  <span>{showAllHistory ? '▲ Hide' : '▼ Show'}</span>
+                </button>
+                {showAllHistory && (
+                  <div className="mt-3 space-y-2 max-h-72 overflow-y-auto">
+                    {pastLogs.map(log => (
+                      <div key={log.id} className="p-3 rounded-xl border border-orange-100 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/30 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">{log.date}</span>
+                          <button onClick={() => deleteLog(log.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors" title="Delete this session">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 line-clamp-1">{log.objective || log.activities?.slice(0, 50)}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-500">{((log.timeSpentMinutes || 0) / 60).toFixed(1)}h logged</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

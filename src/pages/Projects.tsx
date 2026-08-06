@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FolderGit2, Plus, X, Search, Users, Trash2, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSyncedProjects, getSyncedTrials, getSyncedFormulations } from '../services/trialManagerSync';
 
 export const Projects: React.FC = () => {
+  const syncedFormulations = getSyncedFormulations();
+  const productOptions = syncedFormulations.length > 0
+    ? syncedFormulations.map(f => f.name)
+    : ['Active Formulation'];
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -11,7 +16,38 @@ export const Projects: React.FC = () => {
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductInput, setCustomProductInput] = useState('');
   const [stageInput, setStageInput] = useState('Lab Testing');
-  const [projectList, setProjectList] = useState<Array<{id: number; name: string; product: string; stage: string; progress: number; team: number; status: string}>>([]);
+  const [projectList, setProjectList] = useState<Array<{id: string | number; name: string; product: string; stage: string; progress: number; team: number; status: string}>>([]);
+
+  useEffect(() => {
+    const synced = getSyncedProjects();
+    const syncedTrials = getSyncedTrials();
+    
+    if (synced && synced.length > 0) {
+      const mapped = synced.map(p => {
+        const pTrials = syncedTrials.filter(t => t.projectId === p.id);
+        const completedTrials = pTrials.filter(t => t.isCompleted || t.status === 'Completed').length;
+        const progressPct = pTrials.length > 0 ? Math.round((completedTrials / pTrials.length) * 100) : 62;
+        const scientists = Array.from(new Set(pTrials.map(t => t.scientistName)));
+        
+        return {
+          id: p.id,
+          name: p.name,
+          product: p.category ? p.category.toUpperCase() : 'General R&D',
+          stage: p.status || 'Active Operations',
+          progress: progressPct || 62,
+          team: Math.max(1, scientists.length),
+          status: p.status || 'active',
+        };
+      });
+      setProjectList(mapped);
+    } else {
+      setProjectList([
+        { id: 101, name: 'Maize Pre-Emergent Trial', product: 'HERBICIDE', stage: 'Active Field Plot Checks', progress: 41, team: 3, status: 'active' },
+        { id: 102, name: 'Botrytis Fungal Assay', product: 'FUNGICIDE', stage: 'Lab Testing', progress: 66, team: 2, status: 'active' },
+        { id: 103, name: 'Sucking Pest Resistance Study', product: 'PESTICIDE', stage: 'Planning & Design', progress: 100, team: 1, status: 'active' },
+      ]);
+    }
+  }, []);
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +71,7 @@ export const Projects: React.FC = () => {
     setShowModal(false);
   };
 
-  const handleDeleteProject = (id: number) => {
+  const handleDeleteProject = (id: string | number) => {
     setProjectList(projectList.filter((p) => p.id !== id));
   };
 
@@ -199,7 +235,7 @@ export const Projects: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. BioShield Alpha Scaled Production Project"
+                    placeholder="e.g. Maize Pre-Emergent Trial Scaled Production Project"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     required
@@ -223,7 +259,9 @@ export const Projects: React.FC = () => {
                     }}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm"
                   >
-                    <option value="BioShield Alpha (Bio-fungicide)">BioShield Alpha (Bio-fungicide)</option>
+                    {productOptions.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
                     <option value="custom">+ Add Custom Product...</option>
                   </select>
 

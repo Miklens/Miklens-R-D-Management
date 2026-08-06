@@ -5,6 +5,7 @@ export interface AppUser {
   name: string;
   email: string;
   role: Role;
+  trialManagerRole?: string;
   designation: string;
   department: string;
   skills: string[];

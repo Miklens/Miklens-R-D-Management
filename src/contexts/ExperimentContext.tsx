@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useAuth } from './AuthContext';
 import type { 
   ExperimentItem, 
   LabTestItem, 
@@ -44,6 +45,9 @@ interface ExperimentContextType {
 const ExperimentContext = createContext<ExperimentContextType | undefined>(undefined);
 
 export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { profile } = useAuth();
+  const currentScientistName = profile?.name || 'Lead Scientist';
+
   const [experiments, setExperiments] = useState<ExperimentItem[]>(loadExperiments);
   const [labTests, setLabTests] = useState<LabTestItem[]>(loadLabTests);
   const [stabilityLogs, setStabilityLogs] = useState<StabilityLogItem[]>(loadStabilityLogs);
@@ -65,7 +69,7 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           id: `run-${Date.now()}`,
           dayNumber: 1,
           date: new Date().toISOString().split('T')[0],
-          scientistName: 'Dr. Sarah Jenkins',
+          scientistName: currentScientistName,
           activityPerformed: 'Initial experiment setup & baseline measurement.',
           observationResult: 'Sample prepared, baseline parameters recorded.',
           runStatus: 'In Progress',
@@ -87,7 +91,7 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           id: `run-${Date.now()}`,
           dayNumber: 1,
           date: new Date().toISOString().split('T')[0],
-          scientistName: 'Dr. Sarah Jenkins',
+          scientistName: currentScientistName,
           activityPerformed: 'Initial assay dilution & plate preparation.',
           observationResult: 'Reagents & culture plates initialized.',
           runStatus: 'In Progress',
@@ -109,7 +113,7 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           id: `run-${Date.now()}`,
           dayNumber: 1,
           date: new Date().toISOString().split('T')[0],
-          scientistName: 'Dr. Sarah Jenkins',
+          scientistName: currentScientistName,
           activityPerformed: 'Oven placement at thermal chamber temperature.',
           observationResult: 'Initial pH and viscosity recorded.',
           runStatus: 'Passed',
@@ -131,7 +135,7 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           id: `run-${Date.now()}`,
           dayNumber: 1,
           date: new Date().toISOString().split('T')[0],
-          scientistName: 'Dr. Sarah Jenkins',
+          scientistName: currentScientistName,
           activityPerformed: 'Plot mapping & initial foliar spray application.',
           observationResult: 'Target plot acreage treated uniformly.',
           runStatus: 'Passed',
@@ -204,7 +208,7 @@ export const ExperimentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const allProducts = useMemo(() => {
     const set = new Set<string>();
-    set.add('BioShield Alpha (Bio-fungicide)');
+    // Only add real user-entered product names — no hardcoded seeds
     experiments.forEach((e) => e.productName && set.add(e.productName));
     labTests.forEach((e) => e.productName && set.add(e.productName));
     stabilityLogs.forEach((e) => e.productName && set.add(e.productName));

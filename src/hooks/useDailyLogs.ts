@@ -11,11 +11,11 @@ import type { DailyLog } from '../types';
  * Uses real Firestore `daily_logs` when configured, else the local store.
  */
 export const useDailyLogs = () => {
-  const [data, setData] = useState<DailyLog[]>(!isFirebaseConfigured ? [] : getLogs());
-  const [isLoading, setIsLoading] = useState(!isFirebaseConfigured);
+  const [data, setData] = useState<DailyLog[]>(isFirebaseConfigured ? [] : getLogs());
+  const [isLoading, setIsLoading] = useState(isFirebaseConfigured);
 
   useEffect(() => {
-    if (isFirebaseConfigured) {
+    if (!isFirebaseConfigured) {
       const unsubscribe = subscribeToStoreChanges(() => setData(getLogs()));
       return unsubscribe;
     }

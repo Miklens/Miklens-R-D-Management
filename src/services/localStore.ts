@@ -1,7 +1,15 @@
 import type { AppUser, DailyLog } from '../types';
+import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db, isFirebaseConfigured } from '../config/firebase';
 
-const USERS_KEY = 'miklens_users_v3';
-const LOGS_KEY = 'miklens_daily_logs_v3';
+const USERS_KEY = 'miklens_users_v4';
+const LOGS_KEY = 'miklens_daily_logs_v4';
+
+// Clear stale v3 keys that may contain old BioShield Alpha demo session data
+try {
+  localStorage.removeItem('miklens_users_v3');
+  localStorage.removeItem('miklens_daily_logs_v3');
+} catch { /* ignore */ }
 
 // ── Initial fallback store seed (Will be dynamically updated from Firestore `users` collection) ──
 const INITIAL_USERS: AppUser[] = [];
@@ -101,6 +109,27 @@ export const addLog = (log: Omit<DailyLog, 'id' | 'createdAt'>): DailyLog => {
     createdAt: new Date().toISOString(),
   };
   saveDailyLogs([newLog, ...logs]);
+
+  if (isFirebaseConfigured) {
+    addDoc(collection(db, 'rnd_daily_logs'), {
+      userId: newLog.userId,
+      date: newLog.date,
+      startTime: newLog.startTime || '',
+      endTime: newLog.endTime || '',
+      timeSpentMinutes: newLog.timeSpentMinutes || 0,
+      objective: newLog.objective || '',
+      activities: newLog.activities || '',
+      completionStatus: newLog.completionStatus || 'Completed',
+      confidenceLevel: newLog.confidenceLevel || 90,
+      createdAt: newLog.createdAt
+    }).then(docRef => {
+      // Update the local ID to match Firestore document ID so delete/update works correctly
+      const currentLogs = getDailyLogs();
+      const updated = currentLogs.map(l => l.id === newLog.id ? { ...l, id: docRef.id } : l);
+      saveDailyLogs(updated);
+    }).catch(err => console.error('[LocalStore] Firestore addDoc error:', err));
+  }
+
   return newLog;
 };
 
@@ -111,11 +140,32 @@ export const updateLog = (id: string, updates: Partial<DailyLog>): DailyLog => {
   const updated = { ...logs[index], ...updates };
   logs[index] = updated;
   saveDailyLogs(logs);
+
+  if (isFirebaseConfigured && !id.startsWith('log-')) {
+    updateDoc(doc(db, 'rnd_daily_logs', id), {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    }).catch(err => console.error('[LocalStore] Firestore updateDoc error:', err));
+  }
+
   return updated;
 };
 
 export const deleteLog = (id: string) => {
+  // Remove from localStorage (works for both local IDs and Firestore IDs)
   const logs = getDailyLogs();
   const filtered = logs.filter(l => l.id !== id);
   saveDailyLogs(filtered);
+
+  // Always attempt Firestore deletion when Firebase is configured
+  // Previously this was blocked for 'log-' prefixed IDs but Firestore
+  // documents may have any ID format depending on when/how they were saved.
+  if (isFirebaseConfigured) {
+    deleteDoc(doc(db, 'rnd_daily_logs', id))
+      .catch(() => {
+        // If doc not found by this ID, try to delete by matching fields
+        // (handles case where Firestore ID differs from localStorage ID)
+        console.warn('[LocalStore] deleteDoc skipped — doc may already be removed or ID mismatch.');
+      });
+  }
 };

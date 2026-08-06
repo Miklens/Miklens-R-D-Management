@@ -6,9 +6,9 @@ import { useAuth } from '../contexts/AuthContext';
 type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
 
 const initialApprovals: { id: number; title: string; requester: string; date: string; status: ApprovalStatus; type: string }[] = [
-  { id: 1, title: 'Move BioShield Alpha to Field Trial', requester: 'Dr. Sarah Jenkins', date: 'Oct 25, 2023', status: 'Pending', type: 'Stage-Gate' },
-  { id: 2, title: 'Budget Increase: NemaKill Pro', requester: 'Marcus Chen', date: 'Oct 24, 2023', status: 'Approved', type: 'Financial' },
-  { id: 3, title: 'New Experiment Protocol (EXP-092)', requester: 'Dr. Aliyah Patel', date: 'Oct 23, 2023', status: 'Rejected', type: 'Protocol' },
+  { id: 1, title: 'Move Herbicide Formulation to Field Trial', requester: 'Sandeep', date: 'Aug 04, 2026', status: 'Pending', type: 'Stage-Gate' },
+  { id: 2, title: 'Budget Increase: NemaKill Pro', requester: 'Bindu', date: 'Aug 03, 2026', status: 'Approved', type: 'Financial' },
+  { id: 3, title: 'New Experiment Protocol (EXP-092)', requester: 'Pavan', date: 'Aug 02, 2026', status: 'Rejected', type: 'Protocol' },
 ];
 
 export const Approvals: React.FC = () => {

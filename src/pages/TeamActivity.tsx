@@ -534,7 +534,7 @@ export const TeamActivity: React.FC = () => {
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">
           <span className="text-[11px] text-gray-400 font-semibold uppercase">Active Experiments</span>
           <p className="text-2xl font-black text-amber-500">{experiments.length} Active</p>
-          <span className="text-[10px] text-amber-600 font-bold">BioShield Alpha Testing</span>
+          <span className="text-[10px] text-amber-600 font-bold">In Active R&D Phase</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow space-y-1">

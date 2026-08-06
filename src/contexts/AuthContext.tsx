@@ -14,6 +14,8 @@ interface AuthContextType {
   trialManagerRole: string | null;
   loading: boolean;
   logout: () => Promise<void>;
+  loginDemoUser: (email: string) => void;
+  isFirebaseConfigured: boolean;
   error: string | null;
 }
 
@@ -24,6 +26,8 @@ const AuthContext = createContext<AuthContextType>({
   trialManagerRole: null,
   loading: true,
   logout: async () => {},
+  loginDemoUser: () => {},
+  isFirebaseConfigured: false,
   error: null,
 });
 
@@ -57,11 +61,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loginDemoUser = (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const name = cleanEmail.split('@')[0] || 'User';
+    const role: Role = cleanEmail.includes('admin')
+      ? 'Admin'
+      : cleanEmail.includes('manager')
+      ? 'Management'
+      : 'Scientist';
+
+    const demoProfile: AppUser = {
+      id: `demo-${Date.now()}`,
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      email: cleanEmail,
+      role: role,
+      trialManagerRole: role === 'Admin' ? 'ADMIN' : role === 'Management' ? 'VIEWER' : 'USER',
+      designation: role === 'Admin' ? 'System Administrator' : role === 'Management' ? 'R&D Manager' : 'Research Scientist',
+      department: 'Research & Development',
+      skills: ['Field Operations', 'R&D Research'],
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
+      isActive: true,
+    } as any;
+
+    localStorage.setItem('miklens_demo_session', JSON.stringify(demoProfile));
+    setCurrentUser({ uid: demoProfile.id, email: demoProfile.email } as any);
+    setProfile(demoProfile);
+    setTrialManagerRole(demoProfile.trialManagerRole || 'User');
+    setError(null);
+  };
+
   useEffect(() => {
-    if (!auth) {
-      logger.warn('Firebase Auth not initialized', { module: 'AuthProvider' });
+    if (!auth || !isFirebaseReady) {
+      logger.warn('Firebase Auth not configured. Checking for demo session.', { module: 'AuthProvider' });
+      const storedDemo = localStorage.getItem('miklens_demo_session');
+      if (storedDemo) {
+        try {
+          const parsed = JSON.parse(storedDemo);
+          setCurrentUser({ uid: parsed.id, email: parsed.email } as any);
+          setProfile(parsed);
+          setTrialManagerRole(parsed.trialManagerRole || 'User');
+        } catch (e) {
+          localStorage.removeItem('miklens_demo_session');
+        }
+      }
       setLoading(false);
-      setError('Firebase not configured. Running in offline mode.');
       return;
     }
 
@@ -188,7 +231,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      if (auth) {
+      localStorage.removeItem('miklens_demo_session');
+      if (auth && isFirebaseReady) {
         await firebaseSignOut(auth);
       }
       logger.logAuthEvent('logout');
@@ -213,6 +257,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         trialManagerRole,
         loading,
         logout,
+        loginDemoUser,
+        isFirebaseConfigured: isFirebaseReady,
         error,
       }}
     >

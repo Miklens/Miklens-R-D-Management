@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useExperiments } from '../contexts/ExperimentContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { ScientificOutcomeStatus, TemplateType } from '../types/experimentTypes';
 
 interface ScientificWorkbenchProps {
@@ -19,6 +20,8 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
   onClose,
 }) => {
   const { addDailyRun, updateScientificConclusion } = useExperiments();
+  const { profile } = useAuth();
+  const currentScientistName = profile?.name || 'Lead Scientist';
 
   // New Daily Run form state
   const existingRuns = item?.dailyRuns || [];
@@ -46,7 +49,7 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
     addDailyRun(category, item.id, {
       dayNumber: Number(dayNum) || 1,
       date: new Date().toISOString().split('T')[0],
-      scientistName: 'Dr. Sarah Jenkins',
+      scientistName: currentScientistName,
       activityPerformed: activity.trim(),
       observationResult: result.trim() || 'Activity completed successfully.',
       runStatus,
@@ -291,7 +294,7 @@ export const ScientificWorkbenchModal: React.FC<ScientificWorkbenchProps> = ({
 
                           <div className="flex items-center gap-1 text-[10px] text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
                             <User className="w-3 h-3 text-gray-400" />
-                            <span>Recorded by {run.scientistName || 'Dr. Sarah Jenkins'}</span>
+                            <span>Recorded by {run.scientistName || currentScientistName}</span>
                           </div>
                         </div>
                       </div>

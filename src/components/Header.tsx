@@ -1,6 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getLogsByUser } from '../services/localStore';
+import { useExperiments } from '../contexts/ExperimentContext';
+import { useTasks } from '../contexts/TaskContext';
 import { 
   LogOut, 
   User as UserIcon, 
@@ -22,6 +25,8 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   const { profile, userRole, logout } = useAuth();
+  const { experiments } = useExperiments();
+  const { tasks } = useTasks();
   const navigate = useNavigate();
   const location = useLocation();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -62,11 +67,47 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     }
   };
 
-  const notifications = [
-    { id: 1, title: 'New approval request', message: 'Dr. Sarah submitted a research log for approval', time: '5m ago', unread: true },
-    { id: 2, title: 'Experiment milestone', message: 'Project Alpha reached 75% completion', time: '1h ago', unread: true },
-    { id: 3, title: 'Task assigned', message: 'You were assigned to Field Trial #42', time: '2h ago', unread: false },
-  ];
+  const userId = profile?.id || '';
+  const notifications = useMemo(() => {
+    const items: Array<{ id: string; title: string; message: string; time: string; unread: boolean }> = [];
+    const logs = getLogsByUser(userId);
+
+    const todayStr = new Date().toDateString();
+    const todayLogs = logs.filter(l => l.date && new Date(l.date).toDateString() === todayStr);
+    if (todayLogs.length > 0) {
+      items.push({
+        id: 'header-log-today',
+        title: 'Daily Research Log',
+        message: `${todayLogs.length} session(s) logged today`,
+        time: 'Today',
+        unread: true,
+      });
+    }
+
+    const activeTasks = tasks.filter(t => t.status === 'In Progress');
+    if (activeTasks.length > 0) {
+      items.push({
+        id: 'header-tasks-active',
+        title: 'Tasks In Progress',
+        message: `${activeTasks.length} task(s) currently active`,
+        time: 'Active',
+        unread: false,
+      });
+    }
+
+    const activeExp = experiments.filter(e => e.status === 'InProgress' || e.outcomeStatus === 'Passed' || e.outcomeStatus === 'Pending');
+    if (activeExp.length > 0) {
+      items.push({
+        id: `header-exp-${activeExp[0].id}`,
+        title: `Experiment: ${activeExp[0].name || activeExp[0].productName}`,
+        message: `Status: ${activeExp[0].outcomeStatus}`,
+        time: 'Recent',
+        unread: false,
+      });
+    }
+
+    return items;
+  }, [userId, profile, experiments, tasks]);
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -179,23 +220,29 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                   </div>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className={`p-4 border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors ${notif.unread ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''}`}
-                    >
-                      <div className="flex gap-3">
-                        {notif.unread && (
-                          <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />
-                        )}
-                        <div className={notif.unread ? '' : 'ml-5'}>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{notif.message}</p>
-                          <p className="text-xs text-gray-400 mt-1">{notif.time}</p>
+                  {notifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400 font-medium">
+                      No new notifications
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`p-4 border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors ${notif.unread ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''}`}
+                      >
+                        <div className="flex gap-3">
+                          {notif.unread && (
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />
+                          )}
+                          <div className={notif.unread ? '' : 'ml-5'}>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{notif.message}</p>
+                            <p className="text-xs text-gray-400 mt-1">{notif.time}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
                 <div className="p-3 border-t border-gray-100 dark:border-gray-800">
                   <button 
@@ -228,8 +275,10 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
               </div>
             )}
             <div className="hidden md:block text-left min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile?.name || 'User'}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole}</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                {profile?.name && profile.name !== 'User' ? profile.name : (profile?.email ? profile.email.split('@')[0] : 'User')}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole || 'Scientist'}</p>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block shrink-0" />
           </button>

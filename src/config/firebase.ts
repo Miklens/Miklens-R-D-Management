@@ -40,11 +40,19 @@ const checkFirebaseConfigured = (): boolean => {
     'appId',
   ] as const;
 
-  const configured = requiredKeys.every(key => !!firebaseConfig[key]);
-  
+  const configured = requiredKeys.every(key => {
+    const val = firebaseConfig[key];
+    return (
+      !!val &&
+      val !== 'mock-api-key' &&
+      !val.includes('your-') &&
+      !val.includes('placeholder')
+    );
+  });
+
   if (!configured) {
     logger.warn(
-      'Firebase not properly configured. Some features may be disabled.',
+      'Firebase not properly configured or using mock keys. Offline/Demo mode active.',
       { module: 'Firebase', action: 'init' }
     );
   }

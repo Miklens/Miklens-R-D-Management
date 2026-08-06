@@ -29,6 +29,8 @@ const AuditLogs = lazy(() => import('./pages/AuditLogs').then((m) => ({ default:
 const TeamActivity = lazy(() => import('./pages/TeamActivity').then((m) => ({ default: m.TeamActivity })));
 const TimeMotion = lazy(() => import('./pages/TimeMotion').then((m) => ({ default: m.TimeMotion })));
 const FieldTrials = lazy(() => import('./pages/FieldTrials').then((m) => ({ default: m.FieldTrials })));
+const Diagnostics = lazy(() => import('./pages/Diagnostics').then((m) => ({ default: m.Diagnostics })));
+const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })));
 
 // Optimized React Query Client with Stale Caching
 const queryClient = new QueryClient({
@@ -66,24 +68,31 @@ function App() {
                       <Route path="/login" element={<Login />} />
                     </Route>
 
-                    {/* Protected Routes */}
+                    {/* Protected Routes (Everyone) */}
                     <Route element={<ProtectedRoute />}>
                       <Route element={<DashboardLayout />}>
                         <Route path="/" element={<Dashboard />} />
                         <Route path="/products" element={<Products />} />
-                        <Route path="/experiments" element={<Experiments />} />
-                        <Route path="/research-log" element={<ResearchLog />} />
                         <Route path="/profile" element={<EmployeeProfile />} />
                         <Route path="/profile/:userId" element={<EmployeeProfile />} />
                         <Route path="/projects" element={<Projects />} />
-                        <Route path="/tasks" element={<Tasks />} />
                         <Route path="/documents" element={<Documents />} />
                         <Route path="/calendar" element={<Calendar />} />
                         <Route path="/ai-insights" element={<AIInsights />} />
                         <Route path="/notifications" element={<Notifications />} />
                         <Route path="/time-motion" element={<TimeMotion />} />
-                        <Route path="/trial-sync" element={<FieldTrials />} />
                         <Route path="/settings" element={<Settings />} />
+                        <Route path="/analytics" element={<Analytics />} />
+                      </Route>
+                    </Route>
+
+                    {/* Scientist Workbench (Admin & Scientist Only) */}
+                    <Route element={<ProtectedRoute allowedRoles={['Admin', 'Scientist']} />}>
+                      <Route element={<DashboardLayout />}>
+                        <Route path="/experiments" element={<Experiments />} />
+                        <Route path="/research-log" element={<ResearchLog />} />
+                        <Route path="/trial-sync" element={<FieldTrials />} />
+                        <Route path="/tasks" element={<Tasks />} />
                       </Route>
                     </Route>
 
@@ -93,6 +102,7 @@ function App() {
                         <Route path="/employees" element={<Employees />} />
                         <Route path="/reports" element={<TeamActivity />} />
                         <Route path="/team-activity" element={<TeamActivity />} />
+                        <Route path="/diagnostics" element={<Diagnostics />} />
                       </Route>
                     </Route>
 

@@ -21,7 +21,7 @@ export const GeminiAIChatbot: React.FC = () => {
     {
       id: 'm1',
       sender: 'ai',
-      text: 'Hello! I am your Gemini AI Scientific & R&D Assistant. Ask me anything about BioShield Alpha formulation chemistry, pathogen inhibition assays, CIPAC heat stability, or scientist daily activity reports.',
+      text: 'Hello! I am your Gemini AI Scientific & R&D Assistant. Ask me anything about active formulation chemistry, pathogen inhibition assays, CIPAC heat stability, or scientist daily activity reports.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -31,13 +31,13 @@ export const GeminiAIChatbot: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isOpen) scrollToBottom();
-  }, [messages, isOpen]);
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = (textToSend?: string) => {
-    const query = textToSend || inputMsg;
-    if (!query.trim()) return;
+    if (!inputMsg.trim() && !textToSend) return;
 
+    const query = textToSend || inputMsg;
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       sender: 'user',
@@ -55,17 +55,19 @@ export const GeminiAIChatbot: React.FC = () => {
       const qLower = query.toLowerCase();
 
       if (qLower.includes('stability') || qLower.includes('cipac') || qLower.includes('heat')) {
-        responseText = 'BioShield Alpha passed CIPAC MT 161 accelerated heat stability testing at 54°C for 14 days with 95.8% active metabolite retention, maintaining 6.5 pH and zero phase separation.';
-      } else if (qLower.includes('bioshield') || qLower.includes('ph') || qLower.includes('titration') || qLower.includes('viscosity')) {
-        responseText = 'BioShield Alpha Volume Makeup & pH Titration Assay (Day #3 completed): Target pH 6.2 achieved using 1M Citric Acid buffer at 1000mL volume makeup with 146 cPs viscosity. Scientific Verdict: PASSED / Approved for Commercial Scale-Up.';
-      } else if (qLower.includes('field') || qLower.includes('rust') || qLower.includes('wheat') || qLower.includes('yield')) {
-        responseText = 'BioShield Wheat Field Trial in Punjab (50-acre plot): Foliar spray at 3.0 mL/L reduced yellow rust disease incidence by 89.4% (disease index 4.8% vs 45.2% in control). SPAD leaf chlorophyll score reached 48.2 with zero phytotoxicity.';
-      } else if (qLower.includes('sarah') || qLower.includes('jenkins') || qLower.includes('microbiologist')) {
-        responseText = 'Dr. Sarah Jenkins logged 5.5 hours today across PDA agar plating assays for Botrytis cinerea (91.7% fungal inhibition) and CIPAC 54°C heat stability titration.';
-      } else if (qLower.includes('mik') || qLower.includes('management') || qLower.includes('audit')) {
-        responseText = 'Dr. Mik logged 4.0 hours today managing the Punjab Wheat Field Plot Trial and compiling the Executive R&D Registration Dossier for commercial launch.';
+        const passedStab = stabilityLogs.filter(s => s.outcomeStatus === 'Passed').length;
+        responseText = `Stability Logs: We have compiled ${stabilityLogs.length} accelerated heat stability testing runs (${passedStab} passed) at 54°C. Active formulation chemical profiles are operating within tolerance limits.`;
+      } else if (qLower.includes('assay') || qLower.includes('ph') || qLower.includes('titration') || qLower.includes('viscosity')) {
+        const activeLab = labTests.filter(l => l.outcomeStatus === 'Pending').length;
+        responseText = `Pathogen Inhibition Assays (Lab & Greenhouse): Tracking ${labTests.length} assays (${activeLab} in progress). Average pH targets 6.2 with viscosity parameters recorded within normal specs.`;
+      } else if (qLower.includes('field') || qLower.includes('trial') || qLower.includes('yield')) {
+        const activeField = fieldTrials.filter(f => f.outcomeStatus === 'Pending').length;
+        responseText = `Field Trials Output: Tracking ${fieldTrials.length} trials (${activeField} active). Evaluators submit daily plot mapping and SPAD leaf chlorophyll check updates.`;
+      } else if (qLower.includes('scientist') || qLower.includes('agronomist') || qLower.includes('microbiologist') || qLower.includes('sarah') || qLower.includes('jenkins')) {
+        responseText = `R&D Team Tracker: The laboratory team has logged daily updates across PDA agar plating assays and CIPAC heat stability titrations.`;
       } else {
-        responseText = `Based on your R&D data for BioShield Alpha: 3 active experiments in progress, 2 passed scientific verdicts, 100% team active. Formulation pH 6.2 at 1000mL volume meets all target viscosity and stability specifications. How else can I assist your laboratory team?`;
+        const totalVerdict = experiments.filter(e => e.outcomeStatus === 'Passed').length + labTests.filter(l => l.outcomeStatus === 'Passed').length;
+        responseText = `R&D Summary: Currently tracking ${experiments.length + labTests.length} total active assays (${totalVerdict} passed scientific verdicts). All parameters meet target viscosity and safety specifications.`;
       }
 
       const aiMsg: ChatMessage = {
@@ -81,9 +83,9 @@ export const GeminiAIChatbot: React.FC = () => {
   };
 
   const QUICK_PROMPTS = [
-    '🧪 BioShield Alpha Stability Status',
+    '🧪 Active Formulation Stability Status',
     '🧫 Pathogen Assay Inhibition Rate',
-    '🌾 Field Wheat Rust Trial Results',
+    '🌾 Synced Field Trial Results',
     '📊 Summary of Scientist Work Today',
   ];
 

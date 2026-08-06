@@ -32,9 +32,10 @@ const navGroups: NavGroup[] = [
   {
     category: 'Scientist Workbench',
     items: [
-      { name: 'Daily Research Log', href: '/research-log', icon: Edit3 },
-      { name: 'Experiments & Testing', href: '/experiments', icon: Beaker },
-      { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin },
+      { name: 'Daily Research Log', href: '/research-log', icon: Edit3, roles: ['Admin', 'Scientist'] },
+      { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
+      { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
+      { name: 'Analytics & Efficacy Analysis', href: '/analytics', icon: BarChart3 },
     ],
   },
   {
@@ -42,7 +43,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
       { name: 'Executive Reports & Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
-      { name: 'Task Center', href: '/tasks', icon: CheckSquare, badgeKey: 'tasks' },
+      { name: 'Task Center', href: '/tasks', icon: CheckSquare, badgeKey: 'tasks', roles: ['Admin', 'Scientist'] },
     ],
   },
 ];

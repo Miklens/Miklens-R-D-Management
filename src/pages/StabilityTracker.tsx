@@ -13,7 +13,7 @@ export const StabilityTracker: React.FC = () => {
 
   // Modal State
   const [newBatchNo, setNewBatchNo] = useState('');
-  const [newProductName, setNewProductName] = useState('BioShield Alpha (Bio-fungicide)');
+  const [newProductName, setNewProductName] = useState(() => allProducts.length > 0 ? allProducts[0] : 'Active Formulation');
   const [isCustomProduct, setIsCustomProduct] = useState(false);
   const [customProductName, setCustomProductName] = useState('');
   const [newChamber, setNewChamber] = useState('54°C (Accelerated)');
@@ -48,16 +48,7 @@ export const StabilityTracker: React.FC = () => {
     setShowAddModal(false);
   };
 
-  const handleSimulateArrhenius = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setProjectingId(id);
-    setAiProjection(null);
-    setTimeout(() => {
-      setAiProjection(
-        'Arrhenius Kinetic Model Projection: Active ingredient degradation rate k = 0.0012 day⁻¹ at 25°C. Estimated shelf-life expiry: 24 Months with >90% active ingredient retention.'
-      );
-    }, 800);
-  };
+
 
   const logsByProduct = stabilityLogs
     .filter(
@@ -184,20 +175,7 @@ export const StabilityTracker: React.FC = () => {
 
                   <div className="flex items-center justify-between text-xs pt-1">
                     <span className="text-[11px] text-gray-400">Next Check: {batch.nextTestDate}</span>
-                    <button
-                      onClick={(e) => handleSimulateArrhenius(batch.id, e)}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-purple-600 hover:underline"
-                    >
-                      <Sparkles className="w-3 h-3 text-purple-500" />
-                      Arrhenius Projection
-                    </button>
                   </div>
-
-                  {projectingId === batch.id && aiProjection && (
-                    <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 rounded-xl text-xs text-purple-900 dark:text-purple-200">
-                      {aiProjection}
-                    </div>
-                  )}
 
                   <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
                     <span className="flex items-center gap-1">
