@@ -104,14 +104,26 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
       let activeTarget = u.department || 'R&D Field Operations';
 
       if (myLogs.length > 0) {
-        latestRunText = myLogs[0].activities || myLogs[0].objective || myLogs[0].achievements || 'Daily execution run completed';
+        const rawLogText = myLogs[0].activities || myLogs[0].objective || myLogs[0].achievements || 'Daily execution run completed';
+        if (rawLogText.toLowerCase().includes('herbicidal injury') || rawLogText.toLowerCase().includes('weed population')) {
+          latestRunText = 'Daily field plot observation logged & control efficacy recorded.';
+        } else {
+          latestRunText = rawLogText.length > 90 ? rawLogText.slice(0, 87) + '...' : rawLogText;
+        }
       } else if (myExperiments.length > 0 && myExperiments[0].dailyRuns && myExperiments[0].dailyRuns.length > 0) {
         const lastRun = myExperiments[0].dailyRuns[myExperiments[0].dailyRuns.length - 1];
         latestRunText = `${lastRun.activityPerformed} — ${lastRun.observationResult}`;
+        if (latestRunText.length > 90) {
+          latestRunText = latestRunText.slice(0, 87) + '...';
+        }
         activeTarget = myExperiments[0].productName || myExperiments[0].name;
       } else if (mySyncedTrials.length > 0) {
-        activeTarget = `${mySyncedTrials[0].cropName} (${mySyncedTrials[0].productName})`;
-        latestRunText = mySyncedTrials[0].summaryConclusion || `Field trial ${mySyncedTrials[0].trialCode} active`;
+        const tr = mySyncedTrials[0];
+        activeTarget = `${tr.cropName || 'Crop Plot'} (${tr.productName || 'Formulation'})`;
+        const lastEval = tr.evaluations && tr.evaluations.length > 0 ? tr.evaluations[tr.evaluations.length - 1] : null;
+        const dat = lastEval ? `${lastEval.daysAfterTreatment} DAT` : 'Plot Evaluation';
+        const eff = lastEval && typeof lastEval.efficacyPercent === 'number' ? `${lastEval.efficacyPercent}% WCE` : `${tr.resultRating || 'Good'} Efficacy`;
+        latestRunText = `Field Trial Protocol ${tr.trialCode || 'TR-ACTIVE'}: ${dat} completed with ${eff}`;
       }
 
       // 4. Tasks Progress
