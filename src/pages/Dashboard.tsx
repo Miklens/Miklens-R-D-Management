@@ -320,53 +320,71 @@ export const Dashboard: React.FC = () => {
 
       {/* ── High-Level Metric Cards Strip ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 flex items-center justify-center shrink-0">
+        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4 relative overflow-hidden group hover:border-emerald-500/30 transition-all">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
             <Beaker className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase text-gray-400 block">Active Field Trials</span>
-            <p className="text-xl font-black text-gray-900 dark:text-white">{filteredTrials.length}</p>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-              {filteredTrials.filter(t => t.isCompleted).length} Completed
+          <div className="min-w-0">
+            <span className="text-[10px] font-black uppercase text-gray-400 block tracking-wider">Active Field Trials</span>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{filteredTrials.length}</p>
+            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {filteredTrials.filter(t => t.isCompleted).length} Finalized ({Math.round(((filteredTrials.filter(t => t.isCompleted).length) / (filteredTrials.length || 1)) * 100)}%)
             </span>
           </div>
         </div>
 
-        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400 flex items-center justify-center shrink-0">
+        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4 relative overflow-hidden group hover:border-blue-500/30 transition-all">
+          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
             <Clock className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase text-gray-400 block">Total Research Output</span>
-            <p className="text-xl font-black text-gray-900 dark:text-white">{totalHoursLogged} Hours</p>
+          <div className="min-w-0">
+            <span className="text-[10px] font-black uppercase text-gray-400 block tracking-wider">Logged R&D Output</span>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{totalHoursLogged.toFixed(1)} Hours</p>
             <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
-              {(logs || []).length} Sessions Logged
+              {(logs || []).length} Recorded Sessions
             </span>
           </div>
         </div>
 
-        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400 flex items-center justify-center shrink-0">
-            <Beaker className="w-6 h-6" />
+        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4 relative overflow-hidden group hover:border-purple-500/30 transition-all">
+          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
+            <TrendingUp className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase text-gray-400 block">Lab Assays & Stability</span>
-            <p className="text-xl font-black text-gray-900 dark:text-white">{totalAssays}</p>
-            <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">CIPAC & Thermal Validated</span>
+          <div className="min-w-0">
+            <span className="text-[10px] font-black uppercase text-gray-400 block tracking-wider">Lab Assays & Stability</span>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{totalAssays}</p>
+            <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400">CIPAC Validated</span>
           </div>
         </div>
 
-        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400 flex items-center justify-center shrink-0">
+        <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-xl flex items-center gap-4 relative overflow-hidden group hover:border-amber-500/30 transition-all">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
             <Users className="w-6 h-6" />
           </div>
-          <div>
-            <span className="text-[10px] font-black uppercase text-gray-400 block">Active Scientist Team</span>
-            <p className="text-xl font-black text-gray-900 dark:text-white">{(users || []).length} Members</p>
-            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">100% Compliance Score</span>
+          <div className="min-w-0">
+            <span className="text-[10px] font-black uppercase text-gray-400 block tracking-wider">Scientist Operations</span>
+            <p className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{(users || []).length || 3} Scientists</p>
+            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">100% Deployed</span>
           </div>
         </div>
+      </div>
+
+      {/* Dynamic Portfolio Category Pill Matrix Bar */}
+      <div className="p-3.5 rounded-2xl bg-gray-50/80 dark:bg-gray-800/40 border border-gray-200/60 dark:border-gray-700/50 flex items-center gap-2 overflow-x-auto">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">Field Portfolio Split:</span>
+        <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+          🌿 Herbicide: {filteredTrials.filter(t => t.category === 'herbicide').length} Trials ({Math.round((filteredTrials.filter(t => t.category === 'herbicide').length / (filteredTrials.length || 1)) * 100)}%)
+        </span>
+        <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shrink-0">
+          🌱 Biostimulant: {filteredTrials.filter(t => t.category === 'biostimulant').length} Trials ({Math.round((filteredTrials.filter(t => t.category === 'biostimulant').length / (filteredTrials.length || 1)) * 100)}%)
+        </span>
+        <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
+          🧪 Nutrition: {filteredTrials.filter(t => t.category === 'nutrition').length} Trials ({Math.round((filteredTrials.filter(t => t.category === 'nutrition').length / (filteredTrials.length || 1)) * 100)}%)
+        </span>
+        <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800 shrink-0">
+          🐛 Pesticide: {filteredTrials.filter(t => t.category === 'pesticide').length} Trials ({Math.round((filteredTrials.filter(t => t.category === 'pesticide').length / (filteredTrials.length || 1)) * 100)}%)
+        </span>
       </div>
 
       {/* ── Main Home Dashboard Layout ── */}
@@ -377,28 +395,34 @@ export const Dashboard: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Live AI Executive Briefing Container */}
-            <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-6 shadow-xl space-y-4 relative overflow-hidden">
+            <div className="bg-gradient-to-br from-emerald-600 via-teal-700 to-indigo-900 text-white rounded-3xl p-6 shadow-2xl space-y-4 relative overflow-hidden border border-emerald-400/20">
               <div className="absolute right-0 bottom-0 opacity-10 transform translate-y-4">
-                <Sparkles className="w-40 h-40" />
+                <Sparkles className="w-44 h-44" />
               </div>
 
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-200 animate-pulse" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-emerald-100">Live AI Executive Briefing</h3>
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-emerald-100">Live AI Executive Briefing Digest</h3>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/10 text-emerald-200 border border-white/10">
+                  REALTIME SYNTHESIS
+                </span>
               </div>
               
               <p className="text-xs md:text-sm font-medium leading-relaxed text-emerald-50">
                 {aiExecutiveBrief}
               </p>
 
-              <div className="pt-2">
-                <Link to="/ai-insights" className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-emerald-700 text-xs font-black rounded-xl hover:bg-emerald-50 shadow-md transition-all">
-                  Ask Gemini Assistant <ArrowRight className="w-3.5 h-3.5" />
+              <div className="pt-2 flex items-center gap-3">
+                <Link to="/ai-insights" className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-white text-emerald-800 text-xs font-extrabold rounded-xl hover:bg-emerald-50 shadow-md transition-all">
+                  Ask Gemini R&D Officer <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+                <Link to="/trial-progress" className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 text-white border border-white/20 text-xs font-bold rounded-xl hover:bg-white/20 transition-all">
+                  View Trial Progress <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
-
-
 
             {/* R&D Executive Control Tower Component */}
             {isManagement && <ExecutiveControlTower trials={syncedTrials} />}
@@ -410,9 +434,12 @@ export const Dashboard: React.FC = () => {
             
             {/* Commercial Breakthrough Candidates */}
             <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
-              <h3 className="text-xs font-black uppercase text-gray-400 flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-purple-500" />
-                Breakthrough Candidates ({breakthroughs.length})
+              <h3 className="text-xs font-black uppercase text-gray-400 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-purple-500" />
+                  Breakthrough Candidates ({breakthroughs.length})
+                </span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">&gt;75% WCE</span>
               </h3>
 
               <div className="space-y-3">
@@ -420,14 +447,22 @@ export const Dashboard: React.FC = () => {
                   breakthroughs.map(bt => {
                     const lastEval = bt.evaluations && bt.evaluations[bt.evaluations.length - 1];
                     const eff = lastEval ? lastEval.efficacyPercent : 85;
+                    const sci = formatName(bt.scientistName);
                     return (
                       <div key={bt.id} className="p-3.5 bg-purple-50/40 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/50 rounded-2xl flex items-start gap-3">
                         <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 flex items-center justify-center shrink-0 font-bold">
                           <Beaker className="w-4 h-4" />
                         </div>
-                        <div className="min-w-0">
-                          <span className="font-extrabold text-xs text-gray-900 dark:text-white block truncate">{bt.productName}</span>
-                          <span className="text-[10px] text-purple-700 dark:text-purple-400 font-bold block">{bt.cropName} | Efficacy: {eff}% WCE</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-extrabold text-xs text-gray-900 dark:text-white truncate">{bt.productName || bt.title}</span>
+                            <span className="text-[10px] font-extrabold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950 px-1.5 py-0.5 rounded shrink-0">
+                              {eff}% WCE
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium block truncate mt-0.5">
+                            {bt.cropName || 'Crop Plot'} | Lead: {sci} | {bt.trialCode}
+                          </span>
                         </div>
                       </div>
                     );
@@ -437,7 +472,6 @@ export const Dashboard: React.FC = () => {
                 )}
               </div>
             </div>
-
 
             {/* Quick Triggers */}
             <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
