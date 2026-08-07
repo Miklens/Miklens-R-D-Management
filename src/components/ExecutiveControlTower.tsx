@@ -461,20 +461,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                     </div>
                   </div>
 
-                  {/* Active Target & Recent Daily Execution Run */}
-                  <div className="p-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-[11px]">
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <Beaker className="w-3.5 h-3.5" /> Active Target: {card.activeTarget}
-                      </span>
-                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Latest Activity
-                      </span>
-                    </div>
-                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-2 leading-relaxed italic">
-                      "{card.latestRunText}"
-                    </p>
-                  </div>
 
                   {/* Task Progress Bar */}
                   <div className="space-y-1 pt-1">
