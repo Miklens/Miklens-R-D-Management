@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useExperiments } from '../contexts/ExperimentContext';
-import { useTasks } from '../contexts/TaskContext';
 import { getSyncedTrials } from '../services/trialManagerSync';
 import { ScientistHub } from '../components/ScientistHub';
 import { ExecutiveControlTower } from '../components/ExecutiveControlTower';
@@ -21,7 +20,6 @@ export const Dashboard: React.FC = () => {
   const { profile, userRole, currentUser } = useAuth();
   const { data: users } = useUsers();
   const { data: logs } = useDailyLogs();
-  const { tasks } = useTasks();
   const { experiments, labTests, stabilityLogs } = useExperiments();
   
   const isManagement = userRole === 'Admin' || userRole === 'Management';

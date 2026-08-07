@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getLogsByUser } from '../services/localStore';
 import { useExperiments } from '../contexts/ExperimentContext';
-import { useTasks } from '../contexts/TaskContext';
 import { 
   LogOut, 
   User as UserIcon, 
@@ -27,7 +26,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   const { profile, userRole, logout } = useAuth();
   const { experiments } = useExperiments();
-  const { tasks } = useTasks();
   const navigate = useNavigate();
   const location = useLocation();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -86,17 +84,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
       });
     }
 
-    const activeTasks = tasks.filter(t => t.status === 'In Progress');
-    if (activeTasks.length > 0) {
-      items.push({
-        id: 'header-tasks-active',
-        title: 'Tasks In Progress',
-        message: `${activeTasks.length} task(s) currently active`,
-        time: 'Active',
-        unread: false,
-      });
-    }
-
     const activeExp = experiments.filter(e => e.status === 'InProgress' || e.outcomeStatus === 'Passed' || e.outcomeStatus === 'Pending');
     if (activeExp.length > 0) {
       items.push({
@@ -109,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
     }
 
     return items;
-  }, [userId, profile, experiments, tasks]);
+  }, [userId, profile, experiments]);
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -131,7 +118,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
       '/field-trials': 'Field Trials',
       '/lab-tests': 'Lab Tests',
       '/observations': 'Observations',
-      '/tasks': 'Tasks',
       '/approvals': 'Approvals',
       '/employees': 'Employees',
       '/documents': 'Documents',

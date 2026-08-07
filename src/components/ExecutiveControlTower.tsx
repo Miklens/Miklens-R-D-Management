@@ -8,7 +8,6 @@ import { Link } from 'react-router-dom';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useUsers } from '../hooks/useUsers';
-import { useTasks } from '../contexts/TaskContext';
 import { getSyncedTrials, getSyncedProjects } from '../services/trialManagerSync';
 import { getEffectiveAvatar } from '../utils/avatarHelper';
 import { ExternalFieldTrial, TrialCategory } from '../types/trialIntegrationTypes';
@@ -40,7 +39,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
   const { experiments, labTests, stabilityLogs, fieldTrials: localFieldTrials } = useExperiments();
   const { data: logs } = useDailyLogs();
   const { data: users } = useUsers();
-  const { tasks } = useTasks();
 
   // Cloud synced trials from Trial Manager
   const syncedTrials = useMemo(() => trials || getSyncedTrials(), [trials]);
@@ -147,11 +145,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
         latestRunText = `Trial ${tr.trialCode || 'TR-ACTIVE'} — ${dat} logged (${eff})`;
       }
 
-      // 4. Tasks Progress
-      const myTasks = (tasks || []).filter(t => (t as any).assignedTo === u.id || (t as any).userId === u.id);
-      const completedTasks = myTasks.filter(t => t.status === 'Completed').length;
-      const taskProgressPct = myTasks.length > 0 ? Math.round((completedTasks / myTasks.length) * 100) : 100;
-
       return {
         user: u,
         id: u.id,
@@ -166,12 +159,9 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
         passedCount: myPassedCount,
         totalExperiments: myTotalExp,
         successRate,
-        taskProgressPct,
-        completedTasks,
-        totalTasks: myTasks.length,
       };
     });
-  }, [users, experiments, labTests, stabilityLogs, syncedTrials, logs, tasks]);
+  }, [users, experiments, labTests, stabilityLogs, syncedTrials, logs]);
 
   const delayedTrials = useMemo(() => {
     return syncedTrials.filter(t => {
@@ -462,21 +452,6 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                   </div>
 
 
-                  {/* Task Progress Bar */}
-                  <div className="space-y-1 pt-1">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                      <span>Task Execution Output</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-mono">
-                        {card.completedTasks} / {card.totalTasks} Tasks ({card.taskProgressPct}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all"
-                        style={{ width: `${card.taskProgressPct}%` }}
-                      />
-                    </div>
-                  </div>
                 </div>
               ))}
             </div>

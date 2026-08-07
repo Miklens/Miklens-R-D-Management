@@ -6,7 +6,6 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthLayout } from './layouts/AuthLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { TaskProvider } from './contexts/TaskContext';
 import { ExperimentProvider } from './contexts/ExperimentContext';
 import { RefreshCw } from 'lucide-react';
 
@@ -22,7 +21,6 @@ const ResearchLog = lazyWithRetry(() => import('./pages/ResearchLog').then((m) =
 const EmployeeProfile = lazyWithRetry(() => import('./pages/EmployeeProfile').then((m) => ({ default: m.EmployeeProfile })));
 const Settings = lazyWithRetry(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Projects = lazyWithRetry(() => import('./pages/Projects').then((m) => ({ default: m.Projects })));
-const Tasks = lazyWithRetry(() => import('./pages/Tasks').then((m) => ({ default: m.Tasks })));
 const Documents = lazyWithRetry(() => import('./pages/Documents').then((m) => ({ default: m.Documents })));
 const Calendar = lazyWithRetry(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
 const AIInsights = lazyWithRetry(() => import('./pages/AIInsights').then((m) => ({ default: m.AIInsights })));
@@ -61,43 +59,41 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <TaskProvider>
-            <ExperimentProvider>
-              <BrowserRouter>
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route element={<AuthLayout />}>
-                      <Route path="/login" element={<Login />} />
-                    </Route>
+          <ExperimentProvider>
+            <BrowserRouter>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<Login />} />
+                  </Route>
 
-                    {/* Protected Routes (Everyone) */}
-                    <Route element={<ProtectedRoute />}>
-                      <Route element={<DashboardLayout />}>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/products" element={<Products />} />
-                        <Route path="/profile" element={<EmployeeProfile />} />
-                        <Route path="/profile/:userId" element={<EmployeeProfile />} />
-                        <Route path="/projects" element={<Projects />} />
-                        <Route path="/documents" element={<Documents />} />
-                        <Route path="/calendar" element={<Calendar />} />
-                        <Route path="/ai-insights" element={<AIInsights />} />
-                        <Route path="/notifications" element={<Notifications />} />
-                        <Route path="/time-motion" element={<TimeMotion />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="/analytics" element={<Analytics />} />
-                      </Route>
+                  {/* Protected Routes (Everyone) */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<DashboardLayout />}>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/products" element={<Products />} />
+                      <Route path="/profile" element={<EmployeeProfile />} />
+                      <Route path="/profile/:userId" element={<EmployeeProfile />} />
+                      <Route path="/projects" element={<Projects />} />
+                      <Route path="/documents" element={<Documents />} />
+                      <Route path="/calendar" element={<Calendar />} />
+                      <Route path="/ai-insights" element={<AIInsights />} />
+                      <Route path="/notifications" element={<Notifications />} />
+                      <Route path="/time-motion" element={<TimeMotion />} />
+                      <Route path="/settings" element={<Settings />} />
+                      <Route path="/analytics" element={<Analytics />} />
                     </Route>
+                  </Route>
 
-                    {/* Scientist Workbench (Admin & Scientist Only) */}
-                    <Route element={<ProtectedRoute allowedRoles={['Admin', 'Scientist']} />}>
-                      <Route element={<DashboardLayout />}>
-                        <Route path="/experiments" element={<Experiments />} />
-                        <Route path="/research-log" element={<ResearchLog />} />
-                        <Route path="/trial-sync" element={<FieldTrials />} />
-                        <Route path="/tasks" element={<Tasks />} />
-                      </Route>
+                  {/* Scientist Workbench (Admin & Scientist Only) */}
+                  <Route element={<ProtectedRoute allowedRoles={['Admin', 'Scientist']} />}>
+                    <Route element={<DashboardLayout />}>
+                      <Route path="/experiments" element={<Experiments />} />
+                      <Route path="/research-log" element={<ResearchLog />} />
+                      <Route path="/trial-sync" element={<FieldTrials />} />
                     </Route>
+                  </Route>
 
                     {/* Management/Admin-only routes */}
                     <Route element={<ProtectedRoute allowedRoles={['Admin', 'Management']} />}>
@@ -123,7 +119,6 @@ function App() {
                 </Suspense>
               </BrowserRouter>
             </ExperimentProvider>
-          </TaskProvider>
         </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

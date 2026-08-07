@@ -2,10 +2,9 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, FlaskConical, Beaker, BarChart3, Edit3, 
-  Settings, CheckSquare, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin
+  Settings, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTasks } from '../contexts/TaskContext';
 import type { Role } from '../types';
 
 interface NavItem {
@@ -13,7 +12,6 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   roles?: Role[];
-  badgeKey?: 'tasks';
 }
 
 interface NavGroup {
@@ -44,7 +42,6 @@ const navGroups: NavGroup[] = [
       { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
       { name: 'Trial Progress Report', href: '/trial-progress', icon: Layers, roles: ['Admin', 'Management'] },
       { name: 'Executive Reports & Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
-      { name: 'Task Center', href: '/tasks', icon: CheckSquare, badgeKey: 'tasks', roles: ['Admin', 'Scientist'] },
     ],
   },
 ];
@@ -55,7 +52,6 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const { userRole, profile } = useAuth();
-  const { pendingCount } = useTasks();
   const location = useLocation();
 
   return (
@@ -127,13 +123,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
                       <span>{item.name}</span>
                     </div>
 
-                    {item.badgeKey === 'tasks' && pendingCount > 0 && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
-                      }`}>
-                        {pendingCount}
-                      </span>
-                    )}
                   </NavLink>
                 );
               })}

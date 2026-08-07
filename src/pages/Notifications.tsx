@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { getLogsByUser } from '../services/localStore';
 import { useExperiments } from '../contexts/ExperimentContext';
-import { useTasks } from '../contexts/TaskContext';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 
 interface RealNotification {
@@ -40,7 +39,6 @@ export const Notifications: React.FC = () => {
   const { profile } = useAuth();
   const userId = profile?.id || 'sci-1';
   const { experiments, labTests } = useExperiments();
-  const { tasks } = useTasks();
 
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [readIds, setReadIds]     = useState<Set<string>>(new Set());
@@ -147,60 +145,6 @@ export const Notifications: React.FC = () => {
       });
     });
 
-    // ── Tasks ──
-    const myTasks = tasks?.filter(
-      t => t.assignedToUserId === userId || t.entityId === userId
-    ) ?? [];
-
-    // Overdue tasks
-    myTasks
-      .filter(t => t.status !== 'Completed' && t.dueDate && new Date(t.dueDate) < new Date())
-      .slice(0, 3)
-      .forEach(task => {
-        items.push({
-          id: `task-overdue-${task.id}`,
-          title: `⚠️ Task overdue — ${task.title?.slice(0, 40) ?? 'Task'}`,
-          message: `Due: ${format(new Date(task.dueDate), 'dd MMM yyyy')}. Current status: ${task.status}. Priority: ${task.priority}.`,
-          time: timeLabel(task.dueDate),
-          type: 'warning',
-          unread: true,
-        });
-      });
-
-    // Tasks due within 3 days
-    myTasks
-      .filter(t => {
-        if (t.status === 'Completed' || !t.dueDate) return false;
-        const diff = new Date(t.dueDate).getTime() - Date.now();
-        return diff > 0 && diff < 86400000 * 3;
-      })
-      .slice(0, 2)
-      .forEach(task => {
-        items.push({
-          id: `task-soon-${task.id}`,
-          title: `📅 Task due soon — ${task.title?.slice(0, 40) ?? 'Task'}`,
-          message: `Due: ${format(new Date(task.dueDate), 'dd MMM yyyy')}. Priority: ${task.priority}.`,
-          time: timeLabel(task.dueDate),
-          type: 'task',
-          unread: true,
-        });
-      });
-
-    // Recently completed tasks
-    myTasks
-      .filter(t => t.status === 'Completed')
-      .slice(0, 2)
-      .forEach(task => {
-        items.push({
-          id: `task-done-${task.id}`,
-          title: `✅ Task completed — ${task.title?.slice(0, 40) ?? 'Task'}`,
-          message: task.description?.slice(0, 80) ?? 'Task marked complete.',
-          time: timeLabel(task.updatedAt),
-          type: 'task',
-          unread: false,
-        });
-      });
-
     // ── Empty fallback ──
     if (items.length === 0) {
       items.push({
@@ -214,7 +158,7 @@ export const Notifications: React.FC = () => {
     }
 
     return items;
-  }, [userId, experiments, labTests, tasks, profile]);
+  }, [userId, experiments, labTests, profile]);
 
   // Apply dismissed + read overrides
   const visible = useMemo(

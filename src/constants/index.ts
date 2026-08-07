@@ -146,7 +146,6 @@ export const ROUTES_CONFIG = {
   '/research-log': { title: 'Daily Research Log', roles: ['Admin', 'Management', 'Scientist'] },
   '/profile': { title: 'Profile', roles: ['Admin', 'Management', 'Scientist'] },
   '/projects': { title: 'Projects', roles: ['Admin', 'Management', 'Scientist'] },
-  '/tasks': { title: 'Tasks', roles: ['Admin', 'Management', 'Scientist'] },
   '/documents': { title: 'Documents', roles: ['Admin', 'Management', 'Scientist'] },
   '/calendar': { title: 'Calendar', roles: ['Admin', 'Management', 'Scientist'] },
   '/ai-insights': { title: 'AI Insights', roles: ['Admin', 'Management', 'Scientist'] },
