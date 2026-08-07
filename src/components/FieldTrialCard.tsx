@@ -153,6 +153,30 @@ export const FieldTrialCard: React.FC<Props> = ({ trial, onOpenPhoto }) => {
           </div>
         )}
 
+        {/* Visual Efficacy Progress Meter (0-100% WCE) */}
+        {latestEval && typeof latestEval.efficacyPercent === 'number' && (
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center justify-between text-[10px] font-bold">
+              <span className="text-gray-500 dark:text-gray-400">Weed Control Efficacy (WCE)</span>
+              <span className={latestEval.efficacyPercent >= 80 ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : latestEval.efficacyPercent >= 60 ? 'text-blue-600 dark:text-blue-400 font-extrabold' : 'text-amber-600 dark:text-amber-400 font-extrabold'}>
+                {latestEval.efficacyPercent}% WCE
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  latestEval.efficacyPercent >= 80
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                    : latestEval.efficacyPercent >= 60
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-400'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-400'
+                }`}
+                style={{ width: `${Math.min(100, Math.max(0, latestEval.efficacyPercent))}%` }}
+              />
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Result Rating & Observation Count Bar */}
