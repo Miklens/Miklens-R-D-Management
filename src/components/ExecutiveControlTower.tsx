@@ -384,9 +384,10 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {scientistScorecards.map(card => (
-                <div
+                <Link
                   key={card.id}
-                  className="p-5 rounded-3xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 hover:border-emerald-500/50 transition-all space-y-4 shadow-sm hover:shadow-md"
+                  to={`/employees/${card.id}`}
+                  className="block p-5 rounded-3xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 hover:border-emerald-500/60 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all space-y-4 shadow-sm hover:shadow-md group cursor-pointer"
                 >
                   {/* Profile Header */}
                   <div className="flex items-center justify-between">
@@ -394,15 +395,12 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                       <img
                         src={card.avatar}
                         alt={card.name}
-                        className="w-12 h-12 rounded-2xl object-cover border-2 border-white dark:border-gray-800 shadow-sm shrink-0"
+                        className="w-12 h-12 rounded-2xl object-cover border-2 border-white dark:border-gray-800 shadow-sm shrink-0 group-hover:scale-105 transition-transform"
                       />
                       <div>
-                        <Link
-                          to={`/employees/${card.id}`}
-                          className="font-black text-gray-900 dark:text-white text-sm hover:text-emerald-600 transition-colors flex items-center gap-1"
-                        >
-                          {card.name} <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-                        </Link>
+                        <div className="font-black text-gray-900 dark:text-white text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors flex items-center gap-1">
+                          {card.name} <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{card.role}</p>
                       </div>
                     </div>
@@ -452,7 +450,7 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
                   </div>
 
 
-                </div>
+                </Link>
               ))}
             </div>
           </div>

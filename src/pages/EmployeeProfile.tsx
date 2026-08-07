@@ -83,14 +83,66 @@ export const EmployeeProfile: React.FC = () => {
   };
 
   const person = useMemo(
-    () => users.find(u => u.id === targetId) || (isSelf ? currentProfile : undefined),
+    () => {
+      if (!targetId) return currentProfile;
+      const tid = targetId.toLowerCase();
+      const matched = users.find(u => {
+        const uId = (u.id || '').toLowerCase();
+        const uUid = ((u as any).uid || '').toLowerCase();
+        const uEmail = (u.email || '').toLowerCase();
+        const uHandle = uEmail ? uEmail.split('@')[0].split('.')[0] : '';
+        const uName = (u.name || '').toLowerCase();
+        return (
+          uId === tid ||
+          uUid === tid ||
+          uEmail === tid ||
+          (uHandle && (tid.includes(uHandle) || uHandle.includes(tid))) ||
+          (uName && (tid.includes(uName) || uName.includes(tid)))
+        );
+      });
+
+      if (matched) return matched;
+
+      if (targetId.includes('@') || targetId.length > 10) {
+        const handle = targetId.includes('@') ? targetId.split('@')[0].split('.')[0] : targetId;
+        const cleanName = handle.charAt(0).toUpperCase() + handle.slice(1);
+        return {
+          id: targetId,
+          name: cleanName,
+          email: targetId.includes('@') ? targetId : `${targetId}@miklensbio.com`,
+          role: 'Scientist',
+          designation: 'Research Scientist',
+          department: 'R&D Field Operations',
+          location: 'R&D Field Station',
+          isActive: true
+        } as any;
+      }
+
+      return isSelf ? currentProfile : undefined;
+    },
     [users, targetId, isSelf, currentProfile, avatarTick]
   );
 
-  const personLogs = useMemo(
-    () => allLogs.filter(l => l.userId === targetId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [allLogs, targetId]
-  );
+  const personLogs = useMemo(() => {
+    if (!person) return [];
+    const pEmail = (person.email || '').toLowerCase();
+    const pHandle = pEmail ? pEmail.split('@')[0].split('.')[0] : '';
+    const pName = (person.name || '').toLowerCase();
+    const pId = (person.id || '').toLowerCase();
+
+    return allLogs.filter(l => {
+      const lUid = (l.userId || '').toLowerCase();
+      const lEmail = ((l as any).userEmail || '').toLowerCase();
+      const lName = ((l as any).userName || (l as any).scientistName || '').toLowerCase();
+
+      return (
+        lUid === pId ||
+        (pEmail && (lUid === pEmail || lEmail === pEmail)) ||
+        (pHandle && (lUid.includes(pHandle) || lEmail.includes(pHandle) || lName.includes(pHandle))) ||
+        (pName && lName.includes(pName))
+      );
+    }).sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
+  }, [allLogs, person]);
 
   const { experiments, labTests } = useExperiments();
   const syncedTrials = useMemo(() => getSyncedTrials(), []);
