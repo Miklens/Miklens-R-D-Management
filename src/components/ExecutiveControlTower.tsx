@@ -98,32 +98,53 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
       const successRate = myTotalExp > 0 ? Math.round((myPassedCount / myTotalExp) * 100) : (avgControlEfficacy !== null ? avgControlEfficacy : 100);
 
       // 3. Latest Activity / Execution Run
-      const myLogs = (logs || []).filter(l => l.userId === u.id).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const myLogs = (logs || []).filter(l => {
+        const lUid = (l.userId || '').toLowerCase();
+        const lEmail = ((l as any).userEmail || '').toLowerCase();
+        const lName = ((l as any).userName || (l as any).scientistName || '').toLowerCase();
+        return (
+          lUid === (u.id || '').toLowerCase() ||
+          (uEmail && (lUid === uEmail || lEmail === uEmail)) ||
+          (uHandle && (lUid.includes(uHandle) || lName.includes(uHandle)))
+        );
+      }).sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
       
-      let latestRunText = 'Active R&D Session Synchronized';
+      let latestRunText = 'R&D Field Protocols Active';
       let activeTarget = u.department || 'R&D Field Operations';
 
       if (myLogs.length > 0) {
-        const rawLogText = myLogs[0].activities || myLogs[0].objective || myLogs[0].achievements || 'Daily execution run completed';
-        if (rawLogText.toLowerCase().includes('herbicidal injury') || rawLogText.toLowerCase().includes('weed population')) {
-          latestRunText = 'Daily field plot observation logged & control efficacy recorded.';
-        } else {
-          latestRunText = rawLogText.length > 90 ? rawLogText.slice(0, 87) + '...' : rawLogText;
+        const rawAct = myLogs[0].activities || myLogs[0].objective || myLogs[0].achievements || 'Daily execution run completed';
+        let cleaned = rawAct.replace(/^\[.*?\]\s*/g, '').replace(/^Active Formulation:\s*/gi, '');
+        cleaned = cleaned.replace(/\btaking with clients\b/gi, 'Client & Stakeholder Strategic Discussion');
+        cleaned = cleaned.replace(/\btalk to vendor\b/gi, 'Vendor Technical Sync');
+        if (cleaned.length > 0) {
+          cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        }
+        latestRunText = cleaned.length > 85 ? cleaned.slice(0, 82) + '...' : cleaned;
+
+        if (mySyncedTrials.length > 0) {
+          const tr = mySyncedTrials[0];
+          const pName = tr.productName && tr.productName !== 'Treatment Formulation' ? tr.productName : '';
+          const cName = tr.cropName && tr.cropName !== 'Crop Field' && tr.cropName !== 'Field' ? tr.cropName : '';
+          activeTarget = pName ? (cName ? `${cName} (${pName})` : `${pName} Program`) : (cName || 'Field Operations');
         }
       } else if (myExperiments.length > 0 && myExperiments[0].dailyRuns && myExperiments[0].dailyRuns.length > 0) {
         const lastRun = myExperiments[0].dailyRuns[myExperiments[0].dailyRuns.length - 1];
         latestRunText = `${lastRun.activityPerformed} — ${lastRun.observationResult}`;
-        if (latestRunText.length > 90) {
-          latestRunText = latestRunText.slice(0, 87) + '...';
+        if (latestRunText.length > 85) {
+          latestRunText = latestRunText.slice(0, 82) + '...';
         }
-        activeTarget = myExperiments[0].productName || myExperiments[0].name;
+        activeTarget = myExperiments[0].productName || myExperiments[0].name || 'Laboratory Assays';
       } else if (mySyncedTrials.length > 0) {
         const tr = mySyncedTrials[0];
-        activeTarget = `${tr.cropName || 'Crop Plot'} (${tr.productName || 'Formulation'})`;
+        const pName = tr.productName && tr.productName !== 'Treatment Formulation' ? tr.productName : '';
+        const cName = tr.cropName && tr.cropName !== 'Crop Field' && tr.cropName !== 'Field' ? tr.cropName : '';
+        activeTarget = pName ? (cName ? `${cName} (${pName})` : `${pName} Program`) : (cName || `${tr.category.toUpperCase()} Program`);
+
         const lastEval = tr.evaluations && tr.evaluations.length > 0 ? tr.evaluations[tr.evaluations.length - 1] : null;
-        const dat = lastEval ? `${lastEval.daysAfterTreatment} DAT` : 'Plot Evaluation';
-        const eff = lastEval && typeof lastEval.efficacyPercent === 'number' ? `${lastEval.efficacyPercent}% WCE` : `${tr.resultRating || 'Good'} Efficacy`;
-        latestRunText = `Field Trial Protocol ${tr.trialCode || 'TR-ACTIVE'}: ${dat} completed with ${eff}`;
+        const dat = lastEval ? `${lastEval.daysAfterTreatment} DAT` : 'Field Evaluation';
+        const eff = lastEval && typeof lastEval.efficacyPercent === 'number' ? `${lastEval.efficacyPercent}% Control Efficacy` : `${tr.resultRating || 'Good'} Efficacy`;
+        latestRunText = `Trial ${tr.trialCode || 'TR-ACTIVE'} — ${dat} logged (${eff})`;
       }
 
       // 4. Tasks Progress
