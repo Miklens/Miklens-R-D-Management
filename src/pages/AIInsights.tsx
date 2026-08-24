@@ -8,6 +8,8 @@ import { querySuperpoweredGemini } from '../services/geminiEngine';
 import { exportMasterExecutiveReportPDF, exportMasterExcelWorkbook } from '../services/executiveReportGenerator';
 import { FormattedAIMessage } from '../components/FormattedAIMessage';
 
+import { useAuth } from '../contexts/AuthContext';
+
 interface ChatMessage {
   id: string;
   sender: 'user' | 'ai';
@@ -16,6 +18,9 @@ interface ChatMessage {
 }
 
 export const AIInsights: React.FC = () => {
+  const { profile, userRole, currentUser } = useAuth();
+  const isManagement = userRole === 'Admin' || userRole === 'Management';
+
   const [inputMsg, setInputMsg] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -28,6 +33,32 @@ export const AIInsights: React.FC = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const syncedTrials = useMemo(() => getSyncedTrials(), []);
+
+  const userScopedTrials = useMemo(() => {
+    if (isManagement) return syncedTrials;
+    const email = profile?.email || currentUser?.email || '';
+    if (!email) return syncedTrials;
+    const namePart = email.split('@')[0].toLowerCase();
+    return syncedTrials.filter(t => 
+      (t.creatorEmail || '').toLowerCase().includes(email.toLowerCase()) ||
+      (t.creatorEmail || '').toLowerCase().includes(namePart) ||
+      (t.scientistName || '').toLowerCase().includes(namePart)
+    );
+  }, [syncedTrials, isManagement, profile, currentUser]);
+
+  const userScopedLogs = useMemo(() => {
+    const all = logs || [];
+    if (isManagement) return all;
+    const email = profile?.email || currentUser?.email || '';
+    const uId = profile?.id || currentUser?.uid || '';
+    if (!email) return all;
+    const namePart = email.split('@')[0].toLowerCase();
+    return all.filter(l => 
+      (l.userId || '').toLowerCase() === uId.toLowerCase() ||
+      (l.userId || '').toLowerCase().includes(email.toLowerCase()) ||
+      (l.userId || '').toLowerCase().includes(namePart)
+    );
+  }, [logs, isManagement, profile, currentUser]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -135,10 +166,11 @@ export const AIInsights: React.FC = () => {
       personaQuery,
       {
         users: users || [],
-        logs: logs || [],
+        logs: userScopedLogs,
         experiments: experiments || [],
         labTests: labTests || [],
         stabilityLogs: stabilityLogs || [],
+        overrideTrials: userScopedTrials,
       },
       selectedModel,
       history

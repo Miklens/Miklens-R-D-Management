@@ -26,8 +26,17 @@ export const Dashboard: React.FC = () => {
   
   const isManagement = userRole === 'Admin' || userRole === 'Management';
   const syncedTrials = useMemo(() => {
-    return getSyncedTrials();
-  }, []);
+    const all = getSyncedTrials();
+    if (isManagement) return all;
+    const email = profile?.email || currentUser?.email || '';
+    if (!email) return all;
+    const namePart = email.split('@')[0].toLowerCase();
+    return all.filter(t => 
+      (t.creatorEmail || '').toLowerCase().includes(email.toLowerCase()) ||
+      (t.creatorEmail || '').toLowerCase().includes(namePart) ||
+      (t.scientistName || '').toLowerCase().includes(namePart)
+    );
+  }, [isManagement, profile, currentUser]);
   const now = useMemo(() => new Date(), []);
 
   // View switch mode to prevent dashboard overlap confusion for Admins

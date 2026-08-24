@@ -71,9 +71,10 @@ export const buildRealtimeRDContext = (
   logs: any[] = [],
   experiments: any[] = [],
   labTests: any[] = [],
-  stabilityLogs: any[] = []
+  stabilityLogs: any[] = [],
+  overrideTrials?: any[]
 ): string => {
-  const syncedTrials = getSyncedTrials();
+  const syncedTrials = (overrideTrials && Array.isArray(overrideTrials)) ? overrideTrials : getSyncedTrials();
   const syncedFormulations = getSyncedFormulations();
   const syncedProjects = getSyncedProjects();
 
@@ -193,6 +194,7 @@ export const querySuperpoweredGemini = async (
     experiments?: any[];
     labTests?: any[];
     stabilityLogs?: any[];
+    overrideTrials?: any[];
   } = {},
   preferredModel?: string,
   chatHistory: { sender: 'user' | 'ai'; text: string }[] = []
@@ -203,7 +205,8 @@ export const querySuperpoweredGemini = async (
     contextData.logs || [],
     contextData.experiments || [],
     contextData.labTests || [],
-    contextData.stabilityLogs || []
+    contextData.stabilityLogs || [],
+    contextData.overrideTrials
   );
 
   const systemInstructionText = `You are the Chief Executive AI Officer & Lead Scientist for Miklens Biotech Agricultural R&D Platform.
