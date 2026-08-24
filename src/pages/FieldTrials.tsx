@@ -184,19 +184,6 @@ export const FieldTrials: React.FC = () => {
   // ─── Filtering Logic ───
 
   const matchesUser = (trial: ExternalFieldTrial): boolean => {
-    if (!isAdminOrManagement) {
-      if (!currentUserEmail && !currentUserUid) return true;
-      const userHandle = currentUserEmail.split('@')[0].toLowerCase();
-      const trialEmail = (trial.creatorEmail || '').toLowerCase();
-      const trialScientist = (trial.scientistName || '').toLowerCase();
-      const trialUid = (trial.creatorUid || '').toLowerCase();
-      return (
-        trialEmail.includes(currentUserEmail) ||
-        trialEmail.includes(userHandle) ||
-        trialScientist.includes(userHandle) ||
-        (!!currentUserUid && trialUid === currentUserUid.toLowerCase())
-      );
-    }
     if (selectedScientistFilter === 'all-scientists') return true;
     if (selectedScientistFilter === 'my-trials') {
       if (!currentUserEmail && !currentUserUid) return true;
@@ -211,7 +198,8 @@ export const FieldTrials: React.FC = () => {
         (!!currentUserUid && trialUid === currentUserUid.toLowerCase())
       );
     }
-    return trial.scientistName === selectedScientistFilter;
+    const filterNorm = selectedScientistFilter.toLowerCase();
+    return (trial.scientistName || '').toLowerCase().includes(filterNorm) || (trial.creatorEmail || '').toLowerCase().includes(filterNorm);
   };
 
   const matchesSearch = (trial: ExternalFieldTrial): boolean => {
