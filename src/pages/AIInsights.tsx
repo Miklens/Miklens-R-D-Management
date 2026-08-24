@@ -6,6 +6,7 @@ import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { querySuperpoweredGemini } from '../services/geminiEngine';
 import { exportMasterExecutiveReportPDF, exportMasterExcelWorkbook } from '../services/executiveReportGenerator';
+import { FormattedAIMessage } from '../components/FormattedAIMessage';
 
 interface ChatMessage {
   id: string;
@@ -414,8 +415,8 @@ export const AIInsights: React.FC = () => {
                     : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none'
                 }`}
               >
-                <div className="leading-relaxed text-sm whitespace-pre-line font-normal">
-                  {msg.text}
+                <div className="leading-relaxed text-sm font-normal">
+                  {msg.sender === 'ai' ? <FormattedAIMessage content={msg.text} /> : msg.text}
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700/50">
