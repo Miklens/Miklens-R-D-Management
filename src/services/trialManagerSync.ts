@@ -9,9 +9,9 @@ import { AppUser } from '../types';
 const SYNC_STORAGE_KEY = 'miklens_rnd_synced_trials_v1';
 const FIREBASE_CONFIG_KEY = 'miklens_rnd_firebase_config_v1';
 
-export const formatCleanScientistName = (uIdOrEmail?: string): string => {
-  if (!uIdOrEmail) return 'Pavan Dev';
-  const target = uIdOrEmail.trim().toLowerCase();
+export const formatCleanScientistName = (uIdOrEmail?: string, creatorEmail?: string): string => {
+  const target = (uIdOrEmail && uIdOrEmail.trim() !== '' ? uIdOrEmail : (creatorEmail || '')).trim().toLowerCase();
+  if (!target) return 'Unassigned Scientist';
   if (target.includes('pavan')) return 'Pavan Dev';
   if (target.includes('bindushree')) return 'Bindushree B U';
   if (target.includes('sandeep')) return 'Sandeep';
@@ -20,7 +20,7 @@ export const formatCleanScientistName = (uIdOrEmail?: string): string => {
     const clean = handle.split('.')[0].split('_')[0];
     return clean.charAt(0).toUpperCase() + clean.slice(1);
   }
-  return uIdOrEmail.split(/[\s._@]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+  return target.split(/[\s._@]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
 };
 
 export const parseFlexibleDateStr = (dateStr?: any): string => {

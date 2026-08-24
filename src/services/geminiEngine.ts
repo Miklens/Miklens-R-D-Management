@@ -100,14 +100,14 @@ export const buildRealtimeRDContext = (
   }>();
 
   syncedTrials.forEach(t => {
-    const sName = formatCleanScientistName(t.scientistName);
+    const sName = formatCleanScientistName(t.scientistName, t.creatorEmail);
     if (!scientistMap.has(sName)) {
       scientistMap.set(sName, { count: 0, active: 0, completed: 0, totalObs: 0, avgEfficacy: 0, effSum: 0, effCount: 0, products: new Set(), trials: [] });
     }
     const sm = scientistMap.get(sName)!;
     sm.count += 1;
     if (t.isCompleted) sm.completed += 1; else sm.active += 1;
-    if (t.productName) sm.products.add(t.productName);
+    if (t.title || t.productName) sm.products.add(t.title || t.productName);
 
     const evals = t.evaluations || [];
     sm.totalObs += evals.length;
@@ -118,31 +118,31 @@ export const buildRealtimeRDContext = (
       }
     });
 
-    if (sm.trials.length < 12) {
+    if (sm.trials.length < 15) {
       sm.trials.push(t);
     }
   });
 
   const scientistLedger = Array.from(scientistMap.entries()).map(([sName, data]) => {
     const avgWCE = data.effCount > 0 ? (data.effSum / data.effCount).toFixed(1) + '%' : 'N/A';
-    const prodList = Array.from(data.products).slice(0, 5).join(', ');
-    const trialSamples = data.trials.map(t => `${t.trialCode} (${t.productName || t.title}, ${t.cropName || 'Crop'}, Rating: ${t.resultRating || 'Good'})`).join('; ');
-    return `• SCIENTIST: ${sName} | Total Managed: ${data.count} (${data.active} Active, ${data.completed} Completed) | Avg WCE: ${avgWCE} | Obs Logged: ${data.totalObs} | Key Formulations: ${prodList}\n  Sample Plot Protocols: ${trialSamples}`;
+    const prodList = Array.from(data.products).join(', ');
+    const trialSamples = data.trials.map(t => `${t.trialCode || 'TR'} (${t.title || t.productName || 'Formulation'}, ${t.cropName || 'Crop'}, Status: ${t.isCompleted ? 'Completed' : 'Active'})`).join('; ');
+    return `• SCIENTIST: ${sName}\n  - Total Managed Trials: ${data.count} (${data.active} Active, ${data.completed} Completed)\n  - Avg WCE %: ${avgWCE}\n  - Total Plot Observations: ${data.totalObs}\n  - Real Formulations & Products: ${prodList || 'None'}\n  - Sample Trial Protocols: ${trialSamples}`;
   }).join('\n\n');
 
   // 2. High-Efficacy & Recent Plot Evaluations Sample
-  const detailedTrialsSample = syncedTrials.slice(0, 45).map(t => {
-    const sName = formatCleanScientistName(t.scientistName);
+  const detailedTrialsSample = syncedTrials.slice(0, 60).map(t => {
+    const sName = formatCleanScientistName(t.scientistName, t.creatorEmail);
     const evals = t.evaluations || [];
     const lastEval = evals.length > 0 ? evals[evals.length - 1] : null;
     const effStr = lastEval ? `${lastEval.daysAfterTreatment}DAA:${lastEval.efficacyPercent}% WCE` : (t.resultRating || 'Good');
-    return `[${t.trialCode}] ${t.productName || t.title} | Cat: ${t.category} | Lead: ${sName} | Target: ${t.targetWeedOrPathogen} | Crop: ${t.cropName} | Status: ${t.isCompleted ? 'Finalized' : 'Active'} | Efficacy: ${effStr}`;
+    return `[${t.trialCode || 'TR'}] Product: ${t.title || t.productName} | Category: ${t.category} | Assigned Lead: ${sName} (Creator: ${t.creatorEmail || 'N/A'}) | Target: ${t.targetWeedOrPathogen} | Crop: ${t.cropName} | Status: ${t.isCompleted ? 'Completed' : 'Active'} | Efficacy: ${effStr}`;
   }).join('\n');
 
   // 3. Scientist Timesheet Logs Summary
   const logMap = new Map<string, { totalHours: number; sessionCount: number; recentWork: string[] }>();
   logs.forEach(l => {
-    const sName = formatCleanScientistName(l.userName || l.userEmail || l.userId || 'Scientist');
+    const sName = formatCleanScientistName(l.userName, l.userEmail);
     const hrs = calculateTotalHours([l]);
     if (!logMap.has(sName)) logMap.set(sName, { totalHours: 0, sessionCount: 0, recentWork: [] });
     const lm = logMap.get(sName)!;
@@ -211,12 +211,12 @@ You possess state-of-the-art reasoning, analytical logic, scientific calculation
 
 ${dbContext}
 
-CRITICAL RULES FOR REASONING, HUMAN READABILITY & GROUNDED DATA:
-1. HUMAN-READABLE EXECUTIVE ELEGANCE: Write answers in smooth, clear, polished executive natural English (as a Senior Director of Agricultural R&D communicating directly to Management). Avoid cluttered walls of text.
-2. DIRECT CLEAR ANSWERS FIRST: When asked a specific query (e.g. "Today's Scientist Logged Hours" or "Compare Pavan Dev vs Bindushree"), give the direct clear summary upfront in bullet points before expanding into details.
-3. ABSOLUTE GROUNDED TRUTH: Ground ALL responses strictly in the real database ledger numbers above (scientist names, trial codes, WCE %, hours logged, crops, target pests). NEVER invent fake statistics, placeholder names, or fictional trial counts.
-4. MISSING DATA HANDLING: If the user asks about a scientist or trial that does NOT exist in the database ledger above, explicitly state: "No matching record found in the Miklens database for [Query]."
-5. STRUCTURED FORMATTING: Use clean section headers (###), bullet points (•), and markdown comparison tables (| Metric | Scientist A | Scientist B |) when comparing performance or trial protocols.`;
+CRITICAL RULES FOR REASONING, ACCURATE ATTRIBUTION & HUMAN READABILITY:
+1. STRICT SCIENTIST DATA ATTRIBUTION: When asked about a specific scientist (e.g. Bindushree B U, Pavan Dev, Sandeep), ONLY attribute trials and formulations that match that scientist's name or creatorEmail in the database ledger above. Never attribute Pavan Dev's trials to Bindushree or vice versa.
+2. REAL FORMULATION NAMES ONLY: Use ONLY the exact formulation names recorded under that scientist's portfolio in the database ledger above (e.g. for Sandeep/Bindushree: 3Tech 1 QEOP, 3Tech 2 QEOP, QE ALONE 5% Technical, etc.).
+3. EXACT METRIC NUMBERS: Always cite the exact trial counts, active counts, and logged hours directly from the database ledger for each scientist.
+4. HUMAN-READABLE EXECUTIVE ELEGANCE: Write answers in smooth, clear, polished executive natural English (as a Senior Director of Agricultural R&D communicating directly to Management).
+5. DIRECT CLEAR ANSWERS FIRST: When asked a specific query, give the direct clear summary upfront in bullet points before expanding into details.`;
 
   // Format multi-turn chat history for Gemini API
   const formattedHistory = (chatHistory || []).map(msg => ({
