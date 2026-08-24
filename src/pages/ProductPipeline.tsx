@@ -27,12 +27,11 @@ interface ProductStage {
 }
 
 const STAGES: ProductStage[] = [
-  { id: 'idea', name: 'Stage 0: Discovery', gateCriteria: 'Patents & Concept Check', badgeColor: 'bg-slate-100 text-slate-800 dark:bg-gray-800 dark:text-gray-200' },
-  { id: 'formulation', name: 'Stage 1: CIPAC Lab Assay', gateCriteria: 'Acc Heat Storage 54°C', badgeColor: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
-  { id: 'greenhouse', name: 'Stage 2: Plot Trial (<5ha)', gateCriteria: 'Efficacy > 75% WCE', badgeColor: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' },
-  { id: 'field-trials', name: 'Stage 3: Multi-Location (>50ha)', gateCriteria: 'Multi-state Bio-Safety', badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
-  { id: 'registration', name: 'Stage 4: CIBRC Dossier', gateCriteria: 'Regulatory Submission', badgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' },
-  { id: 'launch', name: 'Stage 5: Commercial Launch', gateCriteria: 'Market Distribution', badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' }
+  { id: 'formulation', name: 'Phase 1: Lab Formulation', gateCriteria: 'CIPAC Acc Storage Pass', badgeColor: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
+  { id: 'greenhouse', name: 'Phase 2: Initial Plot Test', gateCriteria: 'Efficacy Check >70% WCE', badgeColor: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' },
+  { id: 'field-trials', name: 'Phase 3: Multi-Replication Trial', gateCriteria: 'RCBD Plot Evaluations', badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
+  { id: 'registration', name: 'Phase 4: Multi-Station Testing', gateCriteria: 'Multi-Location Data Logged', badgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' },
+  { id: 'launch', name: 'Phase 5: Finalized R&D Report', gateCriteria: 'Master Protocol Finalized', badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' }
 ];
 
 interface PipelineProduct {
@@ -168,15 +167,15 @@ export const ProductPipeline: React.FC = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-              <Workflow className="w-3 h-3 text-emerald-400" /> STAGE-GATE COMMERCIALIZATION PIPELINE
+              <Workflow className="w-3 h-3 text-emerald-400" /> R&D FORMULATION & TRIAL PROGRESS PIPELINE
             </span>
           </div>
           <h2 className="text-2xl font-black text-white flex items-center gap-2">
             <Target className="w-6 h-6 text-emerald-400" />
-            Agricultural R&D Product Pipeline & Stage Gates
+            Scientist R&D Research Progress & Trial Phase Tracker
           </h2>
           <p className="text-xs text-gray-300 max-w-2xl">
-            Track product candidates from Stage 0 (Discovery Concept) to Stage 5 (Commercial Launch). Validate CIPAC gates, field trial trials, and CIBRC registration.
+            Monitor real-time progress of formulation candidates from Phase 1 (Lab Formulation & CIPAC) to Phase 5 (Finalized R&D Protocol Report). Instantly identify delayed trials and missing evaluations.
           </p>
         </div>
       </div>
