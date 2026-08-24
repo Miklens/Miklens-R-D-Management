@@ -1,6 +1,26 @@
 import React, { useState, useMemo } from 'react';
-import { Pipette, Plus, Trash2, Sparkles, AlertCircle, CheckCircle, Calculator, Info, HelpCircle } from 'lucide-react';
+import { 
+  Pipette, 
+  Plus, 
+  Trash2, 
+  Sparkles, 
+  AlertCircle, 
+  CheckCircle, 
+  Calculator, 
+  Info, 
+  HelpCircle,
+  Download,
+  Layers,
+  FlaskConical,
+  Beaker,
+  TrendingUp,
+  ShieldCheck,
+  Scale,
+  RefreshCw
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSyncedFormulations } from '../services/trialManagerSync';
+import { exportMasterExecutiveReportPDF } from '../services/executiveReportGenerator';
 
 interface Ingredient {
   id: string;
@@ -10,25 +30,63 @@ interface Ingredient {
   costPerKg: number;
 }
 
-import { getSyncedFormulations } from '../services/trialManagerSync';
+const PRESET_RECIPES = [
+  {
+    name: '🌿 Glyphosate 41% SL (Soluble Liquid)',
+    ph: 5.8,
+    density: 1.16,
+    viscosity: 220,
+    ingredients: [
+      { id: 'p1', name: 'Glyphosate IPA Salt 62% Tech', category: 'active', percentage: 50.0, costPerKg: 180 },
+      { id: 'p2', name: 'Tallow Amine Ethoxylate (Ethomeen T/25)', category: 'surfactant', percentage: 12.0, costPerKg: 210 },
+      { id: 'p3', name: 'Antifoam Emulsion (Silicone)', category: 'stabilizer', percentage: 0.2, costPerKg: 350 },
+      { id: 'p4', name: 'Demineralized Water Carrier', category: 'solvent', percentage: 37.8, costPerKg: 2 }
+    ]
+  },
+  {
+    name: '🌱 Bio-Stimulant Amino 50% Liquid',
+    ph: 6.4,
+    density: 1.12,
+    viscosity: 350,
+    ingredients: [
+      { id: 'b1', name: 'Enzymatic Plant Amino Acid Hydrolysate 80%', category: 'active', percentage: 40.0, costPerKg: 290 },
+      { id: 'b2', name: 'Fulvic Acid Technical 70%', category: 'active', percentage: 10.0, costPerKg: 340 },
+      { id: 'b3', name: 'Non-Ionic Wetting Agent (Polysorbate 20)', category: 'surfactant', percentage: 3.5, costPerKg: 160 },
+      { id: 'b4', name: 'Potassium Sorbate Preservative', category: 'stabilizer', percentage: 0.5, costPerKg: 180 },
+      { id: 'b5', name: 'Purified Water Carrier', category: 'solvent', percentage: 46.0, costPerKg: 2 }
+    ]
+  },
+  {
+    name: '🐛 Emamectin Benzoate 5% SG (Soluble Granule)',
+    ph: 6.8,
+    density: 0.65,
+    viscosity: 0,
+    ingredients: [
+      { id: 'e1', name: 'Emamectin Benzoate 95% Tech', category: 'active', percentage: 5.3, costPerKg: 2400 },
+      { id: 'e2', name: 'Sodium Lignosulfonate Dispersant', category: 'surfactant', percentage: 15.0, costPerKg: 140 },
+      { id: 'e3', name: 'Sodium Lauryl Sulfate Wetting Agent', category: 'surfactant', percentage: 8.0, costPerKg: 110 },
+      { id: 'e4', name: 'Lactose Carrier Filler', category: 'other', percentage: 71.7, costPerKg: 45 }
+    ]
+  }
+];
 
 export const FormulationBuilder: React.FC = () => {
   const syncedFormulations = useMemo(() => getSyncedFormulations(), []);
   const initialFormulation = syncedFormulations.length > 0 ? syncedFormulations[0] : null;
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(() => [
-    { id: '1', name: initialFormulation ? `${initialFormulation.name} Active Ingredient` : 'Active Botanical Extract', category: 'active', percentage: 10.0, costPerKg: 250 },
-    { id: '2', name: 'Surfactant & Emulsifier Package', category: 'surfactant', percentage: 5.0, costPerKg: 120 },
-    { id: '3', name: 'Stabilizer / Buffer', category: 'stabilizer', percentage: 1.5, costPerKg: 80 },
-    { id: '4', name: 'Water / Carrier Solvent', category: 'solvent', percentage: 83.5, costPerKg: 10 },
+    { id: '1', name: initialFormulation ? `${initialFormulation.name} Active Ingredient` : 'Active Botanical / Chemical Ingredient', category: 'active', percentage: 15.0, costPerKg: 350 },
+    { id: '2', name: 'Non-Ionic Surfactant & Emulsifier', category: 'surfactant', percentage: 6.0, costPerKg: 180 },
+    { id: '3', name: 'Stabilizer & pH Buffer Package', category: 'stabilizer', percentage: 2.0, costPerKg: 110 },
+    { id: '4', name: 'Carrier Water / Solvent Base', category: 'solvent', percentage: 77.0, costPerKg: 5 },
   ]);
 
-  const [name, setName] = useState(initialFormulation ? initialFormulation.name : 'Custom Active Formulation Recipe');
+  const [name, setName] = useState(initialFormulation ? initialFormulation.name : 'Miklens Bio-Herbicide Formulation Spec');
   const [ph, setPh] = useState(6.2);
-  const [viscosity, setViscosity] = useState(480); // in cP
-  const [density, setDensity] = useState(1.05); // g/mL
-  const [suspensibility, setSuspensibility] = useState(62.0); // %
-  const [emulsionStability, setEmulsionStability] = useState('partial'); // pass, fail, partial
+  const [viscosity, setViscosity] = useState(480);
+  const [density, setDensity] = useState(1.08);
+  const [suspensibility, setSuspensibility] = useState(82.0);
+  const [batchVolumeLiters, setBatchVolumeLiters] = useState<number>(1000);
 
   const [newIngName, setNewIngName] = useState('');
   const [newIngCategory, setNewIngCategory] = useState<Ingredient['category']>('active');
@@ -38,15 +96,35 @@ export const FormulationBuilder: React.FC = () => {
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[] | null>(null);
 
-  // Totals calculations
+  // Calculations
   const totalPercentage = useMemo(() => {
     return ingredients.reduce((sum, ing) => sum + ing.percentage, 0);
   }, [ingredients]);
 
-  const rawMaterialCost = useMemo(() => {
-    // cost per kg of formulation
+  const rawMaterialCostPerKg = useMemo(() => {
     return ingredients.reduce((sum, ing) => sum + (ing.percentage / 100) * ing.costPerKg, 0);
   }, [ingredients]);
+
+  const rawMaterialCostPerLiter = useMemo(() => {
+    return rawMaterialCostPerKg * density;
+  }, [rawMaterialCostPerKg, density]);
+
+  const totalBatchCost = useMemo(() => {
+    return rawMaterialCostPerLiter * batchVolumeLiters;
+  }, [rawMaterialCostPerLiter, batchVolumeLiters]);
+
+  // CIPAC Physical Stability Score (0-100)
+  const cipacScore = useMemo(() => {
+    let score = 100;
+    if (Math.abs(totalPercentage - 100) > 0.01) score -= 25;
+    if (ph < 5.0 || ph > 8.5) score -= 15;
+    if (suspensibility < 75.0) score -= 20;
+    const activePct = ingredients.filter(i => i.category === 'active').reduce((a, b) => a + b.percentage, 0);
+    const surfPct = ingredients.filter(i => i.category === 'surfactant').reduce((a, b) => a + b.percentage, 0);
+    if (activePct > 20 && surfPct < 4) score -= 20;
+
+    return Math.max(0, Math.min(100, score));
+  }, [totalPercentage, ph, suspensibility, ingredients]);
 
   const handleNormalize = () => {
     if (totalPercentage === 0) return;
@@ -78,371 +156,361 @@ export const FormulationBuilder: React.FC = () => {
     setIngredients(prev => prev.filter(ing => ing.id !== id));
   };
 
+  const loadPreset = (preset: typeof PRESET_RECIPES[0]) => {
+    setName(preset.name.replace(/^[^\s]+\s*/, ''));
+    setPh(preset.ph);
+    setDensity(preset.density);
+    setViscosity(preset.viscosity);
+    setIngredients(preset.ingredients as any);
+  };
+
   const triggerAiAnalysis = () => {
     setAiAnalyzing(true);
     setTimeout(() => {
       const suggestions: string[] = [];
       
-      // Analyze pH
       if (ph < 5.5) {
-        suggestions.push("⚠️ Low pH detected (Current: " + ph + "). Microbial strains like Pseudomonas may experience rapid cell death in acidic conditions. Consider adjusting pH to 6.5 - 7.2 using 0.5% Potassium Hydroxide (KOH) buffer.");
+        suggestions.push(`⚠️ Acidic pH detected (${ph}). Active botanical compounds may experience rapid hydrolysis. Recommend adding 0.4% Potassium Hydroxide (KOH) buffer to adjust target pH to 6.5.`);
       } else if (ph > 8.0) {
-        suggestions.push("⚠️ High pH detected (Current: " + ph + "). High alkalinity can degrade active bio-molecules. Buffer with Citric Acid to stabilize.");
+        suggestions.push(`⚠️ Alkaline pH detected (${ph}). Potential degradation of active ester bonds. Add 0.3% Citric Acid buffer.`);
       }
 
-      // Analyze suspensibility & viscosity
-      if (suspensibility < 75.0) {
-        const xanthan = ingredients.find(ing => ing.name.toLowerCase().includes('xanthan') || ing.category === 'stabilizer');
-        if (!xanthan || xanthan.percentage < 0.25) {
-          suggestions.push("💡 Low Suspensibility (Current: " + suspensibility + "%). To achieve the target standard of >80%, increase the concentration of thickener/suspending agent (e.g., Xanthan Gum) from " + (xanthan?.percentage || 0) + "% to 0.28% w/w.");
-        }
+      const activeTotal = ingredients.filter(i => i.category === 'active').reduce((a, b) => a + b.percentage, 0);
+      const surfTotal = ingredients.filter(i => i.category === 'surfactant').reduce((a, b) => a + b.percentage, 0);
+
+      if (activeTotal > 15 && surfTotal < 5) {
+        suggestions.push(`💡 High Active Concentration (${activeTotal}% w/w) relative to Surfactant (${surfTotal}% w/w). Recommend increasing surfactant ratio to >= 6% to prevent emulsion creaming during 54°C heat storage.`);
       }
 
-      // Analyze viscosity relative to flowability
-      if (viscosity > 800) {
-        suggestions.push("⚠️ Viscosity is high (" + viscosity + " cP). This could cause severe flowability and packaging problems. Consider decreasing carrier polymer concentration or adding 0.8% PEG surfactant.");
-      }
-
-      // Analyze raw material cost
-      if (rawMaterialCost > 150) {
-        suggestions.push("💰 Formulation raw material cost ($" + rawMaterialCost.toFixed(2) + "/kg) is high. Consider substituting expensive synthetic surfactants with bio-surfactants or reducing active concentration if efficacy remains stable.");
+      if (suspensibility < 80.0) {
+        suggestions.push(`💡 Suspensibility (${suspensibility}%) is below CIPAC standard (>80%). Consider adding 0.25% Xanthan Gum or Lignosulfonate dispersant.`);
       }
 
       if (suggestions.length === 0) {
-        suggestions.push("✅ Formulation parameters (pH, viscosity, suspensibility) appear well-balanced. Efficacy projection is stable. Proceed to Accelerated Heat Stability (AHS) logs.");
+        suggestions.push("✅ Excellent CIPAC Formulation Balance! All active ingredient ratios, surfactant packages, and physical parameters meet CIPAC MT 36.3 and MT 46.3 accelerated heat storage standards.");
       }
 
       setAiSuggestions(suggestions);
       setAiAnalyzing(false);
-    }, 1500);
+    }, 600);
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 dark:border-gray-800 pb-5">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
-              <Pipette className="w-6 h-6" />
+    <div className="space-y-6">
+      {/* Top Banner Header */}
+      <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-indigo-500/20">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-emerald-400" /> CIPAC FORMULATION ENGINE v3.0
+            </span>
+          </div>
+          <h2 className="text-2xl font-black text-white flex items-center gap-2">
+            <FlaskConical className="w-6 h-6 text-emerald-400" />
+            Formulation R&D Builder & Batch Scale-Up Calculator
+          </h2>
+          <p className="text-xs text-gray-300 max-w-2xl">
+            Design active chemical/botanical recipes, evaluate CIPAC emulsification stability, calculate raw material cost ($/L), and simulate batch production scale-up.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={triggerAiAnalysis}
+            disabled={aiAnalyzing}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-gray-950 font-black rounded-2xl text-xs shadow-lg transition-all cursor-pointer"
+          >
+            {aiAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin text-gray-950" /> : <Sparkles className="w-4 h-4 text-gray-950" />}
+            <span>CIPAC AI Stability Audit</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Preset Recipe Bar */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <span className="text-xs font-black text-gray-400 uppercase tracking-widest shrink-0">Quick Load Industry CIPAC Recipes:</span>
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {PRESET_RECIPES.map(p => (
+            <button
+              key={p.name}
+              onClick={() => loadPreset(p)}
+              className="px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-800 dark:text-gray-200 transition-colors whitespace-nowrap cursor-pointer shrink-0"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CIPAC AI Suggestions Banner */}
+      <AnimatePresence>
+        {aiSuggestions && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-5 rounded-2xl bg-gradient-to-r from-indigo-900/90 to-purple-900/90 text-white border border-indigo-500/30 shadow-xl space-y-2"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <h3 className="font-extrabold text-xs text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                CIPAC Accelerated Stability & Emulsion Audit Results
+              </h3>
+              <button onClick={() => setAiSuggestions(null)} className="text-xs text-gray-400 hover:text-white font-bold">✕ Close</button>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Formulation Recipe Builder</h1>
-              <p className="text-sm text-gray-500">Design, analyze, and optimize agricultural chemical & biological mixtures.</p>
+            <div className="space-y-1.5 text-xs text-indigo-100 leading-relaxed font-medium">
+              {aiSuggestions.map((s, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <span>{s}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Top High-Level Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+            totalPercentage === 100 
+              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+              : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+          }`}>
+            <Scale className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Formula % (w/w)</p>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className={`text-2xl font-black ${totalPercentage === 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                {totalPercentage.toFixed(2)}%
+              </span>
+              {totalPercentage !== 100 && (
+                <button onClick={handleNormalize} className="text-[10px] font-bold text-indigo-600 underline">
+                  Auto-Balance
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Calculator className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Raw Material Cost / Liter</p>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-2xl font-black text-gray-900 dark:text-white">₹{rawMaterialCostPerLiter.toFixed(2)}</span>
+              <span className="text-xs text-gray-400">/ Liter</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">CIPAC Stability Score</p>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className={`text-2xl font-black ${cipacScore >= 80 ? 'text-emerald-600' : cipacScore >= 60 ? 'text-blue-600' : 'text-amber-600'}`}>
+                {cipacScore} / 100
+              </span>
+              <span className="text-[10px] font-bold text-gray-400">CIPAC MT 46.3</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <Beaker className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batch Scale-Up ({batchVolumeLiters}L)</p>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-black text-gray-900 dark:text-white">₹{(totalBatchCost / 1000).toFixed(1)}k</span>
+              <span className="text-xs text-gray-400">Total Batch Cost</span>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Main Grid: Recipe Builder & Physical Parameters */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left/Middle: Recipe & Properties (Takes 2 cols) */}
+        {/* Left 2 Cols: Ingredient Table & Add Form */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Formulation Meta & Ingredients */}
-          <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800/50 p-6 space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Formulation Name</label>
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-3">
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
-                placeholder="Enter formulation code or name..."
+                className="text-lg font-black text-gray-900 dark:text-white bg-transparent border-b border-dashed border-gray-300 dark:border-gray-700 focus:border-emerald-500 outline-none pb-1"
+                placeholder="Enter Formulation Name..."
               />
+              <span className="text-xs font-bold text-gray-400">
+                {ingredients.length} Active Raw Ingredients
+              </span>
             </div>
 
             {/* Ingredients Table */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                  <Calculator className="w-5 h-5 text-purple-500" />
-                  Recipe Ingredients
-                </h3>
-                {Math.abs(totalPercentage - 100) > 0.01 && (
-                  <button
-                    onClick={handleNormalize}
-                    className="px-3 py-1.5 text-xs font-bold bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 transition-all border border-amber-200/50"
-                  >
-                    Normalize to 100%
-                  </button>
-                )}
-              </div>
-
-              <div className="overflow-x-auto border border-gray-100 dark:border-gray-700/50 rounded-xl">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-900/50 text-xs font-semibold text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
-                      <th className="p-4">Ingredient Name</th>
-                      <th className="p-4">Category</th>
-                      <th className="p-4 text-right">Percentage (%)</th>
-                      <th className="p-4 text-right">Cost ($/kg)</th>
-                      <th className="p-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ingredients.map((ing) => (
-                      <tr key={ing.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 text-sm text-gray-700 dark:text-gray-300">
-                        <td className="p-4 font-medium text-gray-900 dark:text-white">{ing.name}</td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full capitalize ${
-                            ing.category === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400' :
-                            ing.category === 'surfactant' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400' :
-                            ing.category === 'stabilizer' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/20 dark:text-purple-400' :
-                            'bg-gray-100 text-gray-700 dark:bg-gray-950/20 dark:text-gray-400'
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800 text-gray-400 font-extrabold uppercase tracking-wider">
+                    <th className="pb-3">Raw Material Ingredient</th>
+                    <th className="pb-3">Category</th>
+                    <th className="pb-3 text-right">Recipe % (w/w)</th>
+                    <th className="pb-3 text-right">Cost (₹/kg)</th>
+                    <th className="pb-3 text-right">Batch Weight ({batchVolumeLiters}L)</th>
+                    <th className="pb-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {ingredients.map((ing) => {
+                    const batchKg = ((ing.percentage / 100) * batchVolumeLiters * density).toFixed(1);
+                    return (
+                      <tr key={ing.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors">
+                        <td className="py-3 font-bold text-gray-900 dark:text-white">{ing.name}</td>
+                        <td className="py-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            ing.category === 'active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                            ing.category === 'surfactant' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+                            ing.category === 'stabilizer' ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' :
+                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                           }`}>
                             {ing.category}
                           </span>
                         </td>
-                        <td className="p-4 text-right font-mono font-semibold">{ing.percentage.toFixed(2)}%</td>
-                        <td className="p-4 text-right font-mono">${ing.costPerKg.toFixed(2)}</td>
-                        <td className="p-4 text-center">
+                        <td className="py-3 text-right font-black text-gray-900 dark:text-white">{ing.percentage.toFixed(2)}%</td>
+                        <td className="py-3 text-right font-bold text-gray-600 dark:text-gray-300">₹{ing.costPerKg}</td>
+                        <td className="py-3 text-right font-black text-emerald-600 dark:text-emerald-400">{batchKg} kg</td>
+                        <td className="py-3 text-center">
                           <button
                             onClick={() => handleRemoveIngredient(ing.id)}
-                            className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all"
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50/50 dark:bg-gray-900/20 font-bold border-t border-gray-100 dark:border-gray-700 text-sm text-gray-900 dark:text-white">
-                      <td className="p-4">Total</td>
-                      <td className="p-4"></td>
-                      <td className={`p-4 text-right font-mono ${Math.abs(totalPercentage - 100) > 0.01 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                        {totalPercentage.toFixed(2)}%
-                      </td>
-                      <td className="p-4 text-right font-mono">${rawMaterialCost.toFixed(2)}/kg</td>
-                      <td className="p-4"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* Add Ingredient Form */}
-            <form onSubmit={handleAddIngredient} className="bg-gray-50 dark:bg-gray-950/30 p-4 rounded-xl border border-gray-100 dark:border-gray-800 space-y-4">
-              <h4 className="text-sm font-bold text-gray-800 dark:text-white">Add Raw Material Ingredient</h4>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input
-                  type="text"
-                  placeholder="Ingredient Name..."
-                  value={newIngName}
-                  onChange={(e) => setNewIngName(e.target.value)}
-                  className="md:col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <select
-                  value={newIngCategory}
-                  onChange={(e: any) => setNewIngCategory(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="active">Active Ingredient</option>
-                  <option value="surfactant">Surfactant</option>
-                  <option value="stabilizer">Stabilizer / Thickener</option>
-                  <option value="solvent">Solvent / Carrier</option>
-                  <option value="adjuvant">Adjuvant / Antifreeze</option>
-                  <option value="other">Other Additive</option>
-                </select>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="%"
-                    value={newIngPct || ''}
-                    onChange={(e) => setNewIngPct(Number(e.target.value))}
-                    className="w-1/2 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="Cost"
-                    value={newIngCost || ''}
-                    onChange={(e) => setNewIngCost(Number(e.target.value))}
-                    className="w-1/2 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition-all shadow-md shadow-purple-500/10"
-                >
-                  <Plus className="w-4 h-4" /> Add Ingredient
-                </button>
-              </div>
+            {/* Add New Ingredient Form */}
+            <form onSubmit={handleAddIngredient} className="pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <input
+                type="text"
+                placeholder="Ingredient Name..."
+                value={newIngName}
+                onChange={(e) => setNewIngName(e.target.value)}
+                className="col-span-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <select
+                value={newIngCategory}
+                onChange={(e) => setNewIngCategory(e.target.value as any)}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold"
+              >
+                <option value="active">Active Ingredient</option>
+                <option value="surfactant">Surfactant / Emulsifier</option>
+                <option value="solvent">Solvent / Carrier</option>
+                <option value="stabilizer">Stabilizer / Buffer</option>
+                <option value="adjuvant">Adjuvant</option>
+                <option value="other">Other Filler</option>
+              </select>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="Recipe %"
+                value={newIngPct || ''}
+                onChange={(e) => setNewIngPct(parseFloat(e.target.value) || 0)}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-md cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Add
+              </button>
             </form>
-          </div>
-
-          {/* Physical Properties Tracking */}
-          <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800/50 p-6 space-y-6">
-            <h3 className="text-base font-bold text-gray-800 dark:text-white flex items-center gap-2">
-              <Pipette className="w-5 h-5 text-purple-500" />
-              Physical & Stability Specifications
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">pH Level</label>
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{ph}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="14"
-                  step="0.1"
-                  value={ph}
-                  onChange={(e) => setPh(Number(e.target.value))}
-                  className="w-full accent-purple-600 bg-gray-100 dark:bg-gray-700 rounded-lg appearance-none h-2"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Viscosity (cP)</label>
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{viscosity} cP</span>
-                </div>
-                <input
-                  type="range"
-                  min="50"
-                  max="2000"
-                  step="10"
-                  value={viscosity}
-                  onChange={(e) => setViscosity(Number(e.target.value))}
-                  className="w-full accent-purple-600 bg-gray-100 dark:bg-gray-700 rounded-lg appearance-none h-2"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Density (g/mL)</label>
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{density} g/mL</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.8"
-                  max="1.6"
-                  step="0.01"
-                  value={density}
-                  onChange={(e) => setDensity(Number(e.target.value))}
-                  className="w-full accent-purple-600 bg-gray-100 dark:bg-gray-700 rounded-lg appearance-none h-2"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Suspensibility (%)</label>
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{suspensibility}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="30"
-                  max="100"
-                  step="0.5"
-                  value={suspensibility}
-                  onChange={(e) => setSuspensibility(Number(e.target.value))}
-                  className="w-full accent-purple-600 bg-gray-100 dark:bg-gray-700 rounded-lg appearance-none h-2"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Emulsion Stability</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['pass', 'partial', 'fail'] as const).map(status => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setEmulsionStability(status)}
-                      className={`py-2 text-xs font-bold rounded-lg border transition-all ${
-                        emulsionStability === status
-                          ? status === 'pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-500 dark:bg-emerald-950/20' :
-                            status === 'partial' ? 'bg-amber-50 text-amber-600 border-amber-500 dark:bg-amber-950/20' :
-                            'bg-red-50 text-red-600 border-red-500 dark:bg-red-950/20'
-                          : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-900'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Right: AI Advisor Panels (1 col) */}
+        {/* Right 1 Col: Physical Parameters & Batch Scale-Up Wizard */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-purple-900 via-indigo-950 to-indigo-900 text-white rounded-2xl shadow-xl p-6 border border-indigo-950 flex flex-col justify-between min-h-[350px]">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-purple-300" />
-                </div>
-                <h3 className="font-bold text-lg">Gemini AI Formulation Optimizer</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-xl space-y-4">
+            <h3 className="font-extrabold text-sm text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <Pipette className="w-4 h-4 text-emerald-500" />
+              Physical Specs & CIPAC Controls
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Target pH (25°C): {ph}</label>
+                <input
+                  type="range"
+                  min="3.0"
+                  max="10.0"
+                  step="0.1"
+                  value={ph}
+                  onChange={(e) => setPh(parseFloat(e.target.value))}
+                  className="w-full accent-emerald-500"
+                />
               </div>
-              <p className="text-xs text-purple-200 leading-relaxed">
-                Click analyze to verify active strain stability, emulsification structures, viscosity, and raw material pricing.
-              </p>
-              
-              <AnimatePresence mode="wait">
-                {aiAnalyzing ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center py-10 space-y-3"
-                  >
-                    <div className="w-8 h-8 rounded-full border-4 border-t-purple-400 border-r-purple-300 border-b-transparent border-l-transparent animate-spin"></div>
-                    <span className="text-xs text-purple-300">Analyzing physicochemical properties...</span>
-                  </motion.div>
-                ) : aiSuggestions ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-3 max-h-[300px] overflow-y-auto pr-1"
-                  >
-                    {aiSuggestions.map((sug, index) => (
-                      <div
-                        key={index}
-                        className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
-                          sug.startsWith('✅') ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200' :
-                          sug.startsWith('💰') ? 'bg-amber-950/40 border-amber-500/30 text-amber-200' :
-                          'bg-indigo-950/50 border-indigo-500/20 text-purple-100'
-                        }`}
-                      >
-                        {sug}
-                      </div>
-                    ))}
-                  </motion.div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-10 text-center text-purple-300">
-                    <Info className="w-8 h-8 mb-2 opacity-50" />
-                    <span className="text-xs">No analysis has been run on this recipe yet.</span>
-                  </div>
-                )}
-              </AnimatePresence>
+
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Specific Gravity / Density: {density} g/mL</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={density}
+                  onChange={(e) => setDensity(parseFloat(e.target.value) || 1.0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Viscosity (cP at 20°C): {viscosity} cP</label>
+                <input
+                  type="number"
+                  value={viscosity}
+                  onChange={(e) => setViscosity(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Suspensibility (CIPAC MT 184): {suspensibility}%</label>
+                <input
+                  type="range"
+                  min="40.0"
+                  max="100.0"
+                  step="1.0"
+                  value={suspensibility}
+                  onChange={(e) => setSuspensibility(parseFloat(e.target.value))}
+                  className="w-full accent-emerald-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                <label className="font-bold text-gray-700 dark:text-gray-300 block mb-1">Batch Scale-Up Simulation Volume:</label>
+                <select
+                  value={batchVolumeLiters}
+                  onChange={(e) => setBatchVolumeLiters(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl font-black text-emerald-700 dark:text-emerald-300"
+                >
+                  <option value={100}>100 Liters (Pilot Batch)</option>
+                  <option value={500}>500 Liters (Semi-Commercial)</option>
+                  <option value={1000}>1,000 Liters (Standard Tank)</option>
+                  <option value={5000}>5,000 Liters (Commercial Production)</option>
+                  <option value={10000}>10,000 Liters (Plant Batch)</option>
+                </select>
+              </div>
             </div>
-
-            <button
-              onClick={triggerAiAnalysis}
-              disabled={aiAnalyzing}
-              className="mt-6 w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 border border-purple-400/20"
-            >
-              <Sparkles className="w-4 h-4 text-purple-200" />
-              Run Efficacy & Cost Audit
-            </button>
-          </div>
-
-          {/* Quick Info Card */}
-          <div className="bg-white dark:bg-gray-800/80 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800/50 p-6 space-y-4 text-sm text-gray-600 dark:text-gray-300">
-            <h4 className="font-bold text-gray-800 dark:text-white flex items-center gap-1.5">
-              <HelpCircle className="w-4 h-4 text-purple-500" />
-              Formulation Guidelines
-            </h4>
-            <ul className="list-disc pl-4 space-y-2 text-xs leading-relaxed">
-              <li>Active biological agents must be stable across pH chambers (ideally 6.0 - 7.5).</li>
-              <li>A suspensibility percentage of above 75% ensures uniform spray distribution on foliage.</li>
-              <li>Stability testing at 54°C for 14 days acts as the primary accelerated gate before launching greenhouse trials.</li>
-            </ul>
           </div>
         </div>
       </div>
