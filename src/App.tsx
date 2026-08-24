@@ -86,11 +86,11 @@ function App() {
                       <Route element={<ProtectedRoute />}>
                         <Route element={<DashboardLayout />}>
                           <Route path="/" element={<Dashboard />} />
-                          <Route path="/products" element={<Products />} />
                           <Route path="/product-pipeline" element={<ProductPipeline />} />
+                          <Route path="/products" element={<Navigate to="/product-pipeline" replace />} />
                           <Route path="/formulation-builder" element={<FormulationBuilder />} />
-                          <Route path="/stability-tracker" element={<StabilityTracker />} />
-                          <Route path="/tasks" element={<Tasks />} />
+                          <Route path="/stability-tracker" element={<Navigate to="/formulation-builder" replace />} />
+                          <Route path="/tasks" element={<Navigate to="/" replace />} />
                           <Route path="/profile" element={<EmployeeProfile />} />
                           <Route path="/profile/:userId" element={<EmployeeProfile />} />
                           <Route path="/projects" element={<Projects />} />
@@ -110,8 +110,8 @@ function App() {
                           <Route path="/experiments" element={<Experiments />} />
                           <Route path="/research-log" element={<ResearchLog />} />
                           <Route path="/trial-sync" element={<FieldTrials />} />
-                          <Route path="/lab-tests" element={<LaboratoryTests />} />
-                          <Route path="/observations" element={<Observations />} />
+                          <Route path="/lab-tests" element={<Navigate to="/experiments" replace />} />
+                          <Route path="/observations" element={<Navigate to="/trial-sync" replace />} />
                         </Route>
                       </Route>
 
@@ -122,8 +122,8 @@ function App() {
                           <Route path="/employees/:userId" element={<EmployeeProfile />} />
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/team-activity" element={<TeamActivity />} />
-                          <Route path="/trial-progress" element={<TrialProgressReport />} />
-                          <Route path="/approvals" element={<Approvals />} />
+                          <Route path="/trial-progress" element={<Navigate to="/reports" replace />} />
+                          <Route path="/approvals" element={<Navigate to="/team-activity" replace />} />
                           <Route path="/diagnostics" element={<Diagnostics />} />
                         </Route>
                       </Route>
