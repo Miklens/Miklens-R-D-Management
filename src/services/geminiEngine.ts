@@ -79,6 +79,13 @@ export const buildRealtimeRDContext = (
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  // Calculate dynamic category distribution from real synced trials
+  const herbicideCount = syncedTrials.filter(t => (t.category || '').toLowerCase() === 'herbicide').length;
+  const biostimulantCount = syncedTrials.filter(t => (t.category || '').toLowerCase() === 'biostimulant').length;
+  const nutritionCount = syncedTrials.filter(t => (t.category || '').toLowerCase() === 'nutrition').length;
+  const pesticideCount = syncedTrials.filter(t => (t.category || '').toLowerCase() === 'pesticide').length;
+  const fungicideCount = syncedTrials.filter(t => (t.category || '').toLowerCase() === 'fungicide').length;
+
   // 1. Scientist Portfolio Ledger
   const scientistMap = new Map<string, {
     count: number;
@@ -119,12 +126,12 @@ export const buildRealtimeRDContext = (
   const scientistLedger = Array.from(scientistMap.entries()).map(([sName, data]) => {
     const avgWCE = data.effCount > 0 ? (data.effSum / data.effCount).toFixed(1) + '%' : 'N/A';
     const prodList = Array.from(data.products).slice(0, 5).join(', ');
-    const trialSamples = data.trials.map(t => `${t.trialCode} (${t.productName || t.title}, ${t.cropName || 'Crop'}, ${t.resultRating || 'Good'})`).join('; ');
+    const trialSamples = data.trials.map(t => `${t.trialCode} (${t.productName || t.title}, ${t.cropName || 'Crop'}, Rating: ${t.resultRating || 'Good'})`).join('; ');
     return `• SCIENTIST: ${sName} | Total Managed: ${data.count} (${data.active} Active, ${data.completed} Completed) | Avg WCE: ${avgWCE} | Obs Logged: ${data.totalObs} | Key Formulations: ${prodList}\n  Sample Plot Protocols: ${trialSamples}`;
   }).join('\n\n');
 
   // 2. High-Efficacy & Recent Plot Evaluations Sample
-  const detailedTrialsSample = syncedTrials.slice(0, 30).map(t => {
+  const detailedTrialsSample = syncedTrials.slice(0, 45).map(t => {
     const sName = formatCleanScientistName(t.scientistName);
     const evals = t.evaluations || [];
     const lastEval = evals.length > 0 ? evals[evals.length - 1] : null;
@@ -141,8 +148,8 @@ export const buildRealtimeRDContext = (
     const lm = logMap.get(sName)!;
     lm.totalHours += hrs;
     lm.sessionCount += 1;
-    if (lm.recentWork.length < 4 && l.activities) {
-      lm.recentWork.push(`[${parseFlexibleDateStr(l.date)}] ${l.activities.slice(0, 120)}`);
+    if (lm.recentWork.length < 5 && (l.activities || l.objective)) {
+      lm.recentWork.push(`[${parseFlexibleDateStr(l.date)}] ${l.objective || 'Work Session'}: ${(l.activities || '').slice(0, 120)}`);
     }
   });
 
@@ -150,22 +157,26 @@ export const buildRealtimeRDContext = (
     `• ${sName}: ${data.totalHours.toFixed(1)} Total Logged Hours across ${data.sessionCount} sessions.\n  Recent Activities:\n  ${data.recentWork.join('\n  ') || 'Field evaluations and plot readings.'}`
   ).join('\n');
 
+  const syncNotice = syncedTrials.length === 0 
+    ? "⚠️ NOTICE: Live Field Trial database has not been synced to local storage yet on this device. Currently 0 field trials cached locally. Please go to /trial-sync and click 'Sync Live Data' to fetch live trials from Miklens Trial Manager."
+    : `Total Field Trials Tracked: ${syncedTrials.length} (Herbicide: ${herbicideCount}, Fungicide: ${fungicideCount}, Biostimulant: ${biostimulantCount}, Nutrition: ${nutritionCount}, Pesticide: ${pesticideCount})`;
+
   return `
 --- MIKLENS BIOTECH GLOBAL R&D SYSTEM DATABASE LEDGER ---
 Current System Date: ${todayStr}
-Total Field Trials Tracked: ${syncedTrials.length} (Herbicide: 446, Biostimulant: 30, Nutrition: 48, Pesticide: 24)
+${syncNotice}
 Total Registered Scientists: ${users.length || scientistMap.size}
 Total Daily Research Work Logs: ${logs.length}
 Total Lab & Stability Assays: ${experiments.length + labTests.length + stabilityLogs.length}
 
 SCIENTIST PERFORMANCE LEDGER & PORTFOLIOS:
-${scientistLedger}
+${scientistLedger || 'No scientist trial assignments loaded.'}
 
 SCIENTIST TIMESHEETS & RECENT DAILY LOGS:
-${timesheetLedger}
+${timesheetLedger || 'No daily work logs recorded.'}
 
 ACTIVE & RECENT TRIAL PROTOCOLS SAMPLE:
-${detailedTrialsSample}
+${detailedTrialsSample || 'No active trials available.'}
 ----------------------------------------------------------
 `;
 };
@@ -195,16 +206,17 @@ export const querySuperpoweredGemini = async (
     contextData.stabilityLogs || []
   );
 
-  const systemInstructionText = `You are the Chief Executive AI Officer & Lead Scientist for Miklens Biotech Agricultural R&D.
-You possess state-of-the-art reasoning, analytical logic, scientific calculation, and cross-examination capabilities (matching standard ChatGPT, Gemini 3.5, and Claude 3.5 Sonnet) WITH full, real-time access to the live Miklens R&D database ledger below.
+  const systemInstructionText = `You are the Chief Executive AI Officer & Lead Scientist for Miklens Biotech Agricultural R&D Platform.
+You possess state-of-the-art reasoning, analytical logic, scientific calculation, and cross-examination capabilities WITH full, real-time access to the live Miklens R&D database ledger below.
 
 ${dbContext}
 
-CRITICAL RULES FOR REASONING & CROSS-QUESTIONS:
-1. CROSS-EXAMINATION & COMPARISONS: If the user asks a trick question, cross-question, or comparative query (e.g., comparing scientists, comparing formulation WCE %, analyzing contradictions, or date range differences), perform rigorous multi-step analysis using the database ledger above before responding.
-2. EXACT DATA REASONING: Ground all statements about Miklens R&D in real database numbers (trial codes, scientist names, dates, WCE %, logged hours, crops, targets). Never invent fake statistics or generic placeholders.
-3. GENERAL SCIENTIFIC KNOWLEDGE: If asked about general agronomy, chemistry, WCE mathematical formulas, CIPAC standards, or non-Miklens topics, provide expert textbook answers.
-4. EXECUTIVE FORMATTING: Use clean, professional GitHub Markdown (bold headers, bullet points, structured comparison tables). Be concise, authoritative, and sharp.`;
+CRITICAL RULES FOR REASONING & GROUNDED DATA:
+1. ABSOLUTE GROUNDED TRUTH: Ground ALL responses strictly in the real database ledger numbers above (scientist names, trial codes, WCE %, hours logged, crops, target pests). NEVER invent fake statistics, placeholder names, or fictional trial counts.
+2. MISSING DATA HANDLING: If the user asks about a scientist, trial, or product that does NOT exist in the database ledger above, explicitly state: "No matching record found in the Miklens database for [Query]."
+3. CROSS-EXAMINATION & COMPARISONS: When comparing scientists or formulations, cite the exact numbers from the database ledger (e.g. Pavan Dev: 446 trials, Bindushree B U: 30 trials, etc.).
+4. GENERAL SCIENTIFIC KNOWLEDGE: If asked about general agronomic science, CIPAC testing formulas, or dose-response math, provide accurate textbook answers.
+5. EXECUTIVE FORMATTING: Format outputs with clean GitHub Markdown (bold headers, bullet points, structured comparison tables).`;
 
   // Format multi-turn chat history for Gemini API
   const formattedHistory = (chatHistory || []).map(msg => ({

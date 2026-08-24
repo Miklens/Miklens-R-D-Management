@@ -333,6 +333,20 @@ export const AIInsights: React.FC = () => {
             </div>
           </div>
 
+          {/* Live Data Connectivity Bar */}
+          <div className="hidden md:flex items-center gap-3 bg-white/5 px-3 py-1.5 rounded-2xl border border-white/10 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-bold text-emerald-300">{syncedTrials.length} Field Trials</span>
+            </div>
+            <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
+              <span className="font-bold text-blue-300">{(logs || []).length} Daily Logs</span>
+            </div>
+            <div className="flex items-center gap-1.5 border-l border-white/10 pl-3">
+              <span className="font-bold text-amber-300">{(users || []).length} Scientists</span>
+            </div>
+          </div>
+
           {/* AI Persona Selector Chips */}
           <div className="hidden lg:flex items-center gap-1.5 bg-white/5 p-1 rounded-2xl border border-white/10">
             <button
