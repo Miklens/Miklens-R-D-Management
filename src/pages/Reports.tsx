@@ -18,11 +18,13 @@ import {
   exportMasterExcelWorkbook
 } from '../services/executiveReportGenerator';
 
+import { TrialProgressReport } from './TrialProgressReport';
+
 export const Reports: React.FC = () => {
   const { data: logs } = useDailyLogs();
   const { data: users } = useUsers();
   
-  const [activeTab, setActiveTab] = useState<'reports' | 'analytics' | 'team' | 'ai' | 'audit'>('reports');
+  const [activeTab, setActiveTab] = useState<'reports' | 'trial-progress' | 'analytics' | 'team' | 'ai' | 'audit'>('reports');
   const [selectedScientist, setSelectedScientist] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'hours_high'>('newest');
@@ -178,6 +180,7 @@ export const Reports: React.FC = () => {
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
         {[
           { id: 'reports', label: '📊 Timesheet & Executive Reports' },
+          { id: 'trial-progress', label: '🌱 Trial Progress Report' },
           { id: 'analytics', label: '📈 Analytics Deep-Dive' },
           { id: 'team', label: '👥 Scientist Workload' },
           { id: 'ai', label: '🤖 AI Governance Briefings' },
@@ -198,7 +201,9 @@ export const Reports: React.FC = () => {
       </div>
 
       {/* Tab Render Switch */}
-      {activeTab === 'analytics' ? (
+      {activeTab === 'trial-progress' ? (
+        <TrialProgressReport />
+      ) : activeTab === 'analytics' ? (
         <Analytics />
       ) : activeTab === 'team' ? (
         <TeamActivity />

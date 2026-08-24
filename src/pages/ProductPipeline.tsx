@@ -19,6 +19,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSyncedProjects, getSyncedTrials } from '../services/trialManagerSync';
 
+import { Products } from './Products';
+
 interface ProductStage {
   id: string;
   name: string;
@@ -99,6 +101,7 @@ const INITIAL_PRODUCTS: PipelineProduct[] = [
 ];
 
 export const ProductPipeline: React.FC = () => {
+  const [activeView, setActiveView] = useState<'pipeline' | 'portfolio'>('pipeline');
   const [products, setProducts] = useState<PipelineProduct[]>(INITIAL_PRODUCTS);
   const [selectedProduct, setSelectedProduct] = useState<PipelineProduct | null>(null);
 
@@ -162,7 +165,35 @@ export const ProductPipeline: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
+      {/* Sub-Tab Bar */}
+      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
+        <button
+          onClick={() => setActiveView('pipeline')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            activeView === 'pipeline'
+              ? 'bg-emerald-500 text-white shadow-md'
+              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          🧬 R&D Phase Pipeline Kanban
+        </button>
+        <button
+          onClick={() => setActiveView('portfolio')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            activeView === 'portfolio'
+              ? 'bg-emerald-500 text-white shadow-md'
+              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          📦 Product Catalog & Portfolio
+        </button>
+      </div>
+
+      {activeView === 'portfolio' ? (
+        <Products />
+      ) : (
+        <>
+          {/* Header Banner */}
       <div className="p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-indigo-500/20">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -316,6 +347,8 @@ export const ProductPipeline: React.FC = () => {
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 };

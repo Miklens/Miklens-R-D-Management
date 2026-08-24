@@ -10,10 +10,14 @@ import { useExperiments } from '../contexts/ExperimentContext';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import { calculateLogMinutes } from '../utils/timeTracking';
 
+import { Approvals } from './Approvals';
+
 export const TeamActivity: React.FC = () => {
   const { data: logs } = useDailyLogs();
   const { data: users } = useUsers();
   const { experiments, labTests, stabilityLogs, fieldTrials, allProducts } = useExperiments();
+
+  const [activeMainTab, setActiveMainTab] = useState<'activity' | 'approvals'>('activity');
 
   // Filters State
   const [presetPeriod, setPresetPeriod] = useState<'today' | 'week' | 'month' | 'quarter' | 'custom'>('month');
@@ -314,8 +318,36 @@ export const TeamActivity: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* Sub-Tab Bar */}
+      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
+        <button
+          onClick={() => setActiveMainTab('activity')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            activeMainTab === 'activity'
+              ? 'bg-emerald-500 text-white shadow-md'
+              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          👥 Team Activity & Timesheet Audits
+        </button>
+        <button
+          onClick={() => setActiveMainTab('approvals')}
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            activeMainTab === 'approvals'
+              ? 'bg-emerald-500 text-white shadow-md'
+              : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          ✅ Pending Management Approvals
+        </button>
+      </div>
+
+      {activeMainTab === 'approvals' ? (
+        <Approvals />
+      ) : (
+        <>
+          {/* Top Banner Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
@@ -612,6 +644,8 @@ export const TeamActivity: React.FC = () => {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

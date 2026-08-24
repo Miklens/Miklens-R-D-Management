@@ -41,7 +41,6 @@ const navGroups: NavGroup[] = [
   {
     category: 'Formulation & Pipeline',
     items: [
-      { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
       { name: 'R&D Phase Pipeline', href: '/product-pipeline', icon: GitPullRequest },
       { name: 'Formulation Builder', href: '/formulation-builder', icon: FlaskConical },
     ],
@@ -49,10 +48,8 @@ const navGroups: NavGroup[] = [
   {
     category: 'Management & Audits',
     items: [
-      { name: 'Executive Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
-      { name: 'Trial Progress Report', href: '/trial-progress', icon: Layers, roles: ['Admin', 'Management'] },
-      { name: 'Management Approvals', href: '/approvals', icon: CheckCircle, roles: ['Admin', 'Management'] },
-      { name: 'Team Activity Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
+      { name: 'Executive & Trial Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
+      { name: 'Team Activity & Approvals', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
     ],
   },
 ];
