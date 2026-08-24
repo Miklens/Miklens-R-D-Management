@@ -26,7 +26,6 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Dashboard', href: '/', icon: LayoutDashboard },
       { name: 'Gemini AI Assistant', href: '/ai-insights', icon: Sparkles },
-      { name: 'Tasks & Milestones', href: '/tasks', icon: CheckSquare },
     ],
   },
   {
