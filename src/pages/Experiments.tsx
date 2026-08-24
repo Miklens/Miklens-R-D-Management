@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Plus, X, Search, FlaskConical, Trash2, Package, Sparkles, ChevronRight, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LaboratoryTests } from './LaboratoryTests';
-import { StabilityTracker } from './StabilityTracker';
 import { FieldTrials } from './FieldTrials';
 import { Observations } from './Observations';
 import { useExperiments } from '../contexts/ExperimentContext';
@@ -16,7 +15,7 @@ export const Experiments: React.FC = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'experiments' | 'lab' | 'stability' | 'field' | 'observations'>('experiments');
+  const [activeTab, setActiveTab] = useState<'experiments' | 'lab' | 'field' | 'observations'>('experiments');
 
   // Scientific Workbench Drawer State
   const [selectedExperiment, setSelectedExperiment] = useState<any>(null);
@@ -126,7 +125,6 @@ export const Experiments: React.FC = () => {
         {[
           { id: 'experiments', label: 'All Experiments' },
           { id: 'lab', label: 'Lab Tests' },
-          { id: 'stability', label: 'CIPAC Stability Logs' },
           { id: 'field', label: 'Field Trials' },
           { id: 'observations', label: 'Observations' },
         ].map((tab) => (
@@ -147,8 +145,6 @@ export const Experiments: React.FC = () => {
       {/* Tab Render Switch */}
       {activeTab === 'lab' ? (
         <LaboratoryTests />
-      ) : activeTab === 'stability' ? (
-        <StabilityTracker />
       ) : activeTab === 'field' ? (
         <FieldTrials />
       ) : activeTab === 'observations' ? (

@@ -44,9 +44,8 @@ const navGroups: NavGroup[] = [
     category: 'Formulation & Pipeline',
     items: [
       { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
-      { name: 'Stage-Gate Pipeline', href: '/product-pipeline', icon: GitPullRequest },
+      { name: 'R&D Phase Pipeline', href: '/product-pipeline', icon: GitPullRequest },
       { name: 'Formulation Builder', href: '/formulation-builder', icon: FlaskConical },
-      { name: 'Stability & Shelf-Life', href: '/stability-tracker', icon: Thermometer },
     ],
   },
   {
