@@ -35,8 +35,6 @@ const navGroups: NavGroup[] = [
       { name: 'Daily Research Log', href: '/research-log', icon: Edit3, roles: ['Admin', 'Scientist'] },
       { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
       { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
-      { name: 'Lab Assays & QC', href: '/lab-tests', icon: Beaker, roles: ['Admin', 'Scientist'] },
-      { name: 'Field Observations', href: '/observations', icon: Eye, roles: ['Admin', 'Scientist'] },
       { name: 'Analytics & Efficacy', href: '/analytics', icon: BarChart3 },
     ],
   },

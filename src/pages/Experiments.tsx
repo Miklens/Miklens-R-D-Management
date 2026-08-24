@@ -120,37 +120,8 @@ export const Experiments: React.FC = () => {
         )}
       </div>
 
-      {/* Operations Sub-Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
-        {[
-          { id: 'experiments', label: 'All Experiments' },
-          { id: 'lab', label: 'Lab Tests' },
-          { id: 'field', label: 'Field Trials' },
-          { id: 'observations', label: 'Observations' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              activeTab === tab.id
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Render Switch */}
-      {activeTab === 'lab' ? (
-        <LaboratoryTests />
-      ) : activeTab === 'field' ? (
-        <FieldTrials />
-      ) : activeTab === 'observations' ? (
-        <Observations />
-      ) : (
-        <div className="space-y-6">
+      {/* All Experiments View */}
+      <div className="space-y-6">
           {/* Search Toolbar */}
           <div className="relative max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -264,7 +235,6 @@ export const Experiments: React.FC = () => {
             ))
           )}
         </div>
-      )}
 
       {/* Interactive Scientific Workbench Modal */}
       {selectedExperiment && (
