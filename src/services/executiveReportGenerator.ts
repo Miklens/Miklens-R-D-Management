@@ -1243,5 +1243,104 @@ export const exportMasterExcelWorkbook = (
   XLSX.writeFile(wb, `Miklens_All_Scientists_Daily_Logs_Workbook_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };
 
+/**
+ * PDF EXPORT: 1-Click Executive Daily Scientist Activity Sheet
+ */
+export const exportDailyScientistActivityPDF = (
+  pulseData: any[],
+  logs: any[],
+  targetDateISO: string
+) => {
+  const doc = new jsPDF('portrait', 'mm', 'a4');
+  const activeCount = pulseData.filter(s => s.status === 'active').length;
+  const totalHours = pulseData.reduce((acc, s) => acc + parseFloat(s.totalHours || '0'), 0).toFixed(1);
+
+  // Header Banner
+  doc.setFillColor(5, 150, 105); // emerald-600
+  doc.rect(0, 0, 210, 28, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MIKLENS BIOTECH - DAILY SCIENTIST ACTIVITY SHEET', 14, 14);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Date: ${targetDateISO}   |   Active Scientists: ${activeCount}/${pulseData.length}   |   Total Hours Logged: ${totalHours}h`, 14, 22);
+
+  let y = 36;
+
+  // Scientist Summary Table
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('1. Scientist Roster & Hours Breakdown Today', 14, y);
+  y += 6;
+
+  // Render headers
+  doc.setFillColor(243, 244, 246);
+  doc.rect(14, y, 182, 8, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Scientist Name', 18, y + 5.5);
+  doc.text('Designation', 70, y + 5.5);
+  doc.text('Today Hours', 125, y + 5.5);
+  doc.text('Sessions', 155, y + 5.5);
+  doc.text('Status', 178, y + 5.5);
+  y += 8;
+
+  doc.setFont('helvetica', 'normal');
+  pulseData.forEach(item => {
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(item.user.name || 'Scientist', 18, y + 5);
+    doc.text((item.user.designation || item.user.role || 'Scientist').substring(0, 24), 70, y + 5);
+    doc.text(`${item.totalHours} hrs`, 125, y + 5);
+    doc.text(`${item.todayLogs.length}`, 155, y + 5);
+    doc.text(item.status === 'active' ? 'ACTIVE' : item.status === 'sync_pending' ? 'PENDING' : 'NO ENTRY', 178, y + 5);
+    y += 7;
+  });
+
+  y += 6;
+  if (y > 250) {
+    doc.addPage();
+    y = 20;
+  }
+
+  // Work Session Logs
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text("2. Today's Chronological Work Session Entries", 14, y);
+  y += 6;
+
+  const todayLogs = logs.filter(l => l.date && new Date(l.date).toISOString().split('T')[0] === targetDateISO);
+
+  if (todayLogs.length === 0) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.text('No work sessions recorded for this date.', 14, y + 4);
+  } else {
+    todayLogs.forEach((l, idx) => {
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFillColor(249, 250, 251);
+      doc.rect(14, y, 182, 12, 'F');
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${idx + 1}. ${l.userName || l.userEmail?.split('@')[0] || 'Scientist'} - [${l.workType || 'Session'}] (${l.hours || 1}h)`, 16, y + 4.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text((l.activities || l.description || 'Logged activities').substring(0, 110), 16, y + 9);
+      y += 14;
+    });
+  }
+
+  doc.save(`Miklens_Daily_Scientist_Activity_${targetDateISO}.pdf`);
+};
+
+
 
 
