@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getLogsByUser } from '../services/localStore';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { 
@@ -28,24 +29,16 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   const { profile, userRole, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { experiments } = useExperiments();
   const navigate = useNavigate();
   const location = useLocation();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
-
-  // Dark mode effect
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
+  const isDarkMode = theme === 'dark';
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -196,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
         {/* Dark mode toggle */}
         <button
-          onClick={() => setIsDarkMode(!isDarkMode)}
+          onClick={toggleTheme}
           className="p-2.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/50 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="Toggle Light / Dark Mode"
         >

@@ -2,7 +2,8 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, FlaskConical, Beaker, BarChart3, Edit3, 
-  Settings, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin
+  Settings, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin,
+  CheckSquare, FileText, Eye, CheckCircle, GitPullRequest
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { Role } from '../types';
@@ -25,6 +26,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Dashboard', href: '/', icon: LayoutDashboard },
       { name: 'Gemini AI Assistant', href: '/ai-insights', icon: Sparkles },
+      { name: 'Tasks & Milestones', href: '/tasks', icon: CheckSquare },
     ],
   },
   {
@@ -33,15 +35,27 @@ const navGroups: NavGroup[] = [
       { name: 'Daily Research Log', href: '/research-log', icon: Edit3, roles: ['Admin', 'Scientist'] },
       { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
       { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
-      { name: 'Analytics & Efficacy Analysis', href: '/analytics', icon: BarChart3 },
+      { name: 'Lab Assays & QC', href: '/lab-tests', icon: Beaker, roles: ['Admin', 'Scientist'] },
+      { name: 'Field Observations', href: '/observations', icon: Eye, roles: ['Admin', 'Scientist'] },
+      { name: 'Analytics & Efficacy', href: '/analytics', icon: BarChart3 },
     ],
   },
   {
-    category: 'Management & Products',
+    category: 'Formulation & Pipeline',
     items: [
       { name: 'Product Portfolio', href: '/products', icon: FlaskConical },
+      { name: 'Stage-Gate Pipeline', href: '/product-pipeline', icon: GitPullRequest },
+      { name: 'Formulation Builder', href: '/formulation-builder', icon: FlaskConical },
+      { name: 'Stability & Shelf-Life', href: '/stability-tracker', icon: Thermometer },
+    ],
+  },
+  {
+    category: 'Management & Audits',
+    items: [
+      { name: 'Executive Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
       { name: 'Trial Progress Report', href: '/trial-progress', icon: Layers, roles: ['Admin', 'Management'] },
-      { name: 'Executive Reports & Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
+      { name: 'Management Approvals', href: '/approvals', icon: CheckCircle, roles: ['Admin', 'Management'] },
+      { name: 'Team Activity Audits', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
     ],
   },
 ];

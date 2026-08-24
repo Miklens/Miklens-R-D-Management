@@ -1,6 +1,11 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 import { logger } from '../utils/logger';
 
 /**
@@ -72,28 +77,18 @@ if (isFirebaseConfigured) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
 
-    // Enable offline persistence
-    enableIndexedDbPersistence(db)
-      .then(() => {
-        logger.info('Firestore offline persistence enabled', { module: 'Firebase' });
-      })
-      .catch((err) => {
-        if (err.code === 'failed-precondition') {
-          logger.warn(
-            'Multiple tabs open, persistence enabled in one tab only',
-            { module: 'Firebase' }
-          );
-        } else if (err.code === 'unimplemented') {
-          logger.warn(
-            'Browser does not support all features required for persistence',
-            { module: 'Firebase' }
-          );
-        } else {
-          logger.error('Failed to enable persistence', err, { module: 'Firebase' });
-        }
+    // Modern Firestore v11 multi-tab persistence configuration
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
       });
+      logger.info('Firestore multi-tab persistence enabled', { module: 'Firebase' });
+    } catch {
+      db = getFirestore(app);
+    }
 
     logger.info('Firebase initialized successfully', { module: 'Firebase' });
   } catch (error) {
