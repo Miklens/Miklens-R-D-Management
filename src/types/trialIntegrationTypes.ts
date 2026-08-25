@@ -108,6 +108,36 @@ export interface ComparativeProgress {
   completedDiffPercent?: number;
 }
 
+export interface ScientistBottleneck {
+  id: string;
+  type: 'stalled_trial' | 'missing_evaluation' | 'blocked_log' | 'inactivity' | 'low_efficacy';
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  trialCode?: string;
+  actionRecommendation: string;
+}
+
+export interface ScientistInnovation {
+  id: string;
+  type: 'breakthrough_efficacy' | 'new_target_control' | 'stage_gate_advancement' | 'recipe_stabilization';
+  title: string;
+  description: string;
+  metric?: string;
+  category?: TrialCategory;
+  date?: string;
+}
+
+export interface TodayProgress {
+  todayLogsCount: number;
+  todayHours: number;
+  todayTrialsVisited: number;
+  latestObjective: string;
+  latestAchievements: string;
+  latestStatus: string;
+  hasActiveWorkToday: boolean;
+}
+
 export interface ScientistExecutiveProfile {
   uid: string;
   email: string;
@@ -123,6 +153,7 @@ export interface ScientistExecutiveProfile {
   failureRate: number; // Percentage (Poor outcome)
   currentWorkloadScore: number; // 0 - 100 indicator
   categoryWorkload: Record<TrialCategory, number>;
+  todayProgress: TodayProgress;
   weeklyProgress: {
     currentWeek: ComparativeProgress;
     previousWeek: ComparativeProgress;
@@ -131,6 +162,16 @@ export interface ScientistExecutiveProfile {
     currentMonth: ComparativeProgress;
     previousMonth: ComparativeProgress;
   };
+  sixMonthProgress: {
+    currentPeriod: ComparativeProgress;
+    previousPeriod: ComparativeProgress;
+  };
+  yearlyProgress: {
+    currentYear: ComparativeProgress;
+    previousYear: ComparativeProgress;
+  };
+  bottlenecks: ScientistBottleneck[];
+  innovations: ScientistInnovation[];
   summary: {
     focusArea: string;
     recentDiscoveries: string;
@@ -141,4 +182,5 @@ export interface ScientistExecutiveProfile {
   mostActiveCategory: TrialCategory;
   mostSuccessfulCategory: TrialCategory;
 }
+
 

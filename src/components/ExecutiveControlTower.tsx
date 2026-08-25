@@ -164,16 +164,17 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
   }, [users, experiments, labTests, stabilityLogs, syncedTrials, logs]);
 
   const delayedTrials = useMemo(() => {
+    const now = new Date();
     return syncedTrials.filter(t => {
       if (t.isCompleted) return false;
       const start = new Date(t.startDate);
-      const diffDays = (new Date('2026-08-04').getTime() - start.getTime()) / (1000 * 3600 * 24);
+      const diffDays = (now.getTime() - start.getTime()) / (1000 * 3600 * 24);
       return diffDays > 90;
     });
   }, [syncedTrials]);
 
   const inactiveScientists = useMemo(() => {
-    const cutoff = new Date('2026-08-04');
+    const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 7);
     const inactiveCards = scientistScorecards.filter(card => {
       const uLogs = (logs || []).filter(l => l.userId === card.id);
@@ -251,12 +252,13 @@ export const ExecutiveControlTower: React.FC<{ trials?: ExternalFieldTrial[] }> 
   }, [syncedTrials]);
 
   const endingThisMonth = useMemo(() => {
+    const currentMonthStr = format(new Date(), 'yyyy-MM');
     return syncedTrials.filter(t => {
       if (t.isCompleted) return false;
       const start = new Date(t.startDate);
       const estEnd = new Date(start.getTime() + 90 * 24 * 3600 * 1000);
       const monthStr = format(estEnd, 'yyyy-MM');
-      return monthStr === '2026-08';
+      return monthStr === currentMonthStr;
     });
   }, [syncedTrials]);
 

@@ -1,305 +1,147 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Download, FileSpreadsheet, Calendar, Search, Filter, X, Users, Clock, FileText, ChevronDown, Eye } from 'lucide-react';
+import {
+  Mail, Download, FileSpreadsheet, Calendar, Search, Filter, X, Users,
+  Clock, FileText, ChevronDown, Eye, AlertTriangle, CheckCircle2, Sparkles,
+  Leaf, Shield, Bug, Beaker, Sprout, TrendingUp, AlertCircle, ArrowUpRight, Zap
+} from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
-import { getEntriesByScientist, getEntriesByScientistAndDateRange } from '../services/timeTracking';
+import { useExperiments } from '../contexts/ExperimentContext';
+import { getSyncedTrials } from '../services/trialManagerSync';
 import { useAuth } from '../contexts/AuthContext';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getEffectiveAvatar } from '../utils/avatarHelper';
+import { buildScientistExecutiveProfile } from '../services/executiveAnalytics';
+import { getScientistTrials, getScientistLogs, getScientistLabWork, formatCleanScientistName } from '../utils/scientistMatcher';
+import { exportScientistToPDF, exportScientistToExcel } from '../services/executiveReportGenerator';
+import { Badge } from '../components/ui/Badge';
 
 export const Employees: React.FC = () => {
-  const { data: users, isLoading } = useUsers();
-  const { data: logs } = useDailyLogs();
+  const { data: users, isLoading: usersLoading } = useUsers();
+  const { data: logs, isLoading: logsLoading } = useDailyLogs();
+  const { experiments, labTests } = useExperiments();
   const { userRole } = useAuth();
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [dateRange, setDateRange] = useState<'week' | 'month' | 'last_month' | '3_months' | '6_months' | 'year' | 'custom'>('month');
-  const [customStartDate, setCustomStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-  const [customEndDate, setCustomEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedHorizon, setSelectedHorizon] = useState<'today' | '7d' | '30d' | '6m' | '1y'>('30d');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active_today' | 'bottlenecks' | 'high_output'>('all');
   const [isExporting, setIsExporting] = useState(false);
-  const [employeeTimeEntries, setEmployeeTimeEntries] = useState<any[]>([]);
-  const [loadingEntries, setLoadingEntries] = useState(false);
 
-  const employees = users?.filter(u => u.isActive) || [];
+  const syncedTrials = useMemo(() => getSyncedTrials(), []);
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const filteredEmployees = employees.filter(emp => 
-    emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Build comprehensive scorecard for every active scientist
+  const scientistDossiers = useMemo(() => {
+    const activeUsers = (users || []).filter(u => u.isActive !== false);
 
-  const isManagement = userRole === 'Admin' || userRole === 'Management';
-
-  const getDateRange = () => {
-    const now = new Date();
-    switch (dateRange) {
-      case 'week': return { start: subDays(now, 7), end: now };
-      case 'month': return { start: startOfMonth(now), end: now };
-      case 'last_month': {
-        const lastM = subDays(startOfMonth(now), 1);
-        return { start: startOfMonth(lastM), end: endOfMonth(lastM) };
-      }
-      case '3_months': return { start: subDays(now, 90), end: now };
-      case '6_months': return { start: subDays(now, 180), end: now };
-      case 'year': return { start: subDays(now, 365), end: now };
-      case 'custom': return { start: new Date(customStartDate), end: new Date(customEndDate) };
-    }
-  };
-
-  const openExportModal = async (employee: any) => {
-    setSelectedEmployee(employee);
-    setShowExportModal(true);
-    setLoadingEntries(true);
-    
-    try {
-      const { start, end } = getDateRange();
-      const entries = await getEntriesByScientistAndDateRange(
-        employee.id,
-        format(start, 'yyyy-MM-dd'),
-        format(end, 'yyyy-MM-dd')
+    return activeUsers.map((user) => {
+      const execProfile = buildScientistExecutiveProfile(
+        user.name || user.email,
+        syncedTrials,
+        logs || [],
+        experiments,
+        labTests
       );
-      setEmployeeTimeEntries(entries);
-    } catch (error) {
-      console.error('Error loading entries:', error);
-    } finally {
-      setLoadingEntries(false);
-    }
-  };
 
-  const handleExportPDF = async () => {
-    if (!selectedEmployee) return;
-    setIsExporting(true);
-    
-    try {
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-      const { start, end } = getDateRange();
-      
-      // Header Branding Bar
-      doc.setFillColor(16, 185, 129); // Emerald Header Banner
-      doc.rect(0, 0, 210, 24, 'F');
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.text('MIKLENS R&D MANAGEMENT PORTAL', 14, 15);
-      doc.setFontSize(9);
-      doc.text('EXECUTIVE SCIENTIST PERFORMANCE REPORT', 140, 15);
+      const userTrials = getScientistTrials(user, syncedTrials);
+      const userLogs = getScientistLogs(user, logs || []);
 
-      // Scientist Details Header Box
-      doc.setFillColor(243, 244, 246);
-      doc.rect(14, 30, 182, 32, 'F');
-      
-      doc.setTextColor(17, 24, 39);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(selectedEmployee.name, 20, 42);
+      // Check today's activity
+      const hasWorkToday = execProfile.todayProgress.hasActiveWorkToday;
+      const bottleneckCount = execProfile.bottlenecks.length;
 
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(107, 114, 128);
-      doc.text(`Designation: ${selectedEmployee.designation || 'Senior Microbiologist'}`, 20, 50);
-      doc.text(`Department: ${selectedEmployee.department || 'R&D Department'}`, 20, 56);
-      doc.text(`Email: ${selectedEmployee.email}`, 110, 42);
-      doc.text(`Report Period: ${format(start, 'MMM d, yyyy')} - ${format(end, 'MMM d, yyyy')}`, 110, 50);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 110, 56);
+      // Horizon specific metrics
+      let trialsCount = 0;
+      let evalsCount = 0;
+      let efficacyAvg = execProfile.successRate;
+      let horizonHours = 0;
 
-      // KPI Metric Cards
-      const totalMinutes = employeeTimeEntries.reduce((sum, e) => sum + (e.durationMinutes || 60), 0);
-      const totalHours = (totalMinutes / 60).toFixed(1);
-      const daysWorked = new Set(employeeTimeEntries.map(e => e.date)).size || 14;
-      const totalTasks = employeeTimeEntries.length || 24;
-      const productsWorked = new Set(employeeTimeEntries.map(e => e.projectName).filter(Boolean)).size || 4;
-
-      // Card 1: Hours
-      doc.setFillColor(236, 253, 245);
-      doc.rect(14, 68, 42, 22, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(5, 150, 105);
-      doc.text('TOTAL LOGGED', 18, 75);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${totalHours}h`, 18, 85);
-
-      // Card 2: Days
-      doc.setFillColor(239, 246, 255);
-      doc.rect(60, 68, 42, 22, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(37, 99, 235);
-      doc.text('DAYS WORKED', 64, 75);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${daysWorked} Days`, 64, 85);
-
-      // Card 3: Products
-      doc.setFillColor(245, 243, 255);
-      doc.rect(106, 68, 42, 22, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(124, 58, 237);
-      doc.text('PRODUCTS HANDLED', 110, 75);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${productsWorked} Products`, 110, 85);
-
-      // Card 4: Efficiency
-      doc.setFillColor(254, 243, 199);
-      doc.rect(152, 68, 44, 22, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(217, 119, 6);
-      doc.text('EFFICIENCY RATE', 156, 75);
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`94%`, 156, 85);
-
-      // Table Header
-      let y = 102;
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(17, 24, 39);
-      doc.text('Detailed Research & Trial Log Entries', 14, y);
-      y += 6;
-
-      doc.setFillColor(16, 185, 129);
-      doc.rect(14, y, 182, 8, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('DATE', 17, y + 5.5);
-      doc.text('PRODUCT / TARGET', 42, y + 5.5);
-      doc.text('CATEGORY / TRIAL TYPE', 92, y + 5.5);
-      doc.text('DURATION', 142, y + 5.5);
-      doc.text('STATUS', 172, y + 5.5);
-
-      y += 8;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(55, 65, 81);
-
-      const entries = employeeTimeEntries.length > 0 ? employeeTimeEntries : [
-        { date: '2026-07-28', projectName: 'Active Formulation', category: 'Efficacy Check', durationMinutes: 120, description: 'Microbial CFU count verification' }
-      ];
-
-      entries.forEach((entry, idx) => {
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
-
-        if (idx % 2 === 1) {
-          doc.setFillColor(249, 250, 251);
-          doc.rect(14, y, 182, 8, 'F');
-        }
-
-        const duration = entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : '1h 0m';
-        
-        doc.text(entry.date || '2026-07-28', 17, y + 5.5);
-        doc.text((entry.projectName || 'Active Formulation').substring(0, 22), 42, y + 5.5);
-        doc.text((entry.category || 'Lab Trial').substring(0, 24), 92, y + 5.5);
-        doc.text(duration, 142, y + 5.5);
-        doc.text('Completed', 172, y + 5.5);
-
-        y += 8;
-      });
-
-      // Page Footer
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(156, 163, 175);
-        doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
-        doc.text('Confidential - Miklens Bio R&D Management System', 14, 290);
+      switch (selectedHorizon) {
+        case 'today':
+          trialsCount = execProfile.todayProgress.todayTrialsVisited;
+          horizonHours = execProfile.todayProgress.todayHours;
+          break;
+        case '7d':
+          trialsCount = execProfile.weeklyProgress.currentWeek.trialsStarted + execProfile.weeklyProgress.currentWeek.trialsCompleted;
+          evalsCount = execProfile.weeklyProgress.currentWeek.evaluationsDone;
+          efficacyAvg = execProfile.weeklyProgress.currentWeek.efficacyAvg || execProfile.successRate;
+          horizonHours = Math.round((userLogs.filter(l => (new Date().getTime() - new Date(l.date || l.createdAt).getTime()) <= 7 * 86400000).reduce((s, l) => s + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
+          break;
+        case '30d':
+          trialsCount = execProfile.monthlyProgress.currentMonth.trialsStarted + execProfile.monthlyProgress.currentMonth.trialsCompleted;
+          evalsCount = execProfile.monthlyProgress.currentMonth.evaluationsDone;
+          efficacyAvg = execProfile.monthlyProgress.currentMonth.efficacyAvg || execProfile.successRate;
+          horizonHours = Math.round((userLogs.filter(l => (new Date().getTime() - new Date(l.date || l.createdAt).getTime()) <= 30 * 86400000).reduce((s, l) => s + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
+          break;
+        case '6m':
+          trialsCount = execProfile.sixMonthProgress.currentPeriod.trialsStarted + execProfile.sixMonthProgress.currentPeriod.trialsCompleted;
+          evalsCount = execProfile.sixMonthProgress.currentPeriod.evaluationsDone;
+          efficacyAvg = execProfile.sixMonthProgress.currentPeriod.efficacyAvg || execProfile.successRate;
+          horizonHours = Math.round((userLogs.filter(l => (new Date().getTime() - new Date(l.date || l.createdAt).getTime()) <= 180 * 86400000).reduce((s, l) => s + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
+          break;
+        case '1y':
+          trialsCount = execProfile.yearlyProgress.currentYear.trialsStarted + execProfile.yearlyProgress.currentYear.trialsCompleted;
+          evalsCount = execProfile.yearlyProgress.currentYear.evaluationsDone;
+          efficacyAvg = execProfile.yearlyProgress.currentYear.efficacyAvg || execProfile.successRate;
+          horizonHours = Math.round((userLogs.filter(l => (new Date().getTime() - new Date(l.date || l.createdAt).getTime()) <= 365 * 86400000).reduce((s, l) => s + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
+          break;
       }
 
-      doc.save(`Scientist_Executive_Report_${selectedEmployee.name.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}.pdf`);
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to export PDF');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+      return {
+        user,
+        profile: execProfile,
+        userTrials,
+        userLogs,
+        hasWorkToday,
+        bottleneckCount,
+        horizonMetrics: {
+          trialsCount,
+          evalsCount,
+          efficacyAvg,
+          hours: horizonHours,
+        },
+      };
+    });
+  }, [users, syncedTrials, logs, experiments, labTests, selectedHorizon]);
 
-  const handleExportExcel = async () => {
-    if (!selectedEmployee) return;
-    setIsExporting(true);
-    
-    try {
-      const { default: XLSX } = await import('xlsx');
-      const { start, end } = getDateRange();
-      
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      
-      // Sheet 1: Employee Info
-      const empInfo = [
-        ['Employee Activity Report'],
-        [''],
-        ['Employee Name', selectedEmployee.name],
-        ['Designation', selectedEmployee.designation || 'N/A'],
-        ['Department', selectedEmployee.department || 'N/A'],
-        ['Email', selectedEmployee.email],
-        ['Report Period', `${format(start, 'MMM d, yyyy')} - ${format(end, 'MMM d, yyyy')}`],
-        ['Generated', new Date().toLocaleString()],
-        [''],
-        ['Summary'],
-        ['Total Hours', (employeeTimeEntries.reduce((s, e) => s + (e.durationMinutes || 0), 0) / 60).toFixed(1) + 'h'],
-        ['Days Worked', new Set(employeeTimeEntries.map(e => e.date)).size.toString()],
-        ['Total Activities', employeeTimeEntries.length.toString()]
-      ];
-      const ws1 = XLSX.utils.aoa_to_sheet(empInfo);
-      XLSX.utils.book_append_sheet(wb, ws1, 'Employee Info');
-      
-      // Sheet 2: Time Entries
-      const timeData = [['Date', 'Start Time', 'End Time', 'Duration (min)', 'Category', 'Description', 'Project', 'Billable']];
-      employeeTimeEntries.forEach(entry => {
-        timeData.push([
-          entry.date || '',
-          entry.startTime || '',
-          entry.endTime || '',
-          entry.durationMinutes?.toString() || '0',
-          entry.category || '',
-          entry.description || '',
-          entry.projectName || '-',
-          entry.isBillable ? 'Yes' : 'No'
-        ]);
-      });
-      const ws2 = XLSX.utils.aoa_to_sheet(timeData);
-      ws2['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 20 }, { wch: 10 }];
-      XLSX.utils.book_append_sheet(wb, ws2, 'Time Entries');
-      
-      // Sheet 3: Daily Summary
-      const dailySummary: Record<string, { minutes: number; count: number }> = {};
-      employeeTimeEntries.forEach(entry => {
-        if (!dailySummary[entry.date]) {
-          dailySummary[entry.date] = { minutes: 0, count: 0 };
-        }
-        dailySummary[entry.date].minutes += entry.durationMinutes || 0;
-        dailySummary[entry.date].count += 1;
-      });
-      
-      const summaryData = [['Date', 'Total Hours', 'Activities']];
-      Object.entries(dailySummary).sort().forEach(([date, data]) => {
-        summaryData.push([
-          date,
-          (data.minutes / 60).toFixed(1) + 'h',
-          data.count.toString()
-        ]);
-      });
-      const ws3 = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, ws3, 'Daily Summary');
-      
-      XLSX.writeFile(wb, `Employee_Report_${selectedEmployee.name.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.xlsx`);
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to export Excel');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  // Filtered scientists
+  const filteredDossiers = useMemo(() => {
+    return scientistDossiers.filter((item) => {
+      const nameMatch =
+        item.user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.user.department?.toLowerCase().includes(searchTerm.toLowerCase());
 
-  if (isLoading) {
+      if (!nameMatch) return false;
+
+      if (statusFilter === 'active_today') return item.hasWorkToday;
+      if (statusFilter === 'bottlenecks') return item.bottleneckCount > 0;
+      if (statusFilter === 'high_output') return item.profile.successRate >= 85;
+
+      return true;
+    });
+  }, [scientistDossiers, searchTerm, statusFilter]);
+
+  // Team summary KPIs
+  const teamKPIs = useMemo(() => {
+    const totalScientists = scientistDossiers.length;
+    const activeTodayCount = scientistDossiers.filter(d => d.hasWorkToday).length;
+    const totalBottlenecks = scientistDossiers.reduce((s, d) => s + d.bottleneckCount, 0);
+    const avgTeamSuccess = totalScientists > 0
+      ? Math.round(scientistDossiers.reduce((s, d) => s + d.profile.successRate, 0) / totalScientists)
+      : 88;
+
+    return {
+      totalScientists,
+      activeTodayCount,
+      totalBottlenecks,
+      avgTeamSuccess,
+    };
+  }, [scientistDossiers]);
+
+  if (usersLoading || logsLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
@@ -308,278 +150,262 @@ export const Employees: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Employees</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {employees.length} team member{employees.length !== 1 ? 's' : ''}
-          </p>
+    <div className="space-y-6 pb-12">
+      {/* ── 1. Header Banner ── */}
+      <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200">
+                Executive Command Center
+              </span>
+              <span className="text-xs text-gray-400 font-medium">{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white mt-1">
+              R&D Scientist Performance & Trial Output Roster
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Real-time tracking of scientist trial workloads, daily research logs, bottleneck alerts, and multi-horizon progress.
+            </p>
+          </div>
+
+          {/* Quick Horizon Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl shrink-0">
+            {[
+              { id: 'today', label: '⚡ Today' },
+              { id: '7d', label: '📅 1-Week' },
+              { id: '30d', label: '📆 1-Month' },
+              { id: '6m', label: '📈 6-Months' },
+              { id: '1y', label: '🏆 1-Year' },
+            ].map((h) => (
+              <button
+                key={h.id}
+                onClick={() => setSelectedHorizon(h.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  selectedHorizon === h.id
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                {h.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/20">
-            <Users className="w-5 h-5" />
-            Add Employee
-          </button>
+
+        {/* Top 4 KPI Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 space-y-1">
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Total Active Scientists</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-gray-900 dark:text-white">{teamKPIs.totalScientists}</span>
+              <Users className="w-5 h-5 text-emerald-500" />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 space-y-1">
+            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Active In Field Today</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{teamKPIs.activeTodayCount}</span>
+              <Sparkles className="w-5 h-5 text-emerald-500" />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 space-y-1">
+            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase">Bottlenecks Flagged</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-amber-700 dark:text-amber-300">{teamKPIs.totalBottlenecks}</span>
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 space-y-1">
+            <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase">Team Success Average</span>
+            <div className="flex items-center justify-between">
+              <span className="text-2xl font-black text-purple-700 dark:text-purple-300">{teamKPIs.avgTeamSuccess}%</span>
+              <Zap className="w-5 h-5 text-purple-500" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search employees..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-        />
-      </div>
+      {/* ── 2. Search & Status Filter Bar ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-md border border-gray-100 dark:border-gray-800">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search scientist by name, email, or department..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none text-gray-900 dark:text-white"
+          />
+        </div>
 
-      {/* Employee Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEmployees.map((employee) => {
-          const empLogs = logs?.filter(l => l.userId === employee.id) || [];
-          const logCount = empLogs.length;
-          const totalHoursLogged = Math.round(empLogs.reduce((acc, curr) => acc + (curr.timeSpentMinutes || 60), 0) / 60);
-          const blockedItems = empLogs.filter(l => l.completionStatus === 'Blocked').length;
-          const completedItems = empLogs.filter(l => l.completionStatus === 'Completed').length;
-          const activeProducts = new Set(empLogs.map(l => l.productId).filter(Boolean)).size || 3;
-          const efficiencyScore = logCount > 0 ? Math.min(98, Math.max(65, Math.round((completedItems / Math.max(1, logCount)) * 100))) : 88;
-          
-          return (
-            <motion.div
-              key={employee.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-2xl hover:border-emerald-500/30 transition-all"
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-bold text-gray-400 mr-1 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5" /> Filter:
+          </span>
+          {[
+            { id: 'all', label: 'All Scientists' },
+            { id: 'active_today', label: '🟢 Active Today' },
+            { id: 'bottlenecks', label: '🟡 Bottlenecks Flagged' },
+            { id: 'high_output', label: '🏆 High Efficacy (>85%)' },
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setStatusFilter(f.id as any)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                statusFilter === f.id
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+              }`}
             >
-              <Link to={`/profile/${employee.id}`} className="block p-6">
-                <div className="flex items-start gap-4">
-                  <img
-                    className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/20 object-cover"
-                    src={employee.avatar || `https://i.pravatar.cc/150?u=${employee.id}`}
-                    alt={employee.name}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <h3 className="font-bold text-gray-900 dark:text-white truncate text-base">{employee.name}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        efficiencyScore >= 80 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {efficiencyScore}% Efficiency
-                      </span>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 3. Scientist Grid Roster ── */}
+      {filteredDossiers.length === 0 ? (
+        <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 space-y-2">
+          <Users className="w-12 h-12 text-gray-300 mx-auto" />
+          <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No Scientists Found</h3>
+          <p className="text-xs text-gray-400">Try adjusting your search query or filter selection.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredDossiers.map((dossier) => {
+            const { user, profile, hasWorkToday, bottleneckCount, horizonMetrics } = dossier;
+            return (
+              <motion.div
+                key={user.id}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-3xl bg-white dark:bg-gray-900 shadow-lg border border-gray-100 dark:border-gray-800 hover:shadow-2xl transition-all duration-200 overflow-hidden flex flex-col justify-between"
+              >
+                <div className="p-6 space-y-4">
+                  {/* Scientist Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <img
+                          src={getEffectiveAvatar(user.id, user.email, (user as any).avatar) || `https://i.pravatar.cc/150?u=${user.id}`}
+                          alt={user.name}
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white dark:border-gray-800 shadow-md"
+                        />
+                        {hasWorkToday && (
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-base font-black text-gray-900 dark:text-white leading-tight">
+                            {formatCleanScientistName(user.name || user.email)}
+                          </h3>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.designation || 'Research Scientist'}</p>
+                        <span className="text-[11px] text-gray-400 block">{user.department || 'R&D Field Operations'}</span>
+                      </div>
                     </div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate">{employee.designation}</p>
-                    <span className="inline-flex items-center mt-1 px-2.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-semibold">
-                      {employee.department || 'R&D Department'}
+
+                    <div className="flex flex-col items-end gap-1">
+                      {hasWorkToday ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          Active Today
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                          Standby
+                        </span>
+                      )}
+
+                      {bottleneckCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 flex items-center gap-0.5">
+                          <AlertTriangle className="w-2.5 h-2.5" />
+                          {bottleneckCount} Bottleneck{bottleneckCount > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Today's Activity Pulse */}
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-1">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">
+                      Today's Focus & Activity
+                    </span>
+                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-2 leading-relaxed">
+                      "{profile.todayProgress.latestObjective}"
+                    </p>
+                    <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
+                      <span>{profile.todayProgress.todayHours}h Logged Today</span>
+                      <span>{profile.todayProgress.todayLogsCount} Logs</span>
+                    </div>
+                  </div>
+
+                  {/* Horizon Specific KPIs */}
+                  <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                      <span className="text-[10px] text-gray-400 uppercase font-bold block truncate">Trials</span>
+                      <span className="text-sm font-black text-gray-900 dark:text-white mt-0.5 block">{dossier.userTrials.length}</span>
+                    </div>
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                      <span className="text-[10px] text-gray-400 uppercase font-bold block truncate">Success Rate</span>
+                      <span className="text-sm font-black text-emerald-600 mt-0.5 block">{profile.successRate}%</span>
+                    </div>
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                      <span className="text-[10px] text-gray-400 uppercase font-bold block truncate">Workload</span>
+                      <span className="text-sm font-black text-purple-600 mt-0.5 block">{profile.currentWorkloadScore}/100</span>
+                    </div>
+                  </div>
+
+                  {/* Category Distribution Tags */}
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-bold">
+                      Herbicide: {profile.categoryWorkload.herbicide}
+                    </span>
+                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded text-[10px] font-bold">
+                      Fungicide: {profile.categoryWorkload.fungicide}
+                    </span>
+                    <span className="px-2 py-0.5 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 rounded text-[10px] font-bold">
+                      Pesticide: {profile.categoryWorkload.pesticide}
                     </span>
                   </div>
                 </div>
 
-                {/* Instant Executive Summary Metrics Grid */}
-                <div className="mt-5 grid grid-cols-3 gap-2 p-3 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/50">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Logged</p>
-                    <p className="text-base font-extrabold text-gray-900 dark:text-white">{totalHoursLogged}h</p>
-                    <p className="text-[10px] text-gray-400">{logCount} entries</p>
-                  </div>
-                  <div className="text-center border-x border-gray-200 dark:border-gray-700/50">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Products</p>
-                    <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{activeProducts}</p>
-                    <p className="text-[10px] text-gray-400">Assigned</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Blockers</p>
-                    <p className={`text-base font-extrabold ${blockedItems > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                      {blockedItems}
-                    </p>
-                    <p className="text-[10px] text-gray-400">{blockedItems > 0 ? 'Needs help' : 'On Track'}</p>
-                  </div>
-                </div>
-
-                {/* What they are currently working on */}
-                <div className="mt-4 p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 text-xs">
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400">Current Focus: </span>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {empLogs[0]?.objective || 'Active Formulation & CIPAC Heat Stability Testing'}
-                  </span>
-                </div>
-                
-                {employee.skills && employee.skills.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {employee.skills.slice(0, 3).map((skill) => (
-                      <span key={skill} className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-md text-[11px] font-medium">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </Link>
-              
-              <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50">
-                <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-800">
-                  <Link
-                    to={`/profile/${employee.id}`}
-                    className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Full Work Profile
-                  </Link>
-                  {isManagement && (
+                {/* Card Action Footer */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
                     <button
-                      onClick={() => openExportModal(employee)}
-                      className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() => exportScientistToPDF(profile, dossier.userTrials, { preset: selectedHorizon })}
+                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors cursor-pointer"
+                      title="Export PDF Report"
                     >
                       <Download className="w-4 h-4" />
-                      Export Report
                     </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+                    <button
+                      onClick={() => exportScientistToExcel(profile, dossier.userTrials, { preset: selectedHorizon })}
+                      className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-colors cursor-pointer"
+                      title="Export Excel Report"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </button>
+                  </div>
 
-      {/* Export Modal */}
-      <AnimatePresence>
-        {showExportModal && selectedEmployee && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setShowExportModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl"
-            >
-              <div className="p-6 border-b border-gray-100 dark:border-gray-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Export Employee Data</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedEmployee.name}</p>
-                  </div>
-                  <button onClick={() => setShowExportModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                {/* Date Range Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Track Period Filter</label>
-                  <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    {[
-                      { value: 'month', label: 'This Month' },
-                      { value: 'last_month', label: 'Last Month' },
-                      { value: '3_months', label: 'Last 3 Months' },
-                      { value: '6_months', label: 'Last 6 Months' },
-                      { value: 'year', label: 'Last 1 Year' },
-                      { value: 'custom', label: 'Custom' }
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setDateRange(option.value as any)}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                          dateRange === option.value
-                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Custom Date Range */}
-                {dateRange === 'custom' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
-                      <input
-                        type="date"
-                        value={customStartDate}
-                        onChange={(e) => setCustomStartDate(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-                      <input
-                        type="date"
-                        value={customEndDate}
-                        onChange={(e) => setCustomEndDate(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl"
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {/* Preview Stats */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preview</h4>
-                  {loadingEntries ? (
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                      Loading data...
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {(employeeTimeEntries.reduce((s, e) => s + (e.durationMinutes || 0), 0) / 60).toFixed(1)}h
-                        </p>
-                        <p className="text-xs text-gray-500">Total Hours</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {new Set(employeeTimeEntries.map(e => e.date)).size}
-                        </p>
-                        <p className="text-xs text-gray-500">Days Worked</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {employeeTimeEntries.length}
-                        </p>
-                        <p className="text-xs text-gray-500">Activities</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Export Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={handleExportPDF}
-                    disabled={isExporting || loadingEntries}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                  <Link
+                    to={`/profile/${user.id}`}
+                    className="flex items-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md transition-all active:scale-95"
                   >
-                    <Download className="w-5 h-5" />
-                    Download PDF
-                  </button>
-                  <button
-                    onClick={handleExportExcel}
-                    disabled={isExporting || loadingEntries}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    Download Excel
-                  </button>
+                    <span>Inspect Dossier</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

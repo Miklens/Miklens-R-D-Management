@@ -92,3 +92,10 @@ export interface ObservationItem {
   status: 'Open' | 'Resolved' | 'Under Review';
   createdAt: string;
 }
+
+export type Experiment = ExperimentItem;
+export type LabTest = LabTestItem;
+export type StabilityLog = StabilityLogItem;
+export type FieldTrial = FieldTrialItem;
+export type Observation = ObservationItem;
+
