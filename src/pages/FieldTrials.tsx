@@ -20,6 +20,7 @@ import {
 } from '../services/trialManagerSync';
 import { ExternalFieldTrial, TrialCategory } from '../types/trialIntegrationTypes';
 import { useAuth } from '../contexts/AuthContext';
+import { matchesScientist } from '../utils/scientistMatcher';
 
 // Category Config
 const CATEGORY_CONFIG: Record<TrialCategory, {
@@ -184,36 +185,38 @@ export const FieldTrials: React.FC = () => {
   // ─── Filtering Logic ───
 
   const matchesUser = (trial: ExternalFieldTrial): boolean => {
+    const scientistIdentity = {
+      id: currentUserUid,
+      email: currentUserEmail,
+      name: profile?.name,
+    };
+
     if (!isAdminOrManagement) {
       if (!currentUserEmail && !currentUserUid) return true;
-      const userHandle = currentUserEmail.split('@')[0].toLowerCase();
-      const trialEmail = (trial.creatorEmail || '').toLowerCase();
-      const trialScientist = (trial.scientistName || '').toLowerCase();
-      const trialUid = (trial.creatorUid || '').toLowerCase();
-      return (
-        trialEmail.includes(currentUserEmail) ||
-        trialEmail.includes(userHandle) ||
-        trialScientist.includes(userHandle) ||
-        (!!currentUserUid && trialUid === currentUserUid.toLowerCase())
-      );
+      return matchesScientist(scientistIdentity, {
+        scientistName: trial.scientistName,
+        creatorEmail: trial.creatorEmail,
+        creatorUid: trial.creatorUid,
+      });
     }
+
     if (selectedScientistFilter === 'all-scientists') return true;
     if (selectedScientistFilter === 'my-trials') {
       if (!currentUserEmail && !currentUserUid) return true;
-      const userHandle = currentUserEmail.split('@')[0].toLowerCase();
-      const trialEmail = (trial.creatorEmail || '').toLowerCase();
-      const trialScientist = (trial.scientistName || '').toLowerCase();
-      const trialUid = (trial.creatorUid || '').toLowerCase();
-      return (
-        trialEmail.includes(currentUserEmail) ||
-        trialEmail.includes(userHandle) ||
-        trialScientist.includes(userHandle) ||
-        (!!currentUserUid && trialUid === currentUserUid.toLowerCase())
-      );
+      return matchesScientist(scientistIdentity, {
+        scientistName: trial.scientistName,
+        creatorEmail: trial.creatorEmail,
+        creatorUid: trial.creatorUid,
+      });
     }
-    const filterNorm = selectedScientistFilter.toLowerCase();
-    return (trial.scientistName || '').toLowerCase().includes(filterNorm) || (trial.creatorEmail || '').toLowerCase().includes(filterNorm);
+
+    return matchesScientist(selectedScientistFilter, {
+      scientistName: trial.scientistName,
+      creatorEmail: trial.creatorEmail,
+      creatorUid: trial.creatorUid,
+    });
   };
+
 
   const matchesSearch = (trial: ExternalFieldTrial): boolean => {
     if (!searchTerm.trim()) return true;

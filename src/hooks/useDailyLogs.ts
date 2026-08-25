@@ -24,14 +24,20 @@ export const useDailyLogs = () => {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        setData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<DailyLog, 'id'>) })));
+        if (!snapshot.empty) {
+          setData(snapshot.docs.map(d => ({ id: d.id, ...(d.data() as Omit<DailyLog, 'id'>) })));
+        } else {
+          setData(getLogs());
+        }
         setIsLoading(false);
       },
       (error) => {
-        console.error('Error fetching daily logs realtime:', error);
+        console.warn('Error fetching daily logs realtime (falling back to local cache):', error);
+        setData(getLogs());
         setIsLoading(false);
       }
     );
+
 
     return () => unsubscribe();
   }, []);

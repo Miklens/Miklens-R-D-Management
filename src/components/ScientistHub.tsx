@@ -45,6 +45,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { calculateLogMinutes } from '../utils/timeTracking';
+import { getScientistLogs } from '../utils/scientistMatcher';
 
 interface ScientistHubProps {
   userId?: string;
@@ -73,17 +74,15 @@ export const ScientistHub: React.FC<ScientistHubProps> = memo(({ userId }) => {
 
   // Dynamic stats & weeklySummary generation
   const { stats, weeklySummary, todayActivities } = useMemo(() => {
-    const userEmail = (currentUser?.email || '').toLowerCase();
-    const userHandle = userEmail ? userEmail.split('@')[0] : '';
-    const userUid = (currentUser?.uid || '').toLowerCase();
+    const scientistIdentity = {
+      id: scientistId,
+      uid: currentUser?.uid,
+      email: currentUser?.email,
+      name: currentUser?.displayName,
+    };
 
-    const scientistLogs = allLogs.filter(l => {
-      const logUser = (l.userId || '').toLowerCase();
-      return logUser === userEmail || 
-             logUser === userUid || 
-             (userHandle && logUser.includes(userHandle)) ||
-             l.userId === scientistId;
-    });
+    const scientistLogs = getScientistLogs(scientistIdentity, allLogs || []);
+
     
     // Dynamic Today's Date (YYYY-MM-DD)
     const now = new Date();

@@ -3,12 +3,13 @@ import { DailyLog } from '../types';
 import { Experiment, LabTest, StabilityLog } from '../types/experimentTypes';
 
 export interface ScientistIdentity {
-  id?: string;
-  uid?: string;
-  email?: string;
-  name?: string;
-  displayName?: string;
+  id?: string | null;
+  uid?: string | null;
+  email?: string | null;
+  name?: string | null;
+  displayName?: string | null;
 }
+
 
 /**
  * Normalizes email or name handle to clean capitalized display name

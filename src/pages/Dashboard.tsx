@@ -13,6 +13,7 @@ import { exportMasterExecutiveReportPDF, exportMasterExcelWorkbook } from '../se
 import { GlobalSearchModal } from '../components/GlobalSearchModal';
 import { format } from 'date-fns';
 import { calculateTotalHours } from '../utils/timeTracking';
+import { getScientistTrials, formatCleanScientistName } from '../utils/scientistMatcher';
 import { 
   Sparkles, Clock, Beaker, Download, Award, Search, AlertTriangle, 
   TrendingUp, Users, ArrowRight, CheckCircle2, MapPin, User, Calendar, Target
@@ -28,15 +29,12 @@ export const Dashboard: React.FC = () => {
   const syncedTrials = useMemo(() => {
     const all = getSyncedTrials();
     if (isManagement) return all;
-    const email = profile?.email || currentUser?.email || '';
-    if (!email) return all;
-    const namePart = email.split('@')[0].toLowerCase();
-    return all.filter(t => 
-      (t.creatorEmail || '').toLowerCase().includes(email.toLowerCase()) ||
-      (t.creatorEmail || '').toLowerCase().includes(namePart) ||
-      (t.scientistName || '').toLowerCase().includes(namePart)
+    return getScientistTrials(
+      { id: profile?.id || currentUser?.uid, email: profile?.email || currentUser?.email, name: profile?.name },
+      all
     );
   }, [isManagement, profile, currentUser]);
+
   const now = useMemo(() => new Date(), []);
 
   // View switch mode to prevent dashboard overlap confusion for Admins
