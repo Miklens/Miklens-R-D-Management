@@ -3,7 +3,10 @@ import type {
   LabTestItem, 
   StabilityLogItem, 
   FieldTrialItem, 
-  ObservationItem 
+  ObservationItem,
+  ScientificFormulation,
+  ScientificEvaluationRecord,
+  WeeklyMISReport,
 } from '../types/experimentTypes';
 
 // v5: Purged all BioShield demo seed data. Bumping keys forces clean localStorage reset across all browsers.
@@ -12,6 +15,11 @@ const LAB_KEY = 'miklens_lab_tests_v5';
 const STABILITY_KEY = 'miklens_stability_v5';
 const FIELD_KEY = 'miklens_field_trials_v5';
 const OBS_KEY = 'miklens_observations_v5';
+
+// v1 keys for new MIS features
+const FORMULATIONS_KEY = 'miklens_scientific_formulations_v1';
+const EVALUATIONS_KEY = 'miklens_scientific_evaluations_v1';
+const MIS_REPORTS_KEY = 'miklens_mis_reports_v1';
 
 // Clear out all legacy v4 seed keys on first load
 const LEGACY_KEYS = [
@@ -26,6 +34,9 @@ const SEED_LAB_TESTS: LabTestItem[] = [];
 const SEED_STABILITY: StabilityLogItem[] = [];
 const SEED_FIELD_TRIALS: FieldTrialItem[] = [];
 const SEED_OBSERVATIONS: ObservationItem[] = [];
+const SEED_FORMULATIONS: ScientificFormulation[] = [];
+const SEED_EVALUATIONS: ScientificEvaluationRecord[] = [];
+const SEED_MIS_REPORTS: WeeklyMISReport[] = [];
 
 function readStorage<T>(key: string, fallback: T): T {
   try {
@@ -62,3 +73,13 @@ export const saveFieldTrials = (items: FieldTrialItem[]) => writeStorage(FIELD_K
 
 export const loadObservations = (): ObservationItem[] => readStorage(OBS_KEY, SEED_OBSERVATIONS);
 export const saveObservations = (items: ObservationItem[]) => writeStorage(OBS_KEY, items);
+
+// ── New MIS Feature Stores ───────────────────────────────────────────────────
+export const loadScientificFormulations = (): ScientificFormulation[] => readStorage(FORMULATIONS_KEY, SEED_FORMULATIONS);
+export const saveScientificFormulations = (items: ScientificFormulation[]) => writeStorage(FORMULATIONS_KEY, items);
+
+export const loadScientificEvaluations = (): ScientificEvaluationRecord[] => readStorage(EVALUATIONS_KEY, SEED_EVALUATIONS);
+export const saveScientificEvaluations = (items: ScientificEvaluationRecord[]) => writeStorage(EVALUATIONS_KEY, items);
+
+export const loadMISReports = (): WeeklyMISReport[] => readStorage(MIS_REPORTS_KEY, SEED_MIS_REPORTS);
+export const saveMISReports = (items: WeeklyMISReport[]) => writeStorage(MIS_REPORTS_KEY, items);

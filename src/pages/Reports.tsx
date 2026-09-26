@@ -15,10 +15,17 @@ import {
   exportScientistTimesheetAuditPDF, 
   exportProductPipelineReportPDF, 
   exportFieldTrialsEfficacyReportPDF, 
-  exportMasterExcelWorkbook
+  exportMasterExcelWorkbook,
+  exportManagementWorkbookToExcel,
 } from '../services/executiveReportGenerator';
+import {
+  loadScientificFormulations,
+  loadScientificEvaluations,
+  loadMISReports,
+} from '../services/experimentStore';
 
 import { TrialProgressReport } from './TrialProgressReport';
+
 
 export const Reports: React.FC = () => {
   const { data: logs } = useDailyLogs();
@@ -302,6 +309,30 @@ export const Reports: React.FC = () => {
                   className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" /> Download Excel
+                </button>
+              </div>
+
+              {/* Report Card 6 — 12-Sheet Management MIS Intelligence Workbook */}
+              <div className="p-4 bg-white dark:bg-gray-900 rounded-3xl border border-indigo-500/30 shadow-md space-y-3 flex flex-col justify-between hover:border-indigo-500 transition-all">
+                <div className="space-y-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 flex items-center justify-center font-bold">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-black text-gray-900 dark:text-white">12-Sheet Management Intelligence Report</h4>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Full MIS workbook — KPIs, 14-field formulation log, 4-tier DAA evaluations, version lineage, efficacy matrix, problems register, actions tracker & management approvals.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const formulations = loadScientificFormulations();
+                    const evaluations = loadScientificEvaluations();
+                    const misReports = loadMISReports();
+                    exportManagementWorkbookToExcel(syncedTrials, formulations, evaluations, misReports);
+                  }}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download 12-Sheet Excel
                 </button>
               </div>
             </div>

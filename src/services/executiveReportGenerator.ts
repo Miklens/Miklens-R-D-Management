@@ -2,6 +2,11 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import { ExternalFieldTrial, ScientistExecutiveProfile, DateFilterRange } from '../types/trialIntegrationTypes';
 import { calculateTotalHours, calculateLogMinutes, formatLogHours } from '../utils/timeTracking';
+import type {
+  ScientificFormulation,
+  ScientificEvaluationRecord,
+  WeeklyMISReport,
+} from '../types/experimentTypes';
 
 /**
  * EXCEL EXPORT: Export Scientist Executive Profile and Trial records to Excel (.xlsx)
@@ -147,11 +152,11 @@ export const exportScientistToPDF = (
   doc.setTextColor(55, 65, 81);
 
   const summaryLines = [
-    `• Focus Area: ${profile.summary.focusArea}`,
-    `• Achievements: ${profile.summary.majorAchievements}`,
-    `• Discoveries: ${profile.summary.recentDiscoveries}`,
-    `• Risk & Blockers: ${profile.summary.blockers}`,
-    `• Recommendations: ${profile.summary.recommendations}`,
+    `ΓÇó Focus Area: ${profile.summary.focusArea}`,
+    `ΓÇó Achievements: ${profile.summary.majorAchievements}`,
+    `ΓÇó Discoveries: ${profile.summary.recentDiscoveries}`,
+    `ΓÇó Risk & Blockers: ${profile.summary.blockers}`,
+    `ΓÇó Recommendations: ${profile.summary.recommendations}`,
   ];
 
   summaryLines.forEach((line) => {
@@ -390,7 +395,7 @@ export const exportCompanyReportToPDF = (
     const catTrials = sourceTrials.filter(t => t.category === cat);
     const catCompleted = catTrials.filter(t => t.isCompleted).length;
     const catRate = catTrials.length > 0 ? Math.round((catCompleted / catTrials.length) * 100) : 100;
-    doc.text(`• ${cat.toUpperCase()}: ${catTrials.length} total synced trials (Completion/Success Rate: ${catRate}%)`, 18, y);
+    doc.text(`ΓÇó ${cat.toUpperCase()}: ${catTrials.length} total synced trials (Completion/Success Rate: ${catRate}%)`, 18, y);
     y += 5.5;
   });
 
@@ -472,7 +477,7 @@ export const exportMasterExecutiveReportPDF = (
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('MIKLENS BIOTECH — MASTER EXECUTIVE R&D REPORT', 14, 13);
+  doc.text('MIKLENS BIOTECH ΓÇö MASTER EXECUTIVE R&D REPORT', 14, 13);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`ENTERPRISE GOVERNANCE & RESEARCH MONITORING | Date: ${new Date().toLocaleDateString()}`, 14, 20);
@@ -571,22 +576,22 @@ export const exportMasterExecutiveReportPDF = (
   });
 
   if (delayedTrials.length > 0) {
-    doc.text(`• WARNING: ${delayedTrials.length} trials running > 90 days without conclusion (e.g. ${delayedTrials[0].trialCode} - ${delayedTrials[0].cropName}).`, 16, y);
+    doc.text(`ΓÇó WARNING: ${delayedTrials.length} trials running > 90 days without conclusion (e.g. ${delayedTrials[0].trialCode} - ${delayedTrials[0].cropName}).`, 16, y);
     y += 5;
   } else {
-    doc.text('• INFO: All active field programs are running within standard time bounds.', 16, y);
+    doc.text('ΓÇó INFO: All active field programs are running within standard time bounds.', 16, y);
     y += 5;
   }
 
-  doc.text('• COMPLIANCE: Daily research logs are verified against internal R&D governance policies.', 16, y);
+  doc.text('ΓÇó COMPLIANCE: Daily research logs are verified against internal R&D governance policies.', 16, y);
   y += 5;
-  doc.text('• EFFICACY: Evaluation trials demonstrate average weed/pest control efficacy rates above target benchmarks.', 16, y);
+  doc.text('ΓÇó EFFICACY: Evaluation trials demonstrate average weed/pest control efficacy rates above target benchmarks.', 16, y);
   y += 8;
 
   // Footer
   doc.setFontSize(8);
   doc.setTextColor(156, 163, 175);
-  doc.text('Confidential — Miklens Biotech Executive Board | Enterprise R&D Management System', 14, 287);
+  doc.text('Confidential ΓÇö Miklens Biotech Executive Board | Enterprise R&D Management System', 14, 287);
 
   doc.save(`Miklens_Master_Executive_RD_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
@@ -639,7 +644,7 @@ export const exportScientistTimesheetAuditPDF = (
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.text('MIKLENS R&D — SCIENTIST TIMESHEET & ACTIVITY AUDIT', 14, 13);
+  doc.text('MIKLENS R&D ΓÇö SCIENTIST TIMESHEET & ACTIVITY AUDIT', 14, 13);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const scopeLabel = selectedScientist === 'all' ? 'All Scientists' : selectedScientist;
@@ -741,7 +746,7 @@ export const exportProductPipelineReportPDF = (
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.text('MIKLENS R&D — PRODUCT PIPELINE & MILESTONE REPORT', 14, 13);
+  doc.text('MIKLENS R&D ΓÇö PRODUCT PIPELINE & MILESTONE REPORT', 14, 13);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`FORMULATION STAGE PROGRESSION & SCIENTIFIC VERDICTS | ${new Date().toLocaleDateString()}`, 14, 20);
@@ -787,7 +792,7 @@ export const exportProductPipelineReportPDF = (
   // Footer
   doc.setFontSize(8);
   doc.setTextColor(156, 163, 175);
-  doc.text('Confidential — Miklens Biotech Product R&D Portfolio Management', 14, 287);
+  doc.text('Confidential ΓÇö Miklens Biotech Product R&D Portfolio Management', 14, 287);
 
   doc.save(`Miklens_Product_Pipeline_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
@@ -810,7 +815,7 @@ export const exportFieldTrialsEfficacyReportPDF = (
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.text('MIKLENS BIOTECH — FIELD TRIAL & EFFICACY REPORT', 14, 13);
+  doc.text('MIKLENS BIOTECH ΓÇö FIELD TRIAL & EFFICACY REPORT', 14, 13);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text(`LIVE FIELD TRIAL EVALUATIONS & AGROCHEMICAL PERFORMANCE | ${new Date().toLocaleDateString()}`, 14, 20);
@@ -883,7 +888,7 @@ export const exportFieldTrialsEfficacyReportPDF = (
   // Footer
   doc.setFontSize(8);
   doc.setTextColor(156, 163, 175);
-  doc.text('Confidential — Miklens Biotech Agrochemical Field Operations', 14, 287);
+  doc.text('Confidential ΓÇö Miklens Biotech Agrochemical Field Operations', 14, 287);
 
   doc.save(`Miklens_Field_Trials_Efficacy_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
 };
@@ -894,7 +899,7 @@ export const exportFieldTrialsEfficacyReportPDF = (
  * Helper to parse work category, product scope, and user manual notes from daily logs
  */
 const parseActivityDetails = (l: any): { workType: string; productScope: string; userNotes: string } => {
-  let workType = l.objective ? l.objective.split('–')[0].trim() : 'R&D Activity';
+  let workType = l.objective ? l.objective.split('ΓÇô')[0].trim() : 'R&D Activity';
   let rawAct = (l.activities || '').trim();
 
   // Strip leading [Work Type] if present
@@ -1338,8 +1343,262 @@ export const exportDailyScientistActivityPDF = (
     });
   }
 
+
   doc.save(`Miklens_Daily_Scientist_Activity_${targetDateISO}.pdf`);
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW: 12-SHEET MANAGEMENT WORKBOOK EXCEL EXPORT
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _applyColWidths = (ws: XLSX.WorkSheet, widths: number[]) => {
+  ws['!cols'] = widths.map(w => ({ wch: w }));
+};
+
+export const exportManagementWorkbookToExcel = (
+  trials: ExternalFieldTrial[],
+  formulations: ScientificFormulation[],
+  evaluations: ScientificEvaluationRecord[],
+  misReports: WeeklyMISReport[],
+  scientist: string = 'R&D Team'
+) => {
+  const wb = XLSX.utils.book_new();
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  // ── Sheet 1: Cover Page ────────────────────────────────────────────────────
+  const coverData = [
+    ['MIKLENS BIOTECH — R&D MANAGEMENT INTELLIGENCE REPORT'],
+    [''],
+    ['Generated On', today],
+    ['Prepared By', scientist],
+    ['Report Scope', 'Full R&D Portfolio — Formulations, Trials, Efficacy, Decisions'],
+    [''],
+    ['─── REPORT CONTENTS ───'],
+    ['Sheet 1', 'Cover & Index'],
+    ['Sheet 2', 'Executive KPI Dashboard'],
+    ['Sheet 3', 'Formulation Version Log (14-Field)'],
+    ['Sheet 4', 'Version Lineage Map'],
+    ['Sheet 5', 'Efficacy Comparison Matrix'],
+    ['Sheet 6', 'DAA Evaluation Log (4-Tier Structure)'],
+    ['Sheet 7', 'Herbicide Trial Log'],
+    ['Sheet 8', 'Treatment Arm Summary'],
+    ['Sheet 9', 'Problems → Corrective Action Register'],
+    ['Sheet 10', 'Weekly Decision Summary'],
+    ['Sheet 11', 'Actions Tracker (Next Week)'],
+    ['Sheet 12', 'Management Approval Register'],
+  ];
+  const wsCover = XLSX.utils.aoa_to_sheet(coverData);
+  _applyColWidths(wsCover, [30, 80]);
+  XLSX.utils.book_append_sheet(wb, wsCover, '1. Cover');
+
+  // ── Sheet 2: Executive KPI Dashboard ──────────────────────────────────────
+  const completedTrials = trials.filter(t => t.isCompleted);
+  const activeTrials = trials.filter(t => !t.isCompleted);
+  const avgEfficacy = evaluations.length > 0
+    ? Math.round(evaluations.reduce((s, e) => s + e.measurement.deltaControlPct, 0) / evaluations.length)
+    : 0;
+  const advancingFormulations = formulations.filter(f =>
+    f.finalDecision === 'Advance to Field Trial' || f.finalDecision === 'Advance to Registration'
+  );
+  const latestMIS = misReports.length > 0 ? misReports[0] : null;
+
+  const kpiData = [
+    ['EXECUTIVE KPI DASHBOARD', ''],
+    ['Generated', today],
+    [''],
+    ['── TRIAL PORTFOLIO ──', ''],
+    ['Total Synced Trials', trials.length],
+    ['Active Trials', activeTrials.length],
+    ['Completed Trials', completedTrials.length],
+    [''],
+    ['── FORMULATION PIPELINE ──', ''],
+    ['Total Formulation Versions', formulations.length],
+    ['Advancing to Field / Registration', advancingFormulations.length],
+    ['Under Modification', formulations.filter(f => f.finalDecision === 'Modify').length],
+    ['Stopped', formulations.filter(f => f.finalDecision === 'Stop').length],
+    [''],
+    ['── EFFICACY ──', ''],
+    ['Total Evaluations Recorded', evaluations.length],
+    ['Average WCE Across All Evaluations (%)', avgEfficacy],
+    [''],
+    ['── LATEST WEEKLY MIS ──', ''],
+    ['Latest Report Week', latestMIS ? `Week ${latestMIS.weekNumber}` : '—'],
+    ['Latest Report Status', latestMIS ? latestMIS.status : '—'],
+    ['Q1: What did we learn?', latestMIS ? latestMIS.whatDidWeLearn : '—'],
+    ['Q2: What does it mean?', latestMIS ? latestMIS.whatDoesDataMeanScientifically : '—'],
+    ['Q3: What decision follows?', latestMIS ? latestMIS.whatDecisionFollows : '—'],
+  ];
+  const wsKPI = XLSX.utils.aoa_to_sheet(kpiData);
+  _applyColWidths(wsKPI, [40, 80]);
+  XLSX.utils.book_append_sheet(wb, wsKPI, '2. KPI Dashboard');
+
+  // ── Sheet 3: Formulation Version Log (14-Field) ───────────────────────────
+  const fmlHeaders = [
+    '#', 'Formulation ID', 'Product Name', 'Version', 'Category', 'Batch No',
+    'Key Actives / Composition', 'Physical Appearance', 'Solubility', 'Compatibility',
+    'pH', 'Stability Status', 'Stability Notes', 'Problem Identified',
+    'Corrective Action', 'Trial Result Efficacy (%)', 'Trial Result Notes',
+    'Final Decision', 'Decision Notes', 'Created By', 'Created At',
+  ];
+  const fmlRows = formulations.map((f, i) => [
+    i + 1, f.formulationId, f.name, f.version, f.category.toUpperCase(), f.batchNo,
+    f.keyActivesComposition, f.physicalAppearance, f.solubilityDispersibility, f.compatibility,
+    f.pH ?? '—', f.stabilityStatus, f.stabilityNotes || '—', f.problemIdentified || '—',
+    f.correctiveAction || '—', f.trialResultEfficacy ?? '—', f.trialResultNotes || '—',
+    f.finalDecision, f.finalDecisionNotes || '—', f.createdBy,
+    new Date(f.createdAt).toLocaleDateString(),
+  ]);
+  const wsFml = XLSX.utils.aoa_to_sheet([fmlHeaders, ...fmlRows]);
+  _applyColWidths(wsFml, [4, 22, 20, 8, 12, 16, 40, 15, 12, 14, 6, 20, 30, 40, 40, 10, 30, 25, 30, 18, 14]);
+  XLSX.utils.book_append_sheet(wb, wsFml, '3. Formulation Log (14-Field)');
+
+  // ── Sheet 4: Version Lineage Map ──────────────────────────────────────────
+  const idToFml = new Map(formulations.map(f => [f.id, f]));
+  const getParentVersion = (id?: string) => {
+    if (!id) return '— (Root)';
+    const p = idToFml.get(id);
+    return p ? `${p.name} ${p.version}` : '—';
+  };
+  const lineageHeaders = ['Product Name', 'Version', 'Batch No', 'Parent Version', 'Reason for Revision', 'Efficacy (%)', 'Final Decision'];
+  const lineageRows = formulations.map(f => [
+    f.name, f.version, f.batchNo, getParentVersion(f.parentVersionId),
+    f.reasonForRevision, String(f.trialResultEfficacy ?? '—'), f.finalDecision,
+  ]);
+  const wsLineage = XLSX.utils.aoa_to_sheet([lineageHeaders, ...lineageRows]);
+  _applyColWidths(wsLineage, [20, 8, 16, 25, 50, 12, 25]);
+  XLSX.utils.book_append_sheet(wb, wsLineage, '4. Version Lineage');
+
+  // ── Sheet 5: Efficacy Comparison Matrix ──────────────────────────────────
+  const efficacyHeaders = [
+    'Formulation', 'Trial ID', 'DAA', 'Observation',
+    'WCE (%)', 'Baseline Cover (%)', 'Treated Cover (%)', 'Phytotoxicity Score',
+    'Scientific Interpretation', 'Decision / Action',
+  ];
+  const efficacyRows = evaluations.map(e => [
+    e.formulationName, e.trialId, e.daysAfterTreatment, e.observation,
+    e.measurement.deltaControlPct.toFixed(1),
+    e.measurement.baselineCoverPct,
+    e.measurement.weedCoverPct,
+    e.measurement.phytotoxicityScore,
+    e.scientificInterpretation,
+    e.decisionAction,
+  ]);
+  const wsEfficacy = XLSX.utils.aoa_to_sheet([efficacyHeaders, ...efficacyRows]);
+  _applyColWidths(wsEfficacy, [20, 16, 6, 40, 10, 16, 14, 16, 50, 30]);
+  XLSX.utils.book_append_sheet(wb, wsEfficacy, '5. Efficacy Matrix');
+
+  // ── Sheet 6: DAA Evaluation Log (4-Tier) ──────────────────────────────────
+  const daaHeaders = [
+    'Eval ID', 'Trial ID', 'Formulation', 'DAA', 'Eval Date',
+    'TIER 1: Observation', 'TIER 2A: Weed Cover %', 'TIER 2B: Baseline %',
+    'TIER 2C: WCE %', 'TIER 2D: Phytotoxicity',
+    'TIER 3: Scientific Interpretation', 'TIER 4: Decision / Action',
+    'Evaluated By',
+  ];
+  const daaRows = evaluations.map(e => [
+    e.id, e.trialId, e.formulationName, e.daysAfterTreatment, e.evalDate,
+    e.observation,
+    e.measurement.weedCoverPct, e.measurement.baselineCoverPct,
+    e.measurement.deltaControlPct.toFixed(1), e.measurement.phytotoxicityScore,
+    e.scientificInterpretation, e.decisionAction,
+    e.evaluatedBy,
+  ]);
+  const wsDAA = XLSX.utils.aoa_to_sheet([daaHeaders, ...daaRows]);
+  _applyColWidths(wsDAA, [14, 16, 20, 6, 12, 50, 12, 12, 10, 14, 60, 40, 18]);
+  XLSX.utils.book_append_sheet(wb, wsDAA, '6. DAA Evaluation (4-Tier)');
+
+  // ── Sheet 7: Herbicide Trial Log ──────────────────────────────────────────
+  const trialHeaders = [
+    '#', 'Trial Code', 'Title', 'Category', 'Crop', 'Location', 'State',
+    'Target Weed/Pathogen', 'Design Type', 'Scientist', 'Start Date', 'Status',
+    'Evaluations Count', 'Treatments Count', 'Scientific Conclusion',
+  ];
+  const trialRows = trials.map((t, i) => [
+    i + 1, t.trialCode, t.title, t.category.toUpperCase(), t.cropName, t.location, t.state,
+    t.targetWeedOrPathogen, t.designType, t.scientistName, t.startDate, t.status,
+    t.evaluations.length, t.treatments.length, t.summaryConclusion || '—',
+  ]);
+  const wsTrials = XLSX.utils.aoa_to_sheet([trialHeaders, ...trialRows]);
+  _applyColWidths(wsTrials, [4, 14, 30, 12, 14, 16, 12, 25, 12, 18, 12, 16, 8, 10, 60]);
+  XLSX.utils.book_append_sheet(wb, wsTrials, '7. Herbicide Trial Log');
+
+  // ── Sheet 8: Treatment Arm Summary ────────────────────────────────────────
+  const treatHeaders = ['Trial Code', 'Treatment Name', 'Product', 'Dose Rate', 'Formulation Code', 'Replications'];
+  const treatRows: any[][] = [];
+  trials.forEach(t => {
+    t.treatments.forEach(arm => {
+      treatRows.push([t.trialCode, arm.name, arm.productName, arm.doseRate, arm.formulationCode || '—', arm.replicationsCount || '—']);
+    });
+  });
+  const wsArms = XLSX.utils.aoa_to_sheet([treatHeaders, ...treatRows]);
+  _applyColWidths(wsArms, [14, 30, 24, 12, 18, 12]);
+  XLSX.utils.book_append_sheet(wb, wsArms, '8. Treatment Arms');
+
+  // ── Sheet 9: Problems → Corrective Action Register ────────────────────────
+  const allProblems: any[][] = [];
+  misReports.forEach(r => {
+    r.problemsRisks.forEach(p => {
+      allProblems.push([`Week ${r.weekNumber}`, r.reportingPeriodStart, p.problem, p.impact, p.correctiveAction, p.status]);
+    });
+  });
+  formulations.forEach(f => {
+    if (f.problemIdentified) {
+      allProblems.push(['Formulation', f.createdAt.slice(0, 10), f.problemIdentified, 'Formulation defect', f.correctiveAction || '—', f.finalDecision]);
+    }
+  });
+  const wsProblems = XLSX.utils.aoa_to_sheet([
+    ['Source', 'Date', 'Problem', 'Impact', 'Corrective Action', 'Status'],
+    ...allProblems,
+  ]);
+  _applyColWidths(wsProblems, [16, 12, 50, 30, 50, 16]);
+  XLSX.utils.book_append_sheet(wb, wsProblems, '9. Problems Register');
+
+  // ── Sheet 10: Weekly Decision Summary ────────────────────────────────────
+  const wsMIS = XLSX.utils.aoa_to_sheet([
+    ['Week', 'Period', 'Status', 'Q1: What did we learn?', 'Q2: Scientific Meaning', 'Q3: Decision'],
+    ...misReports.map(r => [
+      `Week ${r.weekNumber}`,
+      `${r.reportingPeriodStart} → ${r.reportingPeriodEnd}`,
+      r.status,
+      r.whatDidWeLearn,
+      r.whatDoesDataMeanScientifically,
+      r.whatDecisionFollows,
+    ]),
+  ]);
+  _applyColWidths(wsMIS, [10, 28, 12, 60, 60, 60]);
+  XLSX.utils.book_append_sheet(wb, wsMIS, '10. Weekly Decision Summary');
+
+  // ── Sheet 11: Actions Tracker ─────────────────────────────────────────────
+  const allActions: any[][] = [];
+  misReports.forEach(r => {
+    r.actionsForNextWeek.forEach(a => {
+      allActions.push([`Week ${r.weekNumber}`, a.action, a.responsiblePerson, a.expectedCompletion, a.status]);
+    });
+  });
+  const wsActions = XLSX.utils.aoa_to_sheet([
+    ['MIS Week', 'Action', 'Responsible', 'Expected Completion', 'Status'],
+    ...allActions,
+  ]);
+  _applyColWidths(wsActions, [10, 60, 20, 18, 14]);
+  XLSX.utils.book_append_sheet(wb, wsActions, '11. Actions Tracker');
+
+  // ── Sheet 12: Management Approval Register ────────────────────────────────
+  const allDecisions: any[][] = [];
+  misReports.forEach(r => {
+    r.decisionsRequiredFromManagement.forEach(d => {
+      allDecisions.push([`Week ${r.weekNumber}`, r.reportingPeriodStart, d.decisionRequired, d.urgency, d.deadline || '—', d.status]);
+    });
+  });
+  const wsDecisions = XLSX.utils.aoa_to_sheet([
+    ['MIS Week', 'Date', 'Decision Required', 'Urgency', 'Deadline', 'Status'],
+    ...allDecisions,
+  ]);
+  _applyColWidths(wsDecisions, [10, 12, 60, 10, 14, 18]);
+  XLSX.utils.book_append_sheet(wb, wsDecisions, '12. Management Approvals');
+
+  XLSX.writeFile(wb, `Miklens_RD_MIS_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+};
+
 
 
 

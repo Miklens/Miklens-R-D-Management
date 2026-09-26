@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, FlaskConical, Beaker, BarChart3, Edit3, 
   Settings, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin,
-  CheckSquare, FileText, Eye, CheckCircle, GitPullRequest
+  CheckSquare, FileText, Eye, CheckCircle, GitPullRequest, GitBranch, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { Role } from '../types';
@@ -34,6 +34,7 @@ const navGroups: NavGroup[] = [
       { name: 'Daily Research Log', href: '/research-log', icon: Edit3, roles: ['Admin', 'Scientist'] },
       { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
       { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
+      { name: 'Formulation Tracker', href: '/formulation-tracker', icon: GitBranch, roles: ['Admin', 'Scientist'] },
       { name: 'Analytics & Efficacy', href: '/analytics', icon: BarChart3 },
     ],
   },
@@ -48,6 +49,7 @@ const navGroups: NavGroup[] = [
     category: 'Management & Audits',
     items: [
       { name: 'Executive & Trial Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
+      { name: 'Weekly MIS Report', href: '/weekly-mis', icon: ClipboardList, roles: ['Admin', 'Management'] },
       { name: 'Team Activity & Approvals', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
     ],
   },

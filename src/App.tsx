@@ -44,6 +44,8 @@ const LaboratoryTests = lazyWithRetry(() => import('./pages/LaboratoryTests').th
 const Observations = lazyWithRetry(() => import('./pages/Observations').then((m) => ({ default: m.Observations })));
 const Approvals = lazyWithRetry(() => import('./pages/Approvals').then((m) => ({ default: m.Approvals })));
 const ProductPipeline = lazyWithRetry(() => import('./pages/ProductPipeline').then((m) => ({ default: m.ProductPipeline })));
+const FormulationTracker = lazyWithRetry(() => import('./pages/FormulationTracker').then((m) => ({ default: m.FormulationTracker })));
+const WeeklyMIS = lazyWithRetry(() => import('./pages/WeeklyMIS').then((m) => ({ default: m.WeeklyMIS })));
 
 // Optimized React Query Client with Stale Caching
 const queryClient = new QueryClient({
@@ -110,6 +112,7 @@ function App() {
                           <Route path="/experiments" element={<Experiments />} />
                           <Route path="/research-log" element={<ResearchLog />} />
                           <Route path="/trial-sync" element={<FieldTrials />} />
+                          <Route path="/formulation-tracker" element={<FormulationTracker />} />
                           <Route path="/lab-tests" element={<Navigate to="/experiments" replace />} />
                           <Route path="/observations" element={<Navigate to="/trial-sync" replace />} />
                         </Route>
@@ -122,6 +125,7 @@ function App() {
                           <Route path="/employees/:userId" element={<EmployeeProfile />} />
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/team-activity" element={<TeamActivity />} />
+                          <Route path="/weekly-mis" element={<WeeklyMIS />} />
                           <Route path="/trial-progress" element={<Navigate to="/reports" replace />} />
                           <Route path="/approvals" element={<Navigate to="/team-activity" replace />} />
                           <Route path="/diagnostics" element={<Diagnostics />} />
