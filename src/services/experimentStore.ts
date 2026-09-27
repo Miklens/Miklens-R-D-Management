@@ -21,7 +21,7 @@ const OBS_KEY = 'miklens_observations_v5';
 // v1 keys for new MIS features
 const FORMULATIONS_KEY = 'miklens_scientific_formulations_v1';
 const EVALUATIONS_KEY = 'miklens_scientific_evaluations_v1';
-const MIS_REPORTS_KEY = 'miklens_mis_reports_v1';
+const MIS_REPORTS_KEY = 'miklens_mis_reports_v2';
 
 // Clear out all legacy v4 seed keys on first load
 const LEGACY_KEYS = [

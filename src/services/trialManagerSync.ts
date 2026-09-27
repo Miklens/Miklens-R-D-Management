@@ -23,35 +23,83 @@ export const formatCleanScientistName = (uIdOrEmail?: string, creatorEmail?: str
   return target.split(/[\s._@]/).map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
 };
 
-export const parseFlexibleDateStr = (dateStr?: any): string => {
-  if (!dateStr) return new Date().toISOString().split('T')[0];
-  const s = String(dateStr).trim();
+export const parseCustomDateExact = (str?: any): Date | null => {
+  if (!str) return null;
+  if (str instanceof Date) return isNaN(str.getTime()) ? null : str;
+  const s = String(str).trim();
+  const monthMap: Record<string, number> = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
 
-  // Handle DD-MM-YYYY or DD/MM/YYYY with optional time (e.g. 30-07-2026 11:03 AM)
-  const ddmmyyyyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  // Match DD-MM-YYYY HH:MM AM/PM or similar (e.g. 23-09-2026 03:11 PM)
+  const ddmmyyyyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?)?/i);
   if (ddmmyyyyMatch) {
-    const [, day, month, year] = ddmmyyyyMatch;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const day = parseInt(ddmmyyyyMatch[1], 10);
+    const month = parseInt(ddmmyyyyMatch[2], 10) - 1;
+    const year = parseInt(ddmmyyyyMatch[3], 10);
+    let hour = ddmmyyyyMatch[4] ? parseInt(ddmmyyyyMatch[4], 10) : 0;
+    const minute = ddmmyyyyMatch[5] ? parseInt(ddmmyyyyMatch[5], 10) : 0;
+    const ampm = ddmmyyyyMatch[6];
+    if (ampm) {
+      if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+      if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+    }
+    return new Date(year, month, day, hour, minute);
   }
 
-  // Handle YYYY-MM-DD
-  const yyyymmddMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (yyyymmddMatch) {
-    const [, year, month, day] = yyyymmddMatch;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  // Fallback to ISO-like YYYY-MM-DD or YYYY-MM-DDTHH:mm
+  const isoMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s](\d{1,2}):(\d{2}))?/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10) - 1;
+    const day = parseInt(isoMatch[3], 10);
+    const hour = isoMatch[4] ? parseInt(isoMatch[4], 10) : 0;
+    const minute = isoMatch[5] ? parseInt(isoMatch[5], 10) : 0;
+    return new Date(year, month, day, hour, minute);
+  }
+
+  // Month name search (e.g. "Sep 23, 2026")
+  const lowerStr = s.toLowerCase();
+  for (const mName of Object.keys(monthMap)) {
+    if (lowerStr.includes(mName)) {
+      const numbers = s.match(/\d+/g);
+      if (numbers && numbers.length > 0) {
+        const day = parseInt(numbers[0], 10);
+        let year = new Date().getFullYear();
+        if (numbers.length > 1) {
+          const possibleYear = parseInt(numbers[1], 10);
+          if (possibleYear > 31) {
+            year = possibleYear < 100 ? possibleYear + 2000 : possibleYear;
+          } else if (numbers.length > 2) {
+            const possibleYear3 = parseInt(numbers[2], 10);
+            if (possibleYear3 > 31) {
+              year = possibleYear3 < 100 ? possibleYear3 + 2000 : possibleYear3;
+            }
+          }
+        }
+        return new Date(year, monthMap[mName], day);
+      }
+      break;
+    }
   }
 
   const dt = new Date(s);
-  if (!isNaN(dt.getTime())) {
-    return dt.toISOString().split('T')[0];
-  }
+  return isNaN(dt.getTime()) ? null : dt;
+};
 
+export const parseFlexibleDateStr = (dateStr?: any): string => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const parsed = parseCustomDateExact(dateStr);
+  if (parsed) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
   return new Date().toISOString().split('T')[0];
 };
 
 export const parseFlexibleDateObj = (dateStr?: any): Date => {
-  const iso = parseFlexibleDateStr(dateStr);
-  return new Date(iso);
+  const d = parseCustomDateExact(dateStr);
+  return d || new Date();
 };
 
 export const computeCorrectWCE = (r: any, overallResult?: string): number => {

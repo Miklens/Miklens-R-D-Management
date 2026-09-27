@@ -20,7 +20,8 @@ import {
   fetchProjectsFromFirebaseCloud,
   saveSyncedProjectsList,
   fetchFormulationsFromFirebaseCloud,
-  saveSyncedFormulationsList
+  saveSyncedFormulationsList,
+  parseCustomDateExact
 } from '../services/trialManagerSync';
 import { ExternalFieldTrial, TrialCategory } from '../types/trialIntegrationTypes';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,11 +45,11 @@ const CATEGORY_CONFIG: Record<TrialCategory, {
 
 const ALL_CATEGORIES: TrialCategory[] = ['herbicide', 'fungicide', 'pesticide', 'nutrition', 'biostimulant'];
 
-// Helper to format Date Group Header (e.g. "Thursday, Jul 30, 2026", "Today", "Yesterday")
+// Helper to format Date Group Header (e.g. "Wednesday, Sep 23, 2026", "Saturday, Sep 19, 2026") matching Trial Manager exactly
 const getTrialDateGroupKey = (trialDateStr?: string): string => {
   if (!trialDateStr) return 'No Date Set';
-  const d = new Date(trialDateStr);
-  if (isNaN(d.getTime())) return 'No Date Set';
+  const d = parseCustomDateExact(trialDateStr);
+  if (!d || isNaN(d.getTime())) return 'No Date Set';
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -283,8 +284,8 @@ export const FieldTrials: React.FC = () => {
   // Sort & Group Trials by Date (Descending - newest date first)
   const groupedDateSections = useMemo(() => {
     const sorted = [...activeTabTrials].sort((a, b) => {
-      const dateA = new Date(a.rawDateStr || a.startDate || 0).getTime();
-      const dateB = new Date(b.rawDateStr || b.startDate || 0).getTime();
+      const dateA = (parseCustomDateExact(a.rawDateStr || a.startDate) || new Date(0)).getTime();
+      const dateB = (parseCustomDateExact(b.rawDateStr || b.startDate) || new Date(0)).getTime();
       return dateB - dateA;
     });
 
@@ -293,7 +294,7 @@ export const FieldTrials: React.FC = () => {
 
     sorted.forEach(t => {
       const key = getTrialDateGroupKey(t.rawDateStr || t.startDate);
-      const dVal = new Date(t.rawDateStr || t.startDate || 0).getTime();
+      const dVal = (parseCustomDateExact(t.rawDateStr || t.startDate) || new Date(0)).getTime();
 
       if (!groupMap[key]) {
         const newGroup = { key, dateSortKey: dVal, trials: [] };

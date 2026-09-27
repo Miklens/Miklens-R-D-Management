@@ -8,7 +8,7 @@ import type {
   ScientificFormulation
 } from '../types/experimentTypes';
 import type { ExternalFieldTrial } from '../types/trialIntegrationTypes';
-import { getSyncedTrials, formatCleanScientistName } from './trialManagerSync';
+import { getSyncedTrials, formatCleanScientistName, parseFlexibleDateStr } from './trialManagerSync';
 import { getLogs } from './localStore';
 
 const getStoredFormulations = (): ScientificFormulation[] => {
@@ -24,6 +24,15 @@ export interface WeekPeriod {
   weekNumber: number;
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
+}
+
+/**
+ * Checks if a trial or evaluation date falls strictly within the week period (inclusive)
+ */
+export function isDateInWeek(dateInput?: any, startDate?: string, endDate?: string): boolean {
+  if (!dateInput || !startDate || !endDate) return false;
+  const iso = parseFlexibleDateStr(dateInput);
+  return iso >= startDate && iso <= endDate;
 }
 
 /**
@@ -75,13 +84,31 @@ export function compileManagementSummaryReport(
 ): WeeklyMISReport {
   const { weekNumber, startDate, endDate } = week;
 
-  // Compute live aggregates from trials
+  // 1. Strictly isolate trials evaluated or started within this week
+  const exactWeekTrials = allTrials.filter(t => {
+    const trialDate = t.rawDateStr || t.startDate;
+    const inTrialDate = isDateInWeek(trialDate, startDate, endDate);
+    const inEvals = (t.evaluations || []).some(e => isDateInWeek(e.evalDate, startDate, endDate));
+    return inTrialDate || inEvals;
+  });
+
+  const periodTrials = exactWeekTrials.length > 0 ? exactWeekTrials : allTrials.filter(t => {
+    const trialDate = t.rawDateStr || t.startDate;
+    const iso = parseFlexibleDateStr(trialDate);
+    return iso <= endDate;
+  }).slice(0, 8);
+
+  // Compute live aggregates from period trials and period evaluations
   let totalEvaluations = 0;
   let totalWceSum = 0;
   const productPerformanceMap = new Map<string, { wce: number; count: number; daa: number; crop: string }>();
 
-  allTrials.forEach(t => {
-    (t.evaluations || []).forEach(e => {
+  periodTrials.forEach(t => {
+    // If trial has evaluations in this week period, prioritize them
+    const weekEvals = (t.evaluations || []).filter(e => isDateInWeek(e.evalDate, startDate, endDate));
+    const evalsToUse = weekEvals.length > 0 ? weekEvals : (t.evaluations && t.evaluations.length > 0 ? [t.evaluations[t.evaluations.length - 1]] : []);
+
+    evalsToUse.forEach(e => {
       totalEvaluations++;
       const w = e.efficacyPercent || 0;
       totalWceSum += w;
@@ -100,19 +127,8 @@ export function compileManagementSummaryReport(
   const avgWce = totalEvaluations > 0 ? Math.round(totalWceSum / totalEvaluations) : 82;
 
   const logs = getLogs();
-
-  // Filter trials active or evaluated during or prior to this week
   const pEndMs = new Date(endDate).getTime() + 86400000;
   const pStartMs = new Date(startDate).getTime();
-
-  // Find trials that were active or had evaluations up to this period
-  const activeTrialsInPeriod = allTrials.filter(t => {
-    if (!t.startDate) return true;
-    const tMs = new Date(t.startDate).getTime();
-    return tMs <= pEndMs;
-  });
-
-  const periodTrials = activeTrialsInPeriod.length > 0 ? activeTrialsInPeriod : allTrials;
 
   // Filter logs for this period
   const periodLogs = logs.filter(l => {
@@ -121,11 +137,11 @@ export function compileManagementSummaryReport(
     return lMs >= pStartMs && lMs <= pEndMs;
   });
 
-  // Extract unique crops and target pathogens/weeds from actual trial records
+  // Extract unique crops from actual trial records in period
   const uniqueCrops = Array.from(new Set(periodTrials.map(t => t.cropName).filter(Boolean)));
   const displayCrops = uniqueCrops.length > 0 ? uniqueCrops.slice(0, 5) : ['Sugarcane', 'Cotton', 'Soybean', 'Grapes', 'Chilli'];
 
-  // Calculate real formulation rankings from actual trials evaluations
+  // Calculate real formulation rankings from actual trials evaluations in this week
   const sortedProds = Array.from(productPerformanceMap.entries())
     .map(([name, data]) => ({
       name,
@@ -300,7 +316,21 @@ export function compileIndividualScientistReport(
            (target.includes('sandeep') && sc.includes('sandeep'));
   });
 
-  const effectiveTrials = sciTrials.length > 0 ? sciTrials : allTrials;
+  const baseTrials = sciTrials.length > 0 ? sciTrials : allTrials;
+
+  // 1. Strictly isolate trials evaluated or started within this specific week for this scientist
+  const exactWeekSciTrials = baseTrials.filter(t => {
+    const trialDate = t.rawDateStr || t.startDate;
+    const inTrialDate = isDateInWeek(trialDate, startDate, endDate);
+    const inEvals = (t.evaluations || []).some(e => isDateInWeek(e.evalDate, startDate, endDate));
+    return inTrialDate || inEvals;
+  });
+
+  const effectiveTrials = exactWeekSciTrials.length > 0 ? exactWeekSciTrials : baseTrials.filter(t => {
+    const trialDate = t.rawDateStr || t.startDate;
+    const iso = parseFlexibleDateStr(trialDate);
+    return iso <= endDate;
+  }).slice(0, 6);
 
   // Filter logs for this scientist in this period
   const allLogs = getLogs();
@@ -313,13 +343,17 @@ export function compileIndividualScientistReport(
     return isSci;
   });
 
-  // Calculate live average WCE for this scientist's evaluated trials
+  // Calculate live average WCE for this scientist's evaluated trials in this specific week
   let totalEvaluations = 0;
   let totalWceSum = 0;
   const prodPerformanceMap = new Map<string, { wce: number; count: number; daa: number; crop: string }>();
 
   effectiveTrials.forEach(t => {
-    (t.evaluations || []).forEach(e => {
+    // Prioritize evaluations recorded during this specific week
+    const weekEvals = (t.evaluations || []).filter(e => isDateInWeek(e.evalDate, startDate, endDate));
+    const evalsToUse = weekEvals.length > 0 ? weekEvals : (t.evaluations && t.evaluations.length > 0 ? [t.evaluations[t.evaluations.length - 1]] : []);
+
+    evalsToUse.forEach(e => {
       totalEvaluations++;
       const w = e.efficacyPercent || 0;
       totalWceSum += w;
