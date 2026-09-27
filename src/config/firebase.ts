@@ -23,37 +23,60 @@ interface FirebaseConfigType {
   appId?: string;
 }
 
-const firebaseConfig: FirebaseConfigType = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+const getResolvedFirebaseConfig = (): FirebaseConfigType => {
+  // 1. Check environment variables
+  const envKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  const envProj = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  if (envKey && envProj && envKey !== 'mock-api-key' && !envKey.includes('your-') && !envKey.includes('placeholder')) {
+    return {
+      apiKey: envKey,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: envProj,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    };
+  }
+
+  // 2. Check saved credentials in localStorage (from Trial Manager sync or Settings)
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('miklens_rnd_firebase_config_v1') : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.apiKey && parsed.projectId && !parsed.apiKey.includes('placeholder')) {
+        return {
+          apiKey: parsed.apiKey,
+          authDomain: parsed.authDomain || `${parsed.projectId}.firebaseapp.com`,
+          projectId: parsed.projectId,
+          storageBucket: parsed.storageBucket || `${parsed.projectId}.appspot.com`,
+          messagingSenderId: parsed.messagingSenderId || '',
+          appId: parsed.appId || '',
+        };
+      }
+    }
+  } catch {
+    // Ignore storage parse error
+  }
+
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  };
 };
+
+const firebaseConfig: FirebaseConfigType = getResolvedFirebaseConfig();
 
 /**
  * Validate Firebase configuration
  */
 const checkFirebaseConfigured = (): boolean => {
-  const requiredKeys = [
-    'apiKey',
-    'authDomain',
-    'projectId',
-    'storageBucket',
-    'messagingSenderId',
-    'appId',
-  ] as const;
-
-  const configured = requiredKeys.every(key => {
-    const val = firebaseConfig[key];
-    return (
-      !!val &&
-      val !== 'mock-api-key' &&
-      !val.includes('your-') &&
-      !val.includes('placeholder')
-    );
-  });
+  const val = firebaseConfig.apiKey;
+  const proj = firebaseConfig.projectId;
+  const configured = !!val && !!proj && val !== 'mock-api-key' && !val.includes('your-') && !val.includes('placeholder');
 
   if (!configured) {
     logger.warn(
