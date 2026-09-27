@@ -24,6 +24,7 @@ import {
   saveMISReports,
   loadStabilityLogs,
 } from '../services/experimentStore';
+import { exportManagementWorkbookToExcel } from '../services/executiveReportGenerator';
 import {
   matchesScientist,
   getScientistTrials,
@@ -374,9 +375,17 @@ export const ManagementCockpit: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => exportManagementWorkbookToExcel(syncedTrials, formulations, evaluations, misReports, 'Management Cockpit')}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition shadow-md shadow-emerald-500/20 cursor-pointer"
+            title="Download full 12-sheet Excel report containing all formulations, evaluations, lineage, and decisions"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            12-Sheet Master Excel Report
+          </button>
           <Link
             to="/weekly-mis"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
           >
             <ClipboardList className="w-3.5 h-3.5" />
             Weekly MIS Reports

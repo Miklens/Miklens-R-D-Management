@@ -9,6 +9,7 @@ import type {
   WeeklyMISReport,
 } from '../types/experimentTypes';
 import { ensureAllWeeklyMISReports } from './weeklyMISCompiler';
+import { getGuaranteedFormulations, deriveScientificEvaluations } from './scientificIntelligenceCompiler';
 
 // v5: Purged all BioShield demo seed data. Bumping keys forces clean localStorage reset across all browsers.
 const EXP_KEY = 'miklens_experiments_v5';
@@ -300,10 +301,23 @@ export const loadObservations = (): ObservationItem[] => readStorage(OBS_KEY, SE
 export const saveObservations = (items: ObservationItem[]) => writeStorage(OBS_KEY, items);
 
 // ── New MIS Feature Stores ───────────────────────────────────────────────────
-export const loadScientificFormulations = (): ScientificFormulation[] => readStorage(FORMULATIONS_KEY, SEED_FORMULATIONS);
+export const loadScientificFormulations = (): ScientificFormulation[] => {
+  const existing = readStorage<ScientificFormulation[]>(FORMULATIONS_KEY, []);
+  const guaranteed = getGuaranteedFormulations(existing);
+  if (!existing || existing.length < guaranteed.length) {
+    writeStorage(FORMULATIONS_KEY, guaranteed);
+  }
+  return guaranteed;
+};
 export const saveScientificFormulations = (items: ScientificFormulation[]) => writeStorage(FORMULATIONS_KEY, items);
 
-export const loadScientificEvaluations = (): ScientificEvaluationRecord[] => readStorage(EVALUATIONS_KEY, SEED_EVALUATIONS);
+export const loadScientificEvaluations = (): ScientificEvaluationRecord[] => {
+  const existing = readStorage<ScientificEvaluationRecord[]>(EVALUATIONS_KEY, []);
+  if (existing && existing.length > 0) return existing;
+  const derived = deriveScientificEvaluations();
+  writeStorage(EVALUATIONS_KEY, derived);
+  return derived;
+};
 export const saveScientificEvaluations = (items: ScientificEvaluationRecord[]) => writeStorage(EVALUATIONS_KEY, items);
 
 export const loadMISReports = (): WeeklyMISReport[] => {
