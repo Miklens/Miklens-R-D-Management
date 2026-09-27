@@ -90,6 +90,7 @@ export interface ActionItem {
   responsiblePerson: string;
   expectedCompletion: string;   // YYYY-MM-DD
   status: 'Pending' | 'In Progress' | 'Completed' | 'Overdue';
+  priority?: 'High' | 'Medium' | 'Low';
 }
 
 export interface ProblemRiskItem {
@@ -97,7 +98,7 @@ export interface ProblemRiskItem {
   problem: string;
   impact: string;
   correctiveAction: string;
-  status: 'Open' | 'Pending' | 'Closed';
+  status: 'Open' | 'Pending' | 'Closed' | 'Resolved' | 'In Progress';
 }
 
 export interface ManagementDecisionItem {

@@ -152,8 +152,8 @@ export const Products: React.FC = () => {
       category: newProdCategory,
       variantType: newProdVariant,
       description: newProdDescription.trim(),
-      targetCrops: crops.length > 0 ? crops : undefined,
-      targetWeedsOrPests: targets.length > 0 ? targets : undefined,
+      targetCrops: crops,
+      targetWeedsOrPests: targets,
       commercialStatus: newProdStatus,
       activeVersionTag: 'V1.0'
     });

@@ -443,7 +443,7 @@ export const saveMainProducts = (products: MainProduct[]): void => {
     notifyProductListeners();
 
     // Dual-write to Firebase Firestore if available
-    if (isFirebaseConfigured()) {
+    if (isFirebaseConfigured) {
       products.forEach(async (p) => {
         try {
           await setDoc(doc(db, 'rnd_main_products', p.id), p, { merge: true });
@@ -498,7 +498,7 @@ export const deleteMainProduct = (id: string): void => {
   const versions = getProductVersions();
   saveProductVersions(versions.filter(v => v.productId !== id));
 
-  if (isFirebaseConfigured()) {
+  if (isFirebaseConfigured) {
     try {
       deleteDoc(doc(db, 'rnd_main_products', id));
     } catch { /* ignore */ }
@@ -532,7 +532,7 @@ export const saveProductVersions = (versions: ProductVersion[]): void => {
     localStorage.setItem(PRODUCT_VERSIONS_KEY, JSON.stringify(versions));
     notifyProductListeners();
 
-    if (isFirebaseConfigured()) {
+    if (isFirebaseConfigured) {
       versions.forEach(async (v) => {
         try {
           await setDoc(doc(db, 'rnd_product_versions', v.id), v, { merge: true });
@@ -625,11 +625,20 @@ export const deleteProductVersion = (id: string): void => {
     saveMainProducts(products);
   }
 
-  if (isFirebaseConfigured()) {
+  if (isFirebaseConfigured) {
     try {
       deleteDoc(doc(db, 'rnd_product_versions', id));
     } catch { /* ignore */ }
   }
+};
+
+export const getVersionsForProduct = (productId: string): ProductVersion[] => {
+  return getProductVersions(productId);
+};
+
+export const getActiveVersion = (productId: string): ProductVersion | undefined => {
+  const versions = getVersionsForProduct(productId);
+  return versions.find(v => v.status === 'Active Commercial') || versions[0];
 };
 
 export const promoteActiveVersion = (productId: string, versionId: string): void => {
@@ -693,7 +702,7 @@ export const linkTrialAsVersion = (
     versionTag: string;
     versionName?: string;
     upgradeReason: string;
-    status?: 'Draft' | 'Testing' | 'Validated' | 'Active Commercial' | 'Superseded';
+    status?: ProductVersion['status'];
     dosage?: string;
     stage?: 'Lab Synthesis' | 'Plot Screening' | 'Multi-Loc Field Trial' | 'Regulatory Testing' | 'Commercial Ready';
     notes?: string;
@@ -741,7 +750,7 @@ export const linkFormulaAsVersion = (
     versionTag: string;
     versionName?: string;
     upgradeReason: string;
-    status?: 'Draft' | 'Testing' | 'Validated' | 'Active Commercial' | 'Superseded';
+    status?: ProductVersion['status'];
     stage?: 'Lab Synthesis' | 'Plot Screening' | 'Multi-Loc Field Trial' | 'Regulatory Testing' | 'Commercial Ready';
     dosage?: string;
   }

@@ -120,8 +120,8 @@ export interface MainProduct {
   category: ProductCategory;
   variantType: ProductVariantType; // e.g. "IPM Herbicide", "Organic Herbicide", "Microweed / Microbial Herbicide"
   description: string;
-  targetCrops: string[];
-  targetWeedsOrPests: string[];
+  targetCrops?: string[];
+  targetWeedsOrPests?: string[];
   commercialStatus: 'In Development' | 'Active Commercial' | 'Pilot / Field Testing' | 'Under Registration' | 'Archived';
   activeVersionId?: string; // Currently active production/flagship version ID
   activeVersionTag?: string; // e.g. "V2.0"
