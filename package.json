@@ -24,6 +24,7 @@
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-is": "^19.0.0",
     "react-dropzone": "^19.1.1",
     "react-hook-form": "^7.81.0",
     "react-router-dom": "^7.18.1",
