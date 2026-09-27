@@ -158,9 +158,9 @@ export const GeminiAIChatbot: React.FC = () => {
         <motion.div
           drag
           dragMomentum={false}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 touch-none select-none"
+          className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] right-4 sm:bottom-6 sm:right-6 z-40 touch-none select-none"
         >
-          <div className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 text-white rounded-full p-2 sm:px-4 sm:py-3 shadow-2xl border border-white/30 font-bold text-xs cursor-grab active:cursor-grabbing">
+          <div className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-600 text-white rounded-full p-2 sm:px-4 sm:py-3 shadow-2xl border border-white/30 font-bold text-xs cursor-grab active:cursor-grabbing backdrop-blur-md">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="flex items-center gap-2 cursor-pointer focus:outline-none"
@@ -189,7 +189,7 @@ export const GeminiAIChatbot: React.FC = () => {
       {isMinimized && (
         <button
           onClick={() => setIsMinimized(false)}
-          className="fixed bottom-4 right-4 z-50 w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-emerald-600 text-white flex items-center justify-center shadow-2xl border border-white/30 cursor-pointer"
+          className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] right-4 sm:bottom-6 sm:right-6 z-40 w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-emerald-600 text-white flex items-center justify-center shadow-2xl border border-white/30 cursor-pointer"
           title="Restore Gemini AI Assistant"
         >
           <Sparkles className="w-5 h-5 text-amber-300" />
@@ -203,7 +203,7 @@ export const GeminiAIChatbot: React.FC = () => {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-22 right-6 z-50 w-full max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[580px]"
+            className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-2 sm:right-6 left-2 sm:left-auto z-50 sm:w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col h-[min(580px,calc(100dvh-6rem))]"
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-slate-900 via-gray-900 to-purple-950 text-white flex items-center justify-between border-b border-white/10">

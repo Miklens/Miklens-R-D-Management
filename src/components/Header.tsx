@@ -127,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-20 items-center justify-between border-b border-gray-200/60 bg-white/85 px-4 md:px-8 backdrop-blur-2xl dark:border-gray-800/60 dark:bg-gray-900/85 shadow-sm transition-all">
+    <header className="sticky top-0 z-40 flex h-auto min-h-16 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 items-center justify-between border-b border-gray-200/60 bg-white/85 px-4 md:px-8 backdrop-blur-2xl dark:border-gray-800/60 dark:bg-gray-900/85 shadow-sm transition-all">
       {/* Left: Page Title & Date Badge */}
       <div className="flex items-center gap-4 min-w-0">
         <div className="md:hidden">

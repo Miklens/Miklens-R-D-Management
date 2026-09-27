@@ -2,28 +2,46 @@
   "name": "Miklens Bio R&D Management",
   "short_name": "Miklens R&D",
   "description": "Enterprise Agricultural R&D Management, Field Trial Tracking & Scientist Command Center",
-  "start_url": "/",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#0B0F19",
   "theme_color": "#10b981",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "lang": "en",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/pwa-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/pwa-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -31,19 +49,29 @@
       "name": "Daily Research Log",
       "short_name": "Research Log",
       "description": "Open Daily R&D Timesheet Logger",
-      "url": "/research-log"
+      "url": "/research-log",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Weekly MIS Report",
+      "short_name": "Weekly MIS",
+      "description": "View Weekly MIS Management Archive & Analytics",
+      "url": "/weekly-mis",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Field Trial Sync",
       "short_name": "Field Sync",
       "description": "View Synced Field Trials",
-      "url": "/trial-sync"
+      "url": "/trial-sync",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Gemini AI Assistant",
       "short_name": "AI Assistant",
       "description": "Launch Gemini R&D AI Officer",
-      "url": "/ai-insights"
+      "url": "/ai-insights",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

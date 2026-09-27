@@ -4,15 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="mask-icon" href="/masked-icon.svg" color="#10b981" />
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Mobile Viewport Optimization & iOS PWA Meta Tags -->
+    <!-- Mobile Viewport Optimization for Notch / Dynamic Island & Home Indicator -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#10b981" />
+    
+    <!-- Android / Chrome PWA Meta Tags -->
+    <meta name="theme-color" content="#10b981" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Miklens R&D" />
+
+    <!-- iOS Safari True PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Miklens R&D" />
+    <meta name="format-detection" content="telephone=no" />
 
     <!-- Modern Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,18 +29,32 @@
 
     <title>Miklens Bio R&D Management | Enterprise R&D Platform</title>
 
-    <!-- PWA Service Worker Automatic Update -->
+    <!-- Professional Service Worker Registration with Immediate Activation -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js').then(function(registration) {
-            registration.update();
-          });
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              // Check for updates periodically
+              reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', function() {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('[PWA] New version available.');
+                    }
+                  });
+                }
+              });
+            })
+            .catch(function(err) {
+              console.warn('[PWA] Service worker registration error:', err);
+            });
         });
       }
     </script>
   </head>
-  <body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-sans selection:bg-emerald-500 selection:text-white">
+  <body class="h-full bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 antialiased font-sans selection:bg-emerald-500 selection:text-white overscroll-none">
     <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

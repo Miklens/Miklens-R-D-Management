@@ -12,8 +12,11 @@ export const MobileBottomNav: React.FC = () => {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-2 py-1 shadow-2xl">
-      <div className="flex items-center justify-around">
+    <nav 
+      aria-label="Mobile Navigation Bar"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl transition-all"
+    >
+      <div className="flex items-center justify-around max-w-lg mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -21,7 +24,7 @@ export const MobileBottomNav: React.FC = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all ${
+                `flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all duration-200 active:scale-95 touch-manipulation ${
                   isActive
                     ? 'text-emerald-600 dark:text-emerald-400 font-extrabold scale-105'
                     : 'text-slate-500 dark:text-slate-400 font-semibold hover:text-slate-800 dark:hover:text-slate-200'
@@ -34,6 +37,6 @@ export const MobileBottomNav: React.FC = () => {
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 };

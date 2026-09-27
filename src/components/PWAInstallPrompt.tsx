@@ -67,7 +67,7 @@ export const PWAInstallPrompt: React.FC = () => {
         initial={{ opacity: 0, y: 50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 50, scale: 0.95 }}
-        className="fixed bottom-20 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:w-96 z-50 p-4 rounded-3xl bg-slate-900/95 dark:bg-gray-900/95 backdrop-blur-xl border border-emerald-500/30 text-white shadow-2xl space-y-3"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] left-3 right-3 md:left-auto md:right-6 md:bottom-6 md:w-96 z-50 p-4 rounded-3xl bg-slate-900/95 dark:bg-gray-900/95 backdrop-blur-xl border border-emerald-500/30 text-white shadow-2xl space-y-3"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
