@@ -8,6 +8,7 @@ import type {
   ScientificEvaluationRecord,
   WeeklyMISReport,
 } from '../types/experimentTypes';
+import { ensureAllWeeklyMISReports } from './weeklyMISCompiler';
 
 // v5: Purged all BioShield demo seed data. Bumping keys forces clean localStorage reset across all browsers.
 const EXP_KEY = 'miklens_experiments_v5';
@@ -305,5 +306,12 @@ export const saveScientificFormulations = (items: ScientificFormulation[]) => wr
 export const loadScientificEvaluations = (): ScientificEvaluationRecord[] => readStorage(EVALUATIONS_KEY, SEED_EVALUATIONS);
 export const saveScientificEvaluations = (items: ScientificEvaluationRecord[]) => writeStorage(EVALUATIONS_KEY, items);
 
-export const loadMISReports = (): WeeklyMISReport[] => readStorage(MIS_REPORTS_KEY, SEED_MIS_REPORTS);
+export const loadMISReports = (): WeeklyMISReport[] => {
+  const existing = readStorage<WeeklyMISReport[]>(MIS_REPORTS_KEY, []);
+  const compiled = ensureAllWeeklyMISReports(existing);
+  if (!existing || existing.length < compiled.length) {
+    writeStorage(MIS_REPORTS_KEY, compiled);
+  }
+  return compiled;
+};
 export const saveMISReports = (items: WeeklyMISReport[]) => writeStorage(MIS_REPORTS_KEY, items);

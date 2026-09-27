@@ -29,6 +29,7 @@ import { useExperiments } from '../contexts/ExperimentContext';
 import { getSyncedTrials } from '../services/trialManagerSync';
 import { generateAutomatedWeeklyMISReport } from '../services/misAIGenerator';
 import { exportWeeklyMISToPDF } from '../utils/exportUtils';
+import { ensureAllWeeklyMISReports } from '../services/weeklyMISCompiler';
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const inputCls = 'w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/40';
 const textAreaCls = `${inputCls} resize-none`;
@@ -617,10 +618,14 @@ const ReportForm: React.FC<{
           )}
 
           {/* Basic info */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="text-[11px] font-semibold text-gray-500 block mb-1">Week #</label>
               <input type="number" className={inputCls} value={form.weekNumber} onChange={e => set('weekNumber', Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-gray-500 block mb-1">Author / Lead</label>
+              <input type="text" className={inputCls} value={form.preparedBy} onChange={e => set('preparedBy', e.target.value)} placeholder="Scientist or Management" />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-gray-500 block mb-1">Period Start</label>
@@ -769,26 +774,37 @@ const InspectReportModal: React.FC<{
   onExportPDF: () => void;
   onExportExcel: () => void;
 }> = ({ report: r, onClose, onEdit, onExportPDF, onExportExcel }) => {
+  const isSummary = (r.preparedBy || '').includes('Management') || r.reportType === 'summary';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col border border-gray-200 dark:border-gray-800 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
-              <FileText className="w-5 h-5" />
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-md ${
+              isSummary ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+            }`}>
+              {isSummary ? <TrendingUp className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-black text-gray-900 dark:text-white">
-                  Week {r.weekNumber} Scientific Dossier
+                  Week {r.weekNumber} {isSummary ? '— Consolidated Executive MIS Report' : '— Scientific Research Dossier'}
                 </h3>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                  isSummary
+                    ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                }`}>
+                  {isSummary ? '📊 Executive Summary' : '👨‍🔬 Scientist Dossier'}
+                </span>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                   {r.status || 'Saved'}
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Reporting Period: {r.reportingPeriodStart} → {r.reportingPeriodEnd} · Scientist: <strong>{r.preparedBy}</strong>
+                Reporting Period: {r.reportingPeriodStart} → {r.reportingPeriodEnd} · {isSummary ? 'Authority: ' : 'Scientist: '}<strong>{r.preparedBy}</strong> {r.scientistRole ? `(${r.scientistRole})` : ''}
               </p>
             </div>
           </div>
@@ -1021,26 +1037,54 @@ const ReportCard: React.FC<{
   onInspect: () => void;
 }> = ({ report: r, onEdit, onDelete, onExport, onExportPDF, onInspect }) => {
   const [expanded, setExpanded] = useState(false);
+  const isSummary = (r.preparedBy || '').includes('Management') || r.reportType === 'summary';
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition">
+    <div className={`bg-white dark:bg-gray-900 rounded-2xl border transition-all duration-200 shadow-xs hover:shadow-md ${
+      isSummary
+        ? 'border-indigo-100 dark:border-indigo-900/40 border-l-4 border-l-indigo-600'
+        : 'border-gray-100 dark:border-gray-800 border-l-4 border-l-emerald-500'
+    }`}>
       <div className="flex items-start justify-between p-4 cursor-pointer" onClick={() => setExpanded(v => !v)}>
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5 text-emerald-500" />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xs ${
+            isSummary
+              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white'
+              : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600'
+          }`}>
+            {isSummary ? <TrendingUp className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-black text-gray-900 dark:text-white">
-                Week {r.weekNumber} MIS Report
+                Week {r.weekNumber} {isSummary ? '— Consolidated Management Overview' : '— Scientist Research Dossier'}
               </p>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                isSummary
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+              }`}>
+                {isSummary ? '📊 Executive Summary' : '👨‍🔬 Scientist Dossier'}
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                 {r.status || 'Saved'}
               </span>
             </div>
             <p className="text-[10px] text-gray-400 mt-0.5">{r.reportingPeriodStart} → {r.reportingPeriodEnd}</p>
-            <p className="text-[11px] text-gray-700 dark:text-gray-300 font-semibold mt-0.5">
-              Scientist: <span className="text-emerald-600 dark:text-emerald-400">{r.preparedBy}</span>
+            <p className="text-[11px] text-gray-700 dark:text-gray-300 font-semibold mt-0.5 flex flex-wrap items-center gap-1.5">
+              <span>{isSummary ? '🏢 Prepared by:' : 'Lead Scientist:'}</span>
+              <span className={isSummary ? 'font-bold text-indigo-600 dark:text-indigo-400' : 'text-emerald-600 dark:text-emerald-400 font-bold'}>
+                {r.preparedBy}
+              </span>
+              {r.scientistRole && (
+                <span className="text-gray-400 font-medium">({r.scientistRole})</span>
+              )}
+              {r.targetCrops && r.targetCrops.length > 0 && (
+                <span className="text-gray-400 text-[10px] font-normal">· Crops: {r.targetCrops.join(', ')}</span>
+              )}
+              {r.totalPlotsEvaluated && (
+                <span className="text-gray-400 text-[10px] font-normal">· {r.totalPlotsEvaluated} Plots</span>
+              )}
             </p>
           </div>
         </div>
@@ -1274,6 +1318,7 @@ export const WeeklyMIS: React.FC = () => {
   const [editingReport, setEditingReport] = useState<WeeklyMISReport | null>(null);
   const [inspectingReport, setInspectingReport] = useState<WeeklyMISReport | null>(null);
   const [isGeneratingGlobal, setIsGeneratingGlobal] = useState(false);
+  const [saveSuccessToast, setSaveSuccessToast] = useState<string | null>(null);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<'archive' | 'analytics'>('archive');
@@ -1283,18 +1328,47 @@ export const WeeklyMIS: React.FC = () => {
   const [filterScientist, setFilterScientist] = useState<string>('all');
   const [filterWeek, setFilterWeek] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterType, setFilterType] = useState<'all' | 'summary' | 'scientist'>('all');
 
-  useEffect(() => { saveMISReports(reports); }, [reports]);
+  useEffect(() => {
+    if (reports && reports.length > 0) {
+      saveMISReports(reports);
+    }
+  }, [reports]);
 
   const handleSave = useCallback((data: Omit<WeeklyMISReport, 'id'>, id?: string) => {
-    if (id) {
-      setReports(prev => prev.map(r => r.id === id ? { ...data, id } : r));
-    } else {
-      setReports(prev => [{ ...data, id: `mis-${Date.now()}` }, ...prev]);
-    }
+    const reportId = id || `mis-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const fullReport: WeeklyMISReport = {
+      ...data,
+      id: reportId,
+      preparedAt: data.preparedAt || new Date().toISOString(),
+      status: data.status || 'Saved',
+    };
+    setReports(prev => {
+      const idx = prev.findIndex(r => r.id === reportId);
+      let updated: WeeklyMISReport[];
+      if (idx >= 0) {
+        updated = [...prev];
+        updated[idx] = fullReport;
+      } else {
+        updated = [fullReport, ...prev];
+      }
+      saveMISReports(updated);
+      return updated;
+    });
+    setSaveSuccessToast(`Weekly MIS Report for Week ${data.weekNumber} (${data.preparedBy}) saved successfully!`);
+    setTimeout(() => setSaveSuccessToast(null), 4000);
     setShowForm(false);
     setEditingReport(null);
   }, []);
+
+  const handleReSyncArchive = () => {
+    const fresh = ensureAllWeeklyMISReports(reports, syncedTrials, formulations);
+    setReports(fresh);
+    saveMISReports(fresh);
+    setSaveSuccessToast(`Archive synchronized: ${fresh.length} weekly summary & scientist reports active.`);
+    setTimeout(() => setSaveSuccessToast(null), 4000);
+  };
 
   const handleEdit = (report: WeeklyMISReport) => {
     setEditingReport(report);
@@ -1314,7 +1388,7 @@ export const WeeklyMIS: React.FC = () => {
         weekNumber: week,
         periodStart: start,
         periodEnd: end,
-        preparedBy: profile?.name || 'R&D Lead Scientist',
+        preparedBy: profile?.name || 'R&D Executive Management',
         users,
         logs: logs || [],
         trials: syncedTrials,
@@ -1351,9 +1425,21 @@ export const WeeklyMIS: React.FC = () => {
     return Array.from(set).sort((a, b) => b - a);
   }, [reports]);
 
+  const summaryCount = useMemo(() => reports.filter(r => (r.preparedBy || '').includes('Management') || r.reportType === 'summary').length, [reports]);
+  const scientistCount = useMemo(() => reports.filter(r => !(r.preparedBy || '').includes('Management') && r.reportType !== 'summary').length, [reports]);
+
   // Filtered Reports
   const filteredReports = useMemo(() => {
     return reports.filter(r => {
+      // Type filter
+      if (filterType === 'summary') {
+        const isSummary = (r.preparedBy || '').includes('Management') || r.reportType === 'summary';
+        if (!isSummary) return false;
+      } else if (filterType === 'scientist') {
+        const isSummary = (r.preparedBy || '').includes('Management') || r.reportType === 'summary';
+        if (isSummary) return false;
+      }
+
       // Status filter
       if (filterStatus !== 'all') {
         if (filterStatus === 'Draft' && r.status !== 'Draft') return false;
@@ -1390,7 +1476,7 @@ export const WeeklyMIS: React.FC = () => {
 
       return true;
     });
-  }, [reports, filterStatus, filterScientist, filterWeek, searchQuery]);
+  }, [reports, filterType, filterStatus, filterScientist, filterWeek, searchQuery]);
 
   // Analytics Aggregates
   const analytics = useMemo(() => {
@@ -1464,6 +1550,13 @@ export const WeeklyMIS: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={handleReSyncArchive}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-xl transition cursor-pointer shadow-xs"
+            title="Re-synchronize archive with all weekly summaries and individual scientist reports"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-indigo-600" /> Re-Sync Archive
+          </button>
+          <button
             onClick={() => exportAllMISToExcel(filteredReports)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-xl transition cursor-pointer shadow-xs"
           >
@@ -1494,6 +1587,17 @@ export const WeeklyMIS: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Success Notification Toast */}
+      {saveSuccessToast && (
+        <div className="p-3.5 rounded-2xl bg-emerald-600 text-white shadow-lg flex items-center justify-between text-xs font-bold animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>{saveSuccessToast}</span>
+          </div>
+          <button onClick={() => setSaveSuccessToast(null)} className="text-white/80 hover:text-white ml-3 cursor-pointer">✕</button>
+        </div>
+      )}
 
       {/* Main Tab Switcher */}
       <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
@@ -1545,16 +1649,23 @@ export const WeeklyMIS: React.FC = () => {
               </div>
 
               {/* Scientist filter */}
-              <div className="w-full md:w-48">
+              <div className="w-full md:w-56">
                 <select
                   value={filterScientist}
                   onChange={e => setFilterScientist(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium"
                 >
-                  <option value="all">All Scientists</option>
-                  {distinctScientists.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
+                  <option value="all">All Authors & Summaries</option>
+                  <optgroup label="Executive Management">
+                    <option value="R&D Executive Management">📊 R&D Executive Management</option>
+                  </optgroup>
+                  <optgroup label="Individual Scientists">
+                    {distinctScientists
+                      .filter(name => !name.includes('Management'))
+                      .map(name => (
+                        <option key={name} value={name}>👨‍🔬 {name}</option>
+                      ))}
+                  </optgroup>
                 </select>
               </div>
 
@@ -1586,19 +1697,55 @@ export const WeeklyMIS: React.FC = () => {
               </div>
 
               {/* Reset button */}
-              {(searchQuery || filterScientist !== 'all' || filterWeek !== 'all' || filterStatus !== 'all') && (
+              {(searchQuery || filterScientist !== 'all' || filterWeek !== 'all' || filterStatus !== 'all' || filterType !== 'all') && (
                 <button
                   onClick={() => {
                     setSearchQuery('');
                     setFilterScientist('all');
                     setFilterWeek('all');
                     setFilterStatus('all');
+                    setFilterType('all');
                   }}
                   className="px-3 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
                 >
                   Reset
                 </button>
               )}
+            </div>
+
+            {/* Scope Quick Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <span className="text-[11px] font-bold text-gray-400 mr-1">View Scope:</span>
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                  filterType === 'all'
+                    ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                    : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                All Reports ({reports.length})
+              </button>
+              <button
+                onClick={() => setFilterType('summary')}
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  filterType === 'summary'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/60'
+                }`}
+              >
+                📊 Management Summaries ({summaryCount})
+              </button>
+              <button
+                onClick={() => setFilterType('scientist')}
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  filterType === 'scientist'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/60'
+                }`}
+              >
+                👨‍🔬 Scientist Dossiers ({scientistCount})
+              </button>
             </div>
           </div>
 

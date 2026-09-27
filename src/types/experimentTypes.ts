@@ -142,6 +142,15 @@ export interface WeeklyMISReport {
 
   status: 'Draft' | 'Final' | 'Saved' | 'Submitted' | 'Reviewed' | 'Approved';
   managementFeedback?: string;
+
+  // Rich MIS Metadata & Classification
+  reportType?: 'summary' | 'scientist';
+  scientistRole?: string;
+  targetCrops?: string[];
+  totalPlotsEvaluated?: number;
+  overallAverageWce?: number;
+  aiModelUsed?: string;
+  generatedWithAI?: boolean;
 }
 
 // ── Existing Types (unchanged) ───────────────────────────────────────────────
