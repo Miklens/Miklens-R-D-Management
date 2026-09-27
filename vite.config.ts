@@ -33,20 +33,6 @@ export default defineConfig({
     })
   ],
   build: {
-    chunkSizeWarningLimit: 1200,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('jspdf')) return 'vendor-jspdf';
-            if (id.includes('xlsx')) return 'vendor-xlsx';
-            if (id.includes('lucide-react')) return 'vendor-lucide';
-            if (id.includes('framer-motion')) return 'vendor-framer';
-            if (id.includes('@tanstack')) return 'vendor-query';
-            if (id.includes('react')) return 'vendor-react';
-          }
-        }
-      }
-    }
+    chunkSizeWarningLimit: 1500,
   }
 })

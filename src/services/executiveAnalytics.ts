@@ -1,5 +1,6 @@
 import {
   ExternalFieldTrial,
+  ExternalProject,
   DateFilterRange,
   ScientistExecutiveProfile,
   TrialCategory,
@@ -9,8 +10,18 @@ import {
   TodayProgress,
 } from '../types/trialIntegrationTypes';
 import { DailyLog } from '../types';
-import { Experiment, LabTest } from '../types/experimentTypes';
-import { matchesScientist, getScientistTrials, getScientistLogs } from '../utils/scientistMatcher';
+import { Experiment, LabTest, StabilityLog, ScientificFormulation, WeeklyMISReport } from '../types/experimentTypes';
+import { GlobalTask } from '../types/taskTypes';
+import {
+  matchesScientist,
+  getScientistTrials,
+  getScientistLogs,
+  getScientistLabWork,
+  getScientistFormulations,
+  getScientistMISReports,
+  getScientistProjects,
+  getScientistTasks,
+} from '../utils/scientistMatcher';
 import { parseISO, subDays, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
 /**
@@ -117,19 +128,22 @@ const calculateProgressForPeriod = (
  */
 export const analyzeScientistBottlenecks = (
   scientistTrials: ExternalFieldTrial[],
-  scientistLogs: DailyLog[] = []
+  scientistLogs: DailyLog[] = [],
+  formulations: ScientificFormulation[] = [],
+  misReports: WeeklyMISReport[] = [],
+  labTests: LabTest[] = []
 ): ScientistBottleneck[] => {
   const bottlenecks: ScientistBottleneck[] = [];
   const now = new Date();
 
-  // 1. Stalled Active Trials (Active for > 60 days with 0 evaluations or old evals)
+  // 1. Stalled Active Trials (Active for > 45 days with 0 evaluations or old evals)
   scientistTrials.forEach((t) => {
     if (!t.isCompleted && t.startDate) {
       try {
         const start = parseISO(t.startDate);
         const daysActive = (now.getTime() - start.getTime()) / (1000 * 3600 * 24);
 
-        if (daysActive > 60 && (!t.evaluations || t.evaluations.length === 0)) {
+        if (daysActive > 45 && (!t.evaluations || t.evaluations.length === 0)) {
           bottlenecks.push({
             id: `stalled-${t.id}`,
             type: 'stalled_trial',
@@ -139,18 +153,18 @@ export const analyzeScientistBottlenecks = (
             trialCode: t.trialCode,
             actionRecommendation: `Schedule an immediate field evaluation or update status to Completed/Concluded.`,
           });
-        } else if (daysActive > 75 && t.evaluations && t.evaluations.length > 0) {
+        } else if (daysActive > 60 && t.evaluations && t.evaluations.length > 0) {
           const lastEval = t.evaluations[t.evaluations.length - 1];
           const lastEvalDate = parseISO(lastEval.evalDate);
           const daysSinceLastEval = (now.getTime() - lastEvalDate.getTime()) / (1000 * 3600 * 24);
 
-          if (daysSinceLastEval > 45) {
+          if (daysSinceLastEval > 35) {
             bottlenecks.push({
               id: `delayed-eval-${t.id}`,
               type: 'missing_evaluation',
               severity: 'medium',
               title: `Delayed Evaluation: ${t.trialCode || t.title}`,
-              description: `Last evaluation was ${Math.round(daysSinceLastEval)} days ago (${lastEval.daysAfterTreatment} DAT). Trial needs final or follow-up evaluation.`,
+              description: `Last evaluation was ${Math.round(daysSinceLastEval)} days ago (${lastEval.daysAfterTreatment} DAT). Trial needs follow-up evaluation.`,
               trialCode: t.trialCode,
               actionRecommendation: `Conduct follow-up evaluation or generate final field report.`,
             });
@@ -162,11 +176,11 @@ export const analyzeScientistBottlenecks = (
     }
   });
 
-  // 2. Low Efficacy Trials (< 60% Control)
+  // 2. Low Efficacy Trials (< 55% Control)
   scientistTrials.forEach((t) => {
     if (t.evaluations && t.evaluations.length > 0) {
       const latestEval = t.evaluations[t.evaluations.length - 1];
-      if (typeof latestEval.efficacyPercent === 'number' && latestEval.efficacyPercent < 60) {
+      if (typeof latestEval.efficacyPercent === 'number' && latestEval.efficacyPercent < 55) {
         bottlenecks.push({
           id: `low-eff-${t.id}`,
           type: 'low_efficacy',
@@ -174,7 +188,7 @@ export const analyzeScientistBottlenecks = (
           title: `Sub-optimal Efficacy: ${t.trialCode || t.title} (${latestEval.efficacyPercent}%)`,
           description: `Product formulation "${t.productName}" achieved only ${latestEval.efficacyPercent}% control on ${t.targetWeedOrPathogen}.`,
           trialCode: t.trialCode,
-          actionRecommendation: `Review dosage rate (${t.dosage || 'standard'}) and consider formulation surfactant adjustment.`,
+          actionRecommendation: `Review dosage rate (${t.dosage || 'standard'}) and consider formulation adjuvant adjustment.`,
         });
       }
     }
@@ -188,13 +202,13 @@ export const analyzeScientistBottlenecks = (
         type: 'blocked_log',
         severity: 'high',
         title: `Work Blocked: ${log.objective || 'Daily Protocol'}`,
-        description: `Scientist reported blocked progress on ${log.date}. Achievements/Issue: "${log.achievements || log.activities || 'Obstacle encountered'}".`,
+        description: `Scientist reported blocked progress on ${log.date}. Issue: "${log.achievements || log.activities || 'Obstacle encountered'}".`,
         actionRecommendation: `Review resource availability and assign laboratory or field assistance.`,
       });
     }
   });
 
-  // 4. Inactivity detection (> 7 days without research logs or trial updates)
+  // 4. Inactivity detection (> 5 days without research logs or trial updates)
   if (scientistLogs.length > 0) {
     const sortedLogs = [...scientistLogs].sort(
       (a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
@@ -202,7 +216,7 @@ export const analyzeScientistBottlenecks = (
     const lastLogDate = new Date(sortedLogs[0].date || sortedLogs[0].createdAt);
     const daysSinceLog = (now.getTime() - lastLogDate.getTime()) / (1000 * 3600 * 24);
 
-    if (daysSinceLog > 7) {
+    if (daysSinceLog > 5) {
       bottlenecks.push({
         id: 'inactivity-flag',
         type: 'inactivity',
@@ -214,6 +228,49 @@ export const analyzeScientistBottlenecks = (
     }
   }
 
+  // 5. Formulation Issues
+  formulations.forEach((f) => {
+    if (f.problemIdentified && f.finalDecision !== 'Stop') {
+      bottlenecks.push({
+        id: `fml-issue-${f.id}`,
+        type: 'formulation_issue',
+        severity: 'medium',
+        title: `Formulation Issue: ${f.name} (${f.version})`,
+        description: f.problemIdentified,
+        actionRecommendation: f.correctiveAction || `Implement corrective action in Formulation Tracker.`,
+      });
+    }
+  });
+
+  // 6. Pending MIS Management Decisions
+  misReports.forEach((r) => {
+    const pending = r.decisionsRequiredFromManagement.filter((d) => d.status === 'Pending Approval');
+    if (pending.length > 0) {
+      bottlenecks.push({
+        id: `mis-decision-${r.id}`,
+        type: 'pending_decision',
+        severity: pending.some((p) => p.urgency === 'High') ? 'high' : 'medium',
+        title: `MIS Week ${r.weekNumber}: ${pending.length} Decision(s) Pending`,
+        description: pending.map((p) => p.decisionRequired).join(' | '),
+        actionRecommendation: `Review and decide in Executive Management Cockpit -> Works & Decisions tab.`,
+      });
+    }
+  });
+
+  // 7. Failed Lab Tests
+  labTests.forEach((l) => {
+    if (l.outcomeStatus === 'Failed') {
+      bottlenecks.push({
+        id: `failed-lab-${l.id}`,
+        type: 'failed_assay',
+        severity: 'medium',
+        title: `Failed Lab Test: ${l.name}`,
+        description: `Laboratory testing did not pass protocol standards. Product: ${l.productName}.`,
+        actionRecommendation: `Review test protocol or re-run with adjusted reagent concentration.`,
+      });
+    }
+  });
+
   return bottlenecks;
 };
 
@@ -223,17 +280,18 @@ export const analyzeScientistBottlenecks = (
 export const analyzeScientistInnovations = (
   scientistTrials: ExternalFieldTrial[],
   experiments: Experiment[] = [],
-  labTests: LabTest[] = []
+  labTests: LabTest[] = [],
+  formulations: ScientificFormulation[] = []
 ): ScientistInnovation[] => {
   const innovations: ScientistInnovation[] = [];
 
-  // 1. Breakthrough field trials (> 85% efficacy)
+  // 1. Breakthrough field trials (> 80% efficacy)
   scientistTrials.forEach((t) => {
-    const highEval = t.evaluations?.find((ev) => ev.efficacyPercent >= 85);
+    const highEval = t.evaluations?.find((ev) => ev.efficacyPercent >= 80);
     const isRatedGood = t.resultRating === 'Excellent' || t.resultRating === 'Good';
 
     if (highEval || isRatedGood) {
-      const eff = highEval ? `${highEval.efficacyPercent}%` : `${t.resultRating} Rating`;
+      const eff = highEval ? `${Math.round(highEval.efficacyPercent)}%` : `${t.resultRating} Rating`;
       innovations.push({
         id: `inno-${t.id}`,
         type: 'breakthrough_efficacy',
@@ -246,21 +304,50 @@ export const analyzeScientistInnovations = (
     }
   });
 
-  // 2. Passed Lab Assays & Stage-Gate advancements
+  // 2. Advancing Formulations
+  formulations.forEach((f) => {
+    if (['Advance to Field Trial', 'Advance to Registration'].includes(f.finalDecision)) {
+      innovations.push({
+        id: `fml-adv-${f.id}`,
+        type: 'formulation_advancement',
+        title: `Formulation Stage Gate: ${f.name} (${f.version})`,
+        description: `Approved for ${f.finalDecision}. Actives: ${f.keyActivesComposition}. Efficacy: ${f.trialResultEfficacy ? `${f.trialResultEfficacy}%` : 'Validated'}.`,
+        metric: f.finalDecision,
+        category: f.category !== 'other' ? (f.category as TrialCategory) : 'herbicide',
+        date: f.updatedAt || f.createdAt,
+      });
+    }
+  });
+
+  // 3. Passed Lab Assays & Stage-Gate advancements
   labTests.forEach((lab) => {
     if (lab.outcomeStatus === 'Passed') {
       innovations.push({
         id: `lab-inno-${lab.id}`,
         type: 'recipe_stabilization',
         title: `Lab Validation Passed: ${lab.name}`,
-        description: `Successful laboratory assay validation meeting target QA specifications.`,
+        description: `Successful laboratory assay validation meeting target QA specifications for ${lab.productName}.`,
         metric: 'Passed QA',
         date: lab.createdAt,
       });
     }
   });
 
-  return innovations.slice(0, 8);
+  // 4. Completed Experiments
+  experiments.forEach((exp) => {
+    if (exp.outcomeStatus === 'Passed' || exp.status === 'Completed') {
+      innovations.push({
+        id: `exp-inno-${exp.id}`,
+        type: 'stage_gate_advancement',
+        title: `Experiment Concluded: ${exp.name}`,
+        description: exp.conclusion || `Successfully completed protocol for ${exp.productName}.`,
+        metric: 'Completed',
+        date: exp.createdAt,
+      });
+    }
+  });
+
+  return innovations.slice(0, 10);
 };
 
 /**
@@ -271,14 +358,24 @@ export const buildScientistExecutiveProfile = (
   allTrials: ExternalFieldTrial[],
   allLogs: DailyLog[] = [],
   experiments: Experiment[] = [],
-  labTests: LabTest[] = []
+  labTests: LabTest[] = [],
+  stabilityLogs: StabilityLog[] = [],
+  formulations: ScientificFormulation[] = [],
+  misReports: WeeklyMISReport[] = [],
+  projects: ExternalProject[] = [],
+  tasks: GlobalTask[] = []
 ): ScientistExecutiveProfile => {
   const now = new Date();
   const todayStr = format(now, 'yyyy-MM-dd');
 
-  // Universal matching for this scientist
+  // Universal matching across all data entities
   const scientistTrials = getScientistTrials(scientistNameOrEmail, allTrials);
   const scientistLogs = getScientistLogs(scientistNameOrEmail, allLogs);
+  const myLabWork = getScientistLabWork(scientistNameOrEmail, experiments, labTests, stabilityLogs);
+  const myFormulations = getScientistFormulations(scientistNameOrEmail, formulations, scientistTrials);
+  const myMISReports = getScientistMISReports(scientistNameOrEmail, misReports);
+  const myProjects = getScientistProjects(scientistNameOrEmail, projects);
+  const myTasks = getScientistTasks(scientistNameOrEmail, tasks);
 
   const totalTrials = scientistTrials.length;
   const completedTrials = scientistTrials.filter((t) => t.status === 'Completed' || t.isCompleted).length;
@@ -291,10 +388,10 @@ export const buildScientistExecutiveProfile = (
   ).length;
   const failedTrials = ratedTrials.filter((t) => t.resultRating === 'Poor').length;
 
-  const successRate = ratedTrials.length > 0 ? Math.round((successfulTrials / ratedTrials.length) * 100) : 85;
-  const failureRate = ratedTrials.length > 0 ? Math.round((failedTrials / ratedTrials.length) * 100) : 15;
+  const successRate = ratedTrials.length > 0 ? Math.round((successfulTrials / ratedTrials.length) * 100) : 88;
+  const failureRate = ratedTrials.length > 0 ? Math.round((failedTrials / ratedTrials.length) * 100) : 12;
 
-  // Workload distribution by Category
+  // Category distribution
   const categoryWorkload: Record<TrialCategory, number> = {
     herbicide: 0,
     fungicide: 0,
@@ -319,8 +416,18 @@ export const buildScientistExecutiveProfile = (
     }
   });
 
-  // Workload score (0 - 100)
-  const currentWorkloadScore = Math.min(100, Math.round(activeTrials * 15 + scientistTrials.length * 3));
+  // Dynamic Workload score (0 - 100) reflecting all active responsibilities
+  const currentWorkloadScore = Math.min(
+    100,
+    Math.round(
+      activeTrials * 12 +
+      myFormulations.length * 8 +
+      myLabWork.experiments.length * 6 +
+      myLabWork.labTests.length * 4 +
+      myTasks.filter(t => t.status !== 'Completed').length * 4 +
+      (scientistLogs.length > 0 ? 10 : 0)
+    )
+  );
 
   // --- 1. TODAY'S PROGRESS ---
   const todayLogs = scientistLogs.filter((l) => l.date === todayStr || (l.createdAt && l.createdAt.startsWith(todayStr)));
@@ -338,9 +445,9 @@ export const buildScientistExecutiveProfile = (
     todayLogsCount: todayLogs.length,
     todayHours,
     todayTrialsVisited: todayTrials.length,
-    latestObjective: latestLog?.objective || 'Routine field & lab protocol execution',
-    latestAchievements: latestLog?.achievements || latestLog?.activities || 'Field trials progressing normally',
-    latestStatus: latestLog?.completionStatus || (todayLogs.length > 0 ? 'Active' : 'No Log Today'),
+    latestObjective: latestLog?.objective || (myFormulations.length > 0 ? `Product formulation & field validation` : 'Routine field & lab protocol execution'),
+    latestAchievements: latestLog?.achievements || latestLog?.activities || (scientistTrials.length > 0 ? `${scientistTrials.length} active trial protocols monitored` : 'Active research in progress'),
+    latestStatus: latestLog?.completionStatus || (todayLogs.length > 0 ? 'Active' : 'Field Standby'),
     hasActiveWorkToday: todayLogs.length > 0 || todayTrials.length > 0,
   };
 
@@ -409,18 +516,36 @@ export const buildScientistExecutiveProfile = (
     : current1YProg.trialsCompleted * 100;
 
   // --- BOTTLENECKS & INNOVATIONS ---
-  const bottlenecks = analyzeScientistBottlenecks(scientistTrials, scientistLogs);
-  const innovations = analyzeScientistInnovations(scientistTrials, experiments, labTests);
+  const bottlenecks = analyzeScientistBottlenecks(
+    scientistTrials,
+    scientistLogs,
+    myFormulations,
+    myMISReports,
+    myLabWork.labTests
+  );
+  const innovations = analyzeScientistInnovations(
+    scientistTrials,
+    myLabWork.experiments,
+    myLabWork.labTests,
+    myFormulations
+  );
 
-  const activeProjectsCount = new Set(scientistTrials.filter((t) => !t.isCompleted).map((t) => t.projectId || t.title)).size;
-  const completedProjectsCount = new Set(scientistTrials.filter((t) => t.isCompleted).map((t) => t.projectId || t.title)).size;
+  const activeProjectsCount = myProjects.filter((p) => p.status !== 'Completed').length || new Set(scientistTrials.filter((t) => !t.isCompleted).map((t) => t.projectId || t.title)).size;
+  const completedProjectsCount = myProjects.filter((p) => p.status === 'Completed').length || new Set(scientistTrials.filter((t) => t.isCompleted).map((t) => t.projectId || t.title)).size;
 
   // Executive summary heuristics
   const focusArea = `Primary research focus in ${mostActiveCategory.toUpperCase()} field trials targeting crop efficacy and field safety.`;
-  const recentDiscoveries = `Achieved high efficacy ratings across ${successfulTrials} trials with average efficacy score of ${currentMonthProg.efficacyAvg || 88}%.`;
-  const majorAchievements = `Completed ${completedTrials} research trials with a overall success rate of ${successRate}%.`;
+  const recentDiscoveries = `Achieved high efficacy ratings across ${successfulTrials} trials with average efficacy score of ${currentMonthProg.efficacyAvg || 88}%. Developed ${myFormulations.length} formulation recipes.`;
+  const majorAchievements = `Completed ${completedTrials} research trials with overall success rate of ${successRate}%. Executed ${myLabWork.experiments.length + myLabWork.labTests.length} laboratory tests.`;
   const blockers = bottlenecks.length > 0 ? `${bottlenecks.length} active bottleneck(s) flagged: ${bottlenecks[0].title}.` : 'No critical blockers identified.';
   const recommendations = bottlenecks.length > 0 ? bottlenecks[0].actionRecommendation : `Maintain active trial evaluation cadence in ${mostActiveCategory}.`;
+
+  const totalHoursLogged = Math.round((scientistLogs.reduce((sum, l) => sum + (l.timeSpentMinutes || 0), 0) / 60) * 10) / 10;
+  const advancingFormulationsCount = myFormulations.filter((f) => ['Advance to Field Trial', 'Advance to Registration'].includes(f.finalDecision)).length;
+  const openProblemsCount =
+    myMISReports.reduce((s, r) => s + r.problemsRisks.filter((p) => p.status === 'Open').length, 0) +
+    myFormulations.filter((f) => f.problemIdentified && f.finalDecision !== 'Stop').length;
+  const pendingDecisionsCount = myMISReports.reduce((s, r) => s + r.decisionsRequiredFromManagement.filter((d) => d.status === 'Pending Approval').length, 0);
 
   return {
     uid: scientistNameOrEmail,
@@ -465,5 +590,13 @@ export const buildScientistExecutiveProfile = (
     },
     mostActiveCategory,
     mostSuccessfulCategory: mostActiveCategory,
+    // Connected Cross-App Metrics
+    formulationsCount: myFormulations.length,
+    advancingFormulationsCount,
+    labAssaysCount: myLabWork.experiments.length + myLabWork.labTests.length + myLabWork.stabilityLogs.length,
+    misReportsCount: myMISReports.length,
+    totalHoursLogged,
+    openProblemsCount,
+    pendingDecisionsCount,
   };
 };

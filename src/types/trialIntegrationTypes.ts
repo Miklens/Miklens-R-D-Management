@@ -110,7 +110,7 @@ export interface ComparativeProgress {
 
 export interface ScientistBottleneck {
   id: string;
-  type: 'stalled_trial' | 'missing_evaluation' | 'blocked_log' | 'inactivity' | 'low_efficacy';
+  type: 'stalled_trial' | 'missing_evaluation' | 'blocked_log' | 'inactivity' | 'low_efficacy' | 'pending_decision' | 'formulation_issue' | 'failed_assay';
   severity: 'high' | 'medium' | 'low';
   title: string;
   description: string;
@@ -120,7 +120,7 @@ export interface ScientistBottleneck {
 
 export interface ScientistInnovation {
   id: string;
-  type: 'breakthrough_efficacy' | 'new_target_control' | 'stage_gate_advancement' | 'recipe_stabilization';
+  type: 'breakthrough_efficacy' | 'new_target_control' | 'stage_gate_advancement' | 'recipe_stabilization' | 'formulation_advancement';
   title: string;
   description: string;
   metric?: string;
@@ -181,6 +181,14 @@ export interface ScientistExecutiveProfile {
   };
   mostActiveCategory: TrialCategory;
   mostSuccessfulCategory: TrialCategory;
+  // Multi-app connected statistics
+  formulationsCount?: number;
+  advancingFormulationsCount?: number;
+  labAssaysCount?: number;
+  misReportsCount?: number;
+  totalHoursLogged?: number;
+  openProblemsCount?: number;
+  pendingDecisionsCount?: number;
 }
 
 

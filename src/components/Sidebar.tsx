@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, FlaskConical, Beaker, BarChart3, Edit3, 
   Settings, FileStack, Bell, TrendingUp, Layers, Thermometer, Sparkles, X, MapPin,
-  CheckSquare, FileText, Eye, CheckCircle, GitPullRequest, GitBranch, ClipboardList
+  CheckSquare, FileText, Eye, CheckCircle, GitPullRequest, GitBranch, ClipboardList, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { Role } from '../types';
@@ -48,7 +48,8 @@ const navGroups: NavGroup[] = [
   {
     category: 'Management & Audits',
     items: [
-      { name: 'Executive & Trial Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
+      { name: 'Executive Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
+      { name: 'Management Cockpit', href: '/management-cockpit', icon: ShieldCheck, roles: ['Admin', 'Management'] },
       { name: 'Weekly MIS Report', href: '/weekly-mis', icon: ClipboardList, roles: ['Admin', 'Management'] },
       { name: 'Team Activity & Approvals', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
     ],

@@ -8,20 +8,33 @@ import {
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useExperiments } from '../contexts/ExperimentContext';
-import { getSyncedTrials } from '../services/trialManagerSync';
+import { useTasks } from '../contexts/TaskContext';
+import { getSyncedTrials, getSyncedProjects } from '../services/trialManagerSync';
 import { useAuth } from '../contexts/AuthContext';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getEffectiveAvatar } from '../utils/avatarHelper';
 import { buildScientistExecutiveProfile } from '../services/executiveAnalytics';
-import { getScientistTrials, getScientistLogs, getScientistLabWork, formatCleanScientistName } from '../utils/scientistMatcher';
+import {
+  getScientistTrials,
+  getScientistLogs,
+  getScientistLabWork,
+  getScientistFormulations,
+  formatCleanScientistName
+} from '../utils/scientistMatcher';
 import { exportScientistToPDF, exportScientistToExcel } from '../services/executiveReportGenerator';
+import {
+  loadScientificFormulations,
+  loadStabilityLogs,
+  loadMISReports,
+} from '../services/experimentStore';
 import { Badge } from '../components/ui/Badge';
 
 export const Employees: React.FC = () => {
   const { data: users, isLoading: usersLoading } = useUsers();
   const { data: logs, isLoading: logsLoading } = useDailyLogs();
   const { experiments, labTests } = useExperiments();
+  const { tasks } = useTasks();
   const { userRole } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +43,10 @@ export const Employees: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
 
   const syncedTrials = useMemo(() => getSyncedTrials(), []);
+  const syncedProjects = useMemo(() => getSyncedProjects(), []);
+  const formulations = useMemo(() => loadScientificFormulations(), []);
+  const stabilityLogs = useMemo(() => loadStabilityLogs(), []);
+  const misReports = useMemo(() => loadMISReports(), []);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   // Build comprehensive scorecard for every active scientist
@@ -42,7 +59,12 @@ export const Employees: React.FC = () => {
         syncedTrials,
         logs || [],
         experiments,
-        labTests
+        labTests,
+        stabilityLogs,
+        formulations,
+        misReports,
+        syncedProjects,
+        tasks
       );
 
       const userTrials = getScientistTrials(user, syncedTrials);
@@ -104,7 +126,7 @@ export const Employees: React.FC = () => {
         },
       };
     });
-  }, [users, syncedTrials, logs, experiments, labTests, selectedHorizon]);
+  }, [users, syncedTrials, logs, experiments, labTests, stabilityLogs, formulations, misReports, syncedProjects, tasks, selectedHorizon]);
 
   // Filtered scientists
   const filteredDossiers = useMemo(() => {
@@ -346,17 +368,38 @@ export const Employees: React.FC = () => {
 
                   {/* Horizon Specific KPIs */}
                   <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                    <div className="p-2.5 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
                       <span className="text-[10px] text-gray-400 uppercase font-bold block truncate">Trials</span>
                       <span className="text-sm font-black text-gray-900 dark:text-white mt-0.5 block">{dossier.userTrials.length}</span>
                     </div>
-                    <div className="p-2.5 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
                       <span className="text-[10px] text-gray-400 uppercase font-bold block truncate">Success Rate</span>
                       <span className="text-sm font-black text-emerald-600 mt-0.5 block">{profile.successRate}%</span>
                     </div>
-                    <div className="p-2.5 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
+                    <div className="p-2 bg-gray-50 dark:bg-gray-800/30 rounded-xl">
                       <span className="text-[10px] text-gray-400 uppercase font-bold block truncate">Workload</span>
                       <span className="text-sm font-black text-purple-600 mt-0.5 block">{profile.currentWorkloadScore}/100</span>
+                    </div>
+                  </div>
+
+                  {/* Multi-App Cross Metrics */}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="p-2 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                      <span className="text-[9px] text-indigo-500 uppercase font-bold block truncate">Products</span>
+                      <div className="flex items-center justify-center gap-1 mt-0.5">
+                        <span className="text-xs font-black text-indigo-700 dark:text-indigo-300">{profile.formulationsCount}</span>
+                        {profile.advancingFormulationsCount > 0 && (
+                          <span className="text-[9px] font-bold text-purple-600">({profile.advancingFormulationsCount} adv)</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-teal-50/50 dark:bg-teal-950/20 rounded-xl border border-teal-100/50 dark:border-teal-900/30">
+                      <span className="text-[9px] text-teal-500 uppercase font-bold block truncate">Lab Assays</span>
+                      <span className="text-xs font-black text-teal-700 dark:text-teal-300 mt-0.5 block">{profile.labAssaysCount}</span>
+                    </div>
+                    <div className="p-2 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-100/50 dark:border-amber-900/30">
+                      <span className="text-[9px] text-amber-500 uppercase font-bold block truncate">Total Hours</span>
+                      <span className="text-xs font-black text-amber-700 dark:text-amber-300 mt-0.5 block">{profile.totalHoursLogged}h</span>
                     </div>
                   </div>
 

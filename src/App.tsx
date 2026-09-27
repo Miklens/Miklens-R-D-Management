@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+﻿import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
@@ -46,6 +46,7 @@ const Approvals = lazyWithRetry(() => import('./pages/Approvals').then((m) => ({
 const ProductPipeline = lazyWithRetry(() => import('./pages/ProductPipeline').then((m) => ({ default: m.ProductPipeline })));
 const FormulationTracker = lazyWithRetry(() => import('./pages/FormulationTracker').then((m) => ({ default: m.FormulationTracker })));
 const WeeklyMIS = lazyWithRetry(() => import('./pages/WeeklyMIS').then((m) => ({ default: m.WeeklyMIS })));
+const ManagementCockpit = lazyWithRetry(() => import('./pages/ManagementCockpit').then((m) => ({ default: m.ManagementCockpit })));
 
 // Optimized React Query Client with Stale Caching
 const queryClient = new QueryClient({
@@ -126,6 +127,7 @@ function App() {
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/team-activity" element={<TeamActivity />} />
                           <Route path="/weekly-mis" element={<WeeklyMIS />} />
+                          <Route path="/management-cockpit" element={<ManagementCockpit />} />
                           <Route path="/trial-progress" element={<Navigate to="/reports" replace />} />
                           <Route path="/approvals" element={<Navigate to="/team-activity" replace />} />
                           <Route path="/diagnostics" element={<Diagnostics />} />
