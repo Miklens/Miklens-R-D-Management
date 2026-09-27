@@ -17,7 +17,9 @@ import {
   FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getSyncedProjects, getSyncedTrials } from '../services/trialManagerSync';
+import { getSyncedProjects, getSyncedTrials, getSyncedFormulations } from '../services/trialManagerSync';
+import { getMainProducts, getProductVersions } from '../services/productVersionStore';
+import { loadScientificFormulations } from '../services/experimentStore';
 
 import { Products } from './Products';
 
@@ -48,68 +50,23 @@ interface PipelineProduct {
   bottleneckReason?: string;
 }
 
-const INITIAL_PRODUCTS: PipelineProduct[] = [
-  {
-    id: 'p1',
-    name: 'GOWEED ULTRA BASE (Liquid EC)',
-    category: 'Herbicide',
-    stage: 'field-trials',
-    maturityScore: 78,
-    gateStatus: 'pass',
-    owner: 'Pavan Dev',
-    trialsCount: 142
-  },
-  {
-    id: 'p2',
-    name: '3Tech 1 QEOP (Emulsifiable)',
-    category: 'Herbicide',
-    stage: 'greenhouse',
-    maturityScore: 62,
-    gateStatus: 'pass',
-    owner: 'Sandeep',
-    trialsCount: 12
-  },
-  {
-    id: 'p3',
-    name: 'QE ALONE 5% Technical',
-    category: 'Herbicide',
-    stage: 'formulation',
-    maturityScore: 45,
-    gateStatus: 'warning',
-    owner: 'Sandeep',
-    bottleneckReason: 'CIPAC MT 46.3 heat storage shows 4% active degradation at 54°C. Buffer optimization underway.'
-  },
-  {
-    id: 'p4',
-    name: 'Trichoderma Harzianum Bio-Fungicide',
-    category: 'Fungicide',
-    stage: 'registration',
-    maturityScore: 90,
-    gateStatus: 'pass',
-    owner: 'Bindushree B U',
-    trialsCount: 28
-  },
-  {
-    id: 'p5',
-    name: 'Amino Acid Foliar Booster 50%',
-    category: 'Biostimulant',
-    stage: 'idea',
-    maturityScore: 15,
-    gateStatus: 'pending',
-    owner: 'R&D Team'
-  }
-];
-
 export const ProductPipeline: React.FC = () => {
   const [activeView, setActiveView] = useState<'pipeline' | 'portfolio'>('pipeline');
-  const [products, setProducts] = useState<PipelineProduct[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<PipelineProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<PipelineProduct | null>(null);
 
   useEffect(() => {
     const synced = getSyncedProjects();
     const syncedTrials = getSyncedTrials();
+    const mainProds = getMainProducts();
+    const syncedFmls = getSyncedFormulations();
+    const localFmls = loadScientificFormulations();
+
+    const productMap = new Map<string, PipelineProduct>();
+
+    // 1. Projects
     if (synced && synced.length > 0) {
-      const mapped = synced.map(p => {
+      synced.forEach(p => {
         const pTrials = syncedTrials.filter(t => t.projectId === p.id);
         const hasDelays = pTrials.some(t => {
           if (t.isCompleted) return false;
@@ -121,16 +78,17 @@ export const ProductPipeline: React.FC = () => {
         let stage = 'field-trials';
         let score = 70;
         if (pTrials.length === 0) {
-          stage = 'idea';
-          score = 15;
+          stage = 'formulation';
+          score = 30;
         } else if (pTrials.every(t => t.isCompleted)) {
           stage = 'registration';
           score = 88;
         }
 
-        return {
+        const name = p.name || 'R&D Candidate';
+        productMap.set(name.toLowerCase(), {
           id: p.id,
-          name: p.name || 'R&D Candidate',
+          name: name,
           category: p.category ? p.category.charAt(0).toUpperCase() + p.category.slice(1) : 'Bio-Agent',
           stage: stage,
           maturityScore: score,
@@ -138,11 +96,97 @@ export const ProductPipeline: React.FC = () => {
           owner: p.leadScientistName || 'R&D Lead',
           trialsCount: pTrials.length,
           bottleneckReason: hasDelays ? 'Active trials flagged with progress delay >90 days.' : undefined
-        } as PipelineProduct;
+        });
       });
-
-      setProducts(mapped);
     }
+
+    // 2. Main Products Catalog
+    if (mainProds && mainProds.length > 0) {
+      mainProds.forEach(mp => {
+        const key = mp.name.toLowerCase();
+        if (!productMap.has(key)) {
+          const pTrials = syncedTrials.filter(t => (t.productName || '').toLowerCase().includes(key));
+          let stage = 'field-trials';
+          let score = 75;
+          if (pTrials.length === 0) {
+            stage = 'formulation';
+            score = 40;
+          } else if (pTrials.some(t => t.isCompleted)) {
+            stage = 'launch';
+            score = 95;
+          }
+          productMap.set(key, {
+            id: mp.id,
+            name: mp.name,
+            category: mp.category.charAt(0).toUpperCase() + mp.category.slice(1),
+            stage: stage,
+            maturityScore: score,
+            gateStatus: 'pass',
+            owner: 'R&D Team',
+            trialsCount: pTrials.length,
+          });
+        }
+      });
+    }
+
+    // 3. Distinct Trial Products
+    const distinctTrialProducts = new Set<string>();
+    syncedTrials.forEach(t => {
+      const pName = (t.productName || t.title || '').trim();
+      if (pName && pName.length > 2) distinctTrialProducts.add(pName);
+    });
+
+    distinctTrialProducts.forEach(pName => {
+      const key = pName.toLowerCase();
+      if (!productMap.has(key)) {
+        const pTrials = syncedTrials.filter(t => (t.productName || t.title || '').toLowerCase() === key);
+        const first = pTrials[0];
+        const isCompleted = pTrials.every(t => t.isCompleted);
+        const stage = isCompleted ? 'registration' : pTrials.length > 3 ? 'field-trials' : 'greenhouse';
+        const score = isCompleted ? 85 : pTrials.length > 3 ? 72 : 55;
+
+        productMap.set(key, {
+          id: `trial-prod-${pName.replace(/\s+/g, '-').toLowerCase()}`,
+          name: pName,
+          category: first?.category ? first.category.charAt(0).toUpperCase() + first.category.slice(1) : 'Herbicide',
+          stage: stage,
+          maturityScore: score,
+          gateStatus: 'pass',
+          owner: first?.scientistName || 'R&D Lead',
+          trialsCount: pTrials.length,
+        });
+      }
+    });
+
+    // 4. Formulations
+    [...syncedFmls, ...localFmls].forEach(f => {
+      const fName = (f.name || '').trim();
+      if (fName && !productMap.has(fName.toLowerCase())) {
+        let stage = 'formulation';
+        let score = 45;
+        const dec = (f as any).finalDecision;
+        if (dec === 'Advance to Registration') {
+          stage = 'registration';
+          score = 90;
+        } else if (dec === 'Advance to Field Trial') {
+          stage = 'field-trials';
+          score = 75;
+        }
+
+        productMap.set(fName.toLowerCase(), {
+          id: (f as any).id || (f as any).formulationId || fName,
+          name: fName,
+          category: (f as any).category ? (f as any).category.charAt(0).toUpperCase() + (f as any).category.slice(1) : 'Formulation',
+          stage: stage,
+          maturityScore: score,
+          gateStatus: (f as any).problemIdentified ? 'warning' : 'pass',
+          owner: (f as any).createdBy || 'Formulation Chemist',
+          bottleneckReason: (f as any).problemIdentified || undefined,
+        });
+      }
+    });
+
+    setProducts(Array.from(productMap.values()));
   }, []);
 
   const advanceStage = (prodId: string) => {

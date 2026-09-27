@@ -38,6 +38,31 @@ export const Reports: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    (logs || []).forEach(l => {
+      if (l.date && l.date.length >= 7) {
+        months.add(l.date.slice(0, 7));
+      }
+    });
+    (syncedTrials || []).forEach(t => {
+      if (t.startDate && t.startDate.length >= 7) {
+        months.add(t.startDate.slice(0, 7));
+      }
+    });
+    return Array.from(months).sort().reverse();
+  }, [logs, syncedTrials]);
+
+  const formatMonthLabel = (m: string) => {
+    try {
+      const [year, month] = m.split('-');
+      const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+      return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } catch {
+      return m;
+    }
+  };
+
   const resolveScientistName = (userId?: string): string => {
     if (!userId) return 'Scientist';
     const target = userId.toLowerCase();
@@ -391,9 +416,9 @@ export const Reports: React.FC = () => {
                   className="w-full px-3.5 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
                   <option value="all">📅 All Months</option>
-                  <option value="2026-08">August 2026</option>
-                  <option value="2026-07">July 2026</option>
-                  <option value="2026-06">June 2026</option>
+                  {availableMonths.map(m => (
+                    <option key={m} value={m}>📅 {formatMonthLabel(m)}</option>
+                  ))}
                 </select>
               </div>
 
