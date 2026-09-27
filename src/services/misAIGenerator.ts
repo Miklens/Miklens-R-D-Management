@@ -134,8 +134,8 @@ export async function generateAutomatedWeeklyMISReport(
     `${trial.productName || trial.title} (${trial.trialCode}): ${maxWce}% WCE at ${daa}DAA on ${trial.cropName || 'Crop'} vs ${trial.targetWeedOrPathogen || 'Weeds'}`
   ).join('; ');
 
-  const activeScientists = Array.from(new Set(effectiveLogs.map(l => formatCleanScientistName(l.userName, l.userEmail)))).slice(0, 4).join(', ');
-  const topFmlNames = activeFmls.slice(0, 4).map(f => `${f.name} (${f.stage})`).join(', ');
+  const activeScientists = Array.from(new Set(effectiveLogs.map((l: any) => formatCleanScientistName(l.userName, l.userEmail)))).slice(0, 4).join(', ');
+  const topFmlNames = activeFmls.slice(0, 4).map((f: any) => `${f.name} (${f.stage || f.category || 'Formulation'})`).join(', ');
 
   // Compact, high-density prompt (under 300 tokens)
   const compactPrompt = `You are Lead Scientist at Miklens Biotech. Draft Week ${weekNumber} (${periodStart} to ${periodEnd}) MIS Scientific Report for ${preparedBy}.

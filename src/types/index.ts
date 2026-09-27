@@ -1,3 +1,7 @@
+import type { GlobalTask } from './taskTypes';
+export type { GlobalTask };
+export type Task = GlobalTask;
+
 export type Role = 'Admin' | 'Management' | 'Scientist';
 
 export interface AppUser {
@@ -18,6 +22,8 @@ export type CompletionStatus = 'InProgress' | 'Completed' | 'Blocked';
 export interface DailyLog {
   id: string;
   userId: string;
+  userName?: string;
+  userEmail?: string;
   date: string; // ISO date string
   productId?: string;
   experimentId?: string;

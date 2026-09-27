@@ -309,7 +309,8 @@ export const getScientistMISReports = (
  */
 export const getScientistProjects = (
   scientist: ScientistIdentity | string,
-  projects: ExternalProject[]
+  projects: ExternalProject[],
+  _trials?: any[]
 ): ExternalProject[] => {
   return (projects || []).filter((p) =>
     matchesScientist(scientist, {
@@ -330,11 +331,11 @@ export const getScientistTasks = (
   scientist: ScientistIdentity | string,
   tasks: GlobalTask[]
 ): GlobalTask[] => {
-  return (tasks || []).filter((t) =>
+  return (tasks || []).filter((t: any) =>
     matchesScientist(scientist, {
-      userId: t.assignedTo,
-      uid: t.assignedTo,
-      assignedTo: t.assignedTo,
+      userId: t.assignedToUserId || t.assignedTo,
+      uid: t.assignedToUserId || t.assignedTo,
+      assignedTo: t.assignedToUserId || t.assignedTo,
       name: t.assignedToName,
       userName: t.assignedToName,
       assignedToName: t.assignedToName,

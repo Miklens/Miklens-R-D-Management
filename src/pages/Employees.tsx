@@ -388,7 +388,7 @@ export const Employees: React.FC = () => {
                       <span className="text-[9px] text-indigo-500 uppercase font-bold block truncate">Products</span>
                       <div className="flex items-center justify-center gap-1 mt-0.5">
                         <span className="text-xs font-black text-indigo-700 dark:text-indigo-300">{profile.formulationsCount}</span>
-                        {profile.advancingFormulationsCount > 0 && (
+                        {(profile.advancingFormulationsCount ?? 0) > 0 && (
                           <span className="text-[9px] font-bold text-purple-600">({profile.advancingFormulationsCount} adv)</span>
                         )}
                       </div>

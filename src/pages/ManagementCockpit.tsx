@@ -39,6 +39,7 @@ import {
 } from '../services/executiveAnalytics';
 import type { ExternalFieldTrial, TrialCategory, ExternalProject } from '../types/trialIntegrationTypes';
 import type { AppUser, DailyLog, Task } from '../types';
+import type { GlobalTask } from '../types/taskTypes';
 import type {
   ScientificFormulation,
   WeeklyMISReport,
@@ -142,13 +143,13 @@ function buildCard(
 
   // 5. Lab Tests & Experiments
   const labTestsCount    = myWork.labTests.length;
-  const failedLabs       = myWork.labTests.filter(t => t.result?.toLowerCase().includes('fail') || t.status === 'Failed');
+  const failedLabs       = myWork.labTests.filter((t: any) => (t.result || t.status || t.conclusion || '').toLowerCase().includes('fail'));
   const experimentsCount = myWork.experiments.length;
   const stabilityCount   = myWork.stabilityLogs.length;
 
   // 6. Multi-Horizon Bottlenecks & Innovations
-  const bottlenecks = analyzeScientistBottlenecks(u, myTrials, myLogs, myFmls, myMIS, myWork.labTests);
-  const innovations = analyzeScientistInnovations(u, myTrials, myFmls, myWork.labTests, myWork.experiments);
+  const bottlenecks = analyzeScientistBottlenecks(myTrials, myLogs, myFmls, myMIS, myWork.labTests as any);
+  const innovations = analyzeScientistInnovations(myTrials, myWork.experiments as any, myWork.labTests as any, myFmls);
 
   return {
     user: u,
@@ -640,7 +641,7 @@ export const ManagementCockpit: React.FC = () => {
                         {card.bottlenecks.slice(0, 2).map((b, bi) => (
                           <div key={bi} className="flex items-start gap-2 text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3 py-1.5 border border-amber-200/50 dark:border-amber-800/30">
                             <AlertTriangle className="w-3 h-3 flex-shrink-0 mt-0.5 text-amber-500" />
-                            <span className="line-clamp-1">{b}</span>
+                            <span className="line-clamp-1">{b.title || b.description}</span>
                           </div>
                         ))}
                       </div>
@@ -870,19 +871,19 @@ export const ManagementCockpit: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-3 px-4 pb-3 text-[11px] text-gray-500 dark:text-gray-400 border-t border-gray-50 dark:border-gray-800 pt-2">
-                    <span><strong>Stage:</strong> {fml.stage}</span>
-                    <span><strong>Form:</strong> {fml.physicalForm}</span>
-                    <span><strong>Target:</strong> {fml.targetCrops.join(', ') || 'Multi-crop'}</span>
+                    <span><strong>Category:</strong> {fml.category}</span>
+                    <span><strong>Form:</strong> {fml.physicalAppearance || 'Standard'}</span>
+                    <span><strong>Actives:</strong> {fml.keyActivesComposition || 'Active Formulation'}</span>
                     <span><strong>Author:</strong> {fml.createdBy || 'R&D Team'}</span>
-                    <span><strong>Created:</strong> {fmtDate(fml.createdDate)}</span>
+                    <span><strong>Created:</strong> {fmtDate(fml.createdAt)}</span>
                   </div>
 
                   {isExp && (
                     <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-800 pt-4 text-xs">
-                      {fml.reasonForDecision && (
+                      {fml.reasonForRevision && (
                         <div className="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl p-3 border border-indigo-100 dark:border-indigo-900/40">
                           <span className="font-bold text-indigo-700 dark:text-indigo-400 block mb-0.5">Scientific Rationale:</span>
-                          <p className="text-indigo-900 dark:text-indigo-300">{fml.reasonForDecision}</p>
+                          <p className="text-indigo-900 dark:text-indigo-300">{fml.reasonForRevision}</p>
                         </div>
                       )}
                       {fml.problemIdentified && (
@@ -923,7 +924,7 @@ export const ManagementCockpit: React.FC = () => {
                   <div className="p-5 flex items-center justify-between cursor-pointer" onClick={() => setExpMIS(isExp ? null : report.id)}>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-gray-900 dark:text-white">Week {report.weekNumber} ({report.year})</span>
+                        <span className="text-sm font-black text-gray-900 dark:text-white">Week {report.weekNumber} ({new Date(report.reportingPeriodStart || report.preparedAt || Date.now()).getFullYear()})</span>
                         <span className="text-xs text-gray-500">· {report.preparedBy}</span>
                         {pendingCount > 0 && (
                           <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 rounded-full">
@@ -1091,7 +1092,7 @@ export const ManagementCockpit: React.FC = () => {
                           {drawerCard.bottlenecks.map((b, bi) => (
                             <div key={bi} className="bg-amber-50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/30 rounded-xl px-3 py-2 text-xs flex items-start gap-2">
                               <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                              <span className="leading-relaxed">{b}</span>
+                              <span className="leading-relaxed"><strong>{b.title}:</strong> {b.description}</span>
                             </div>
                           ))}
                         </div>
@@ -1109,7 +1110,7 @@ export const ManagementCockpit: React.FC = () => {
                           {drawerCard.innovations.map((inv, ii) => (
                             <div key={ii} className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/30 rounded-xl px-3 py-2 text-xs flex items-start gap-2">
                               <Star className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                              <span className="leading-relaxed">{inv}</span>
+                              <span className="leading-relaxed"><strong>{inv.title}:</strong> {inv.description}</span>
                             </div>
                           ))}
                         </div>
@@ -1166,7 +1167,7 @@ export const ManagementCockpit: React.FC = () => {
                           <h5 className="text-xs font-bold text-gray-900 dark:text-white">{f.name}</h5>
                           <p className="text-[11px] text-gray-500 dark:text-gray-400">{f.keyActivesComposition}</p>
                           <div className="text-[10px] text-gray-400">
-                            Stage: {f.stage} · Physical Form: {f.physicalForm}
+                            Category: {f.category} · Appearance: {f.physicalAppearance || 'Standard'}
                           </div>
                         </div>
                       ))
@@ -1184,12 +1185,12 @@ export const ManagementCockpit: React.FC = () => {
                       drawerCard.myLabs.map(lab => (
                         <div key={lab.id} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-gray-900 dark:text-white">{lab.testType}</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${lab.result?.toLowerCase().includes('pass') ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                              {lab.result || lab.status}
+                            <span className="font-bold text-gray-900 dark:text-white">{lab.name || (lab as any).testType || 'Laboratory Assay'}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(lab as any).result?.toLowerCase().includes('pass') || lab.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {lab.status || (lab as any).result}
                             </span>
                           </div>
-                          <p className="text-gray-500 text-[11px] mt-0.5">Sample: {lab.sampleName} · {fmtDate(lab.date)}</p>
+                          <p className="text-gray-500 text-[11px] mt-0.5">Product: {lab.productName} · Lab: {lab.lab} · {fmtDate(lab.dueDate)}</p>
                         </div>
                       ))
                     )}
@@ -1201,8 +1202,8 @@ export const ManagementCockpit: React.FC = () => {
                       drawerCard.myExps.map(exp => (
                         <div key={exp.id} className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 text-xs">
                           <span className="font-bold text-gray-900 dark:text-white">{exp.name}</span>
-                          <p className="text-gray-500 text-[11px] mt-0.5">{exp.objective}</p>
-                          <span className="text-[10px] text-gray-400 mt-1 block">Status: {exp.status} · Protocol: {exp.protocol}</span>
+                          <p className="text-gray-500 text-[11px] mt-0.5">{exp.description || exp.hypothesis || (exp as any).objective || 'Standard experiment protocol'}</p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Status: {exp.status} · Type: {exp.type || exp.templateType}</span>
                         </div>
                       ))
                     )}
@@ -1256,7 +1257,7 @@ export const ManagementCockpit: React.FC = () => {
                             <span className="font-bold text-gray-900 dark:text-white block">{t.title}</span>
                             <span className="text-[10px] text-gray-500">Priority: {t.priority} · Status: {t.status}</span>
                           </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                             {t.status}
                           </span>
                         </div>

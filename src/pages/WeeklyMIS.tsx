@@ -775,7 +775,7 @@ const ReportForm: React.FC<{
           <button
             type="button"
             disabled={isGeneratingAI}
-            onClick={handleAutoGenerateAll}
+            onClick={() => handleAutoGenerateAll()}
             className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
