@@ -1183,7 +1183,7 @@ const exportAllMISToExcel = (reports: WeeklyMISReport[]) => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rankingsRows), 'Formulation Rankings');
 
   // Sheet 3: Committed Actions Across All Weeks
-  const actionsRows = [
+  const actionsRows: (string | number)[][] = [
     ['Week #', 'Scientist', 'Committed Action', 'Responsible Person', 'Target Completion', 'Priority', 'Status'],
   ];
   reports.forEach(r => {

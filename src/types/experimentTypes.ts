@@ -124,7 +124,8 @@ export interface WeeklyMISReport {
   reportingPeriodStart: string;  // YYYY-MM-DD
   reportingPeriodEnd: string;    // YYYY-MM-DD
   preparedBy: string;
-  preparedAt: string;
+  preparedAt?: string;
+  preparedDate?: string;
 
   // The 3 core scientific questions management requires answered
   whatDidWeLearn: string;
