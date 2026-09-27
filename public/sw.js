@@ -1,5 +1,5 @@
 // Service Worker for Miklens R&D Management True PWA
-const CACHE_VERSION = 'v2.1.0';
+const CACHE_VERSION = 'v2.2.0';
 const STATIC_CACHE = `miklens-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `miklens-dynamic-${CACHE_VERSION}`;
 const IMAGE_CACHE = `miklens-images-${CACHE_VERSION}`;

@@ -7,6 +7,7 @@ import { MobileBottomNav } from '../components/MobileBottomNav';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { PWAInstallPrompt } from '../components/PWAInstallPrompt';
+import { PWAUpdateNotification } from '../components/PWAUpdateNotification';
 
 export const DashboardLayout: React.FC = () => {
   const location = useLocation();
@@ -61,6 +62,9 @@ export const DashboardLayout: React.FC = () => {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* PWA Version Auto-Update Notification Banner */}
+      <PWAUpdateNotification />
 
       {/* PWA Install Banner */}
       <PWAInstallPrompt />

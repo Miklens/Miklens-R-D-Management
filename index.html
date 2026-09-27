@@ -29,19 +29,34 @@
 
     <title>Miklens Bio R&D Management | Enterprise R&D Platform</title>
 
-    <!-- Professional Service Worker Registration with Immediate Activation -->
+    <!-- Professional Service Worker Registration with Auto-Update Polling -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js', { scope: '/' })
             .then(function(reg) {
-              // Check for updates periodically
+              // Immediately check for updates
+              reg.update().catch(function() {});
+
+              // Auto-check for new versions every 60 seconds
+              setInterval(function() {
+                reg.update().catch(function() {});
+              }, 60000);
+
+              // Check when window gains focus (user opens app or switches tab)
+              document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                  reg.update().catch(function() {});
+                }
+              });
+
               reg.addEventListener('updatefound', function() {
                 var newWorker = reg.installing;
                 if (newWorker) {
                   newWorker.addEventListener('statechange', function() {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      console.log('[PWA] New version available.');
+                      console.log('[PWA] New version ready for activation');
+                      window.dispatchEvent(new CustomEvent('pwa-new-version-available', { detail: { registration: reg, worker: newWorker } }));
                     }
                   });
                 }

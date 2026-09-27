@@ -62,5 +62,20 @@ export default defineConfig({
   ],
   build: {
     chunkSizeWarningLimit: 1500,
+    target: 'esnext',
+    minify: 'esbuild',
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth'],
+          'vendor-ui': ['lucide-react', 'framer-motion'],
+          'vendor-analytics': ['recharts'],
+          'vendor-data': ['xlsx', 'jspdf']
+        }
+      }
+    }
   }
 })
