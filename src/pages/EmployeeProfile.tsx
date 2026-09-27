@@ -396,9 +396,9 @@ export const EmployeeProfile: React.FC = () => {
 
     // 5. Weekly MIS Reports
     personMISReports.forEach((m) => {
-      if (m.reportingPeriodEnd || m.preparedAt) {
+      if (m.reportingPeriodEnd || m.preparedAt || m.preparedDate) {
         events.push({
-          date: m.reportingPeriodEnd || m.preparedAt.split('T')[0],
+          date: m.reportingPeriodEnd || (m.preparedAt ? m.preparedAt.split('T')[0] : (m.preparedDate || new Date().toISOString().split('T')[0])),
           type: 'mis_report',
           title: `MIS Report Submitted: Week ${m.weekNumber}`,
           desc: `Learning: "${(m.whatDidWeLearn || '').slice(0, 90)}...". Decisions requested: ${m.decisionsRequiredFromManagement.length}.`,
