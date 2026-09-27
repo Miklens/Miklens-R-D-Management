@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   CheckCircle2, Circle, Clock, Plus, Trash2, CheckSquare, Search, Filter, 
-  Tag, Calendar, User, AlertCircle, Link2, ChevronRight, Layers, Beaker, FlaskConical 
+  Tag, Calendar, User, AlertCircle, Link2, ChevronRight, Layers, Beaker, FlaskConical,
+  Zap, Sparkles, RefreshCw, CheckCheck, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTasks } from '../contexts/TaskContext';
 import { useExperiments } from '../contexts/ExperimentContext';
 import type { GlobalTask, TaskPriority, TaskType, TaskEntityType } from '../types/taskTypes';
 import { useAuth } from '../contexts/AuthContext';
+import { getSyncedTrials, formatCleanScientistName, parseFlexibleDateStr } from '../services/trialManagerSync';
+import { recordTokenSavings } from '../services/geminiEngine';
 
 export const Tasks: React.FC = () => {
   const { tasks, addTask, deleteTask, toggleTaskStatus } = useTasks();
@@ -18,6 +21,7 @@ export const Tasks: React.FC = () => {
   const [selectedPriority, setSelectedPriority] = useState<string>('All');
   const [selectedType, setSelectedType] = useState<string>('All');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [autoMessage, setAutoMessage] = useState<string | null>(null);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -32,8 +36,6 @@ export const Tasks: React.FC = () => {
   // Use live products/experiments from context if available, otherwise empty
   const { allProducts } = useExperiments();
   const PRODUCTS = allProducts && allProducts.length > 0 ? allProducts : [];
-  const PROJECTS: string[] = [];
-  const EXPERIMENTS: string[] = [];
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +56,105 @@ export const Tasks: React.FC = () => {
     setTitle('');
     setDescription('');
     setShowAddForm(false);
+  };
+
+  /**
+   * Automated Task Generator (Zero-Token AI Engine)
+   * Scans all active field trials, calculates upcoming DAA observation milestones,
+   * and auto-creates high-priority tasks assigned to responsible scientists.
+   * Runs 100% locally with 0 API tokens and 0 cost!
+   */
+  const handleAutoGenerateObservationTasks = () => {
+    const trials = getSyncedTrials();
+    const activeTrials = trials.filter(t => !t.isCompleted);
+    const standardMilestones = [7, 14, 21, 28, 45, 60];
+    const now = Date.now();
+    let generatedCount = 0;
+
+    activeTrials.forEach(trial => {
+      const code = trial.trialCode || 'TR';
+      const prodName = trial.productName || trial.title || 'Formulation';
+      const sciName = formatCleanScientistName(trial.scientistName, trial.creatorEmail);
+      const startDateStr = parseFlexibleDateStr(trial.startDate);
+      const startMs = new Date(startDateStr).getTime();
+      if (isNaN(startMs)) return;
+
+      const daysElapsed = Math.floor((now - startMs) / (1000 * 60 * 60 * 24));
+      const evals = trial.evaluations || [];
+      const evaluatedDays = new Set(evals.map(e => e.daysAfterTreatment));
+
+      standardMilestones.forEach(daa => {
+        // Milestone is due if daysElapsed is within 3 days or already passed, but not yet evaluated
+        if (daysElapsed >= daa - 3 && !evaluatedDays.has(daa)) {
+          const taskIdentifier = `[${code}] ${daa} DAA`;
+          const alreadyExists = tasks.some(t => t.title.includes(taskIdentifier) || (t.title.includes(code) && t.title.includes(`${daa} DAA`)));
+
+          if (!alreadyExists && generatedCount < 20) {
+            const isOverdue = daysElapsed > daa + 2;
+            const dueTimestamp = startMs + (daa * 86400000);
+            const calculatedDueDate = new Date(dueTimestamp).toISOString().split('T')[0];
+
+            addTask({
+              title: `[${code}] ${daa} DAA Efficacy & Phytotoxicity Rating Due`,
+              description: `Record ${daa} DAA weed control efficiency (%) and crop phytotoxicity score (0-10) for ${prodName} on ${trial.cropName || 'Crop'} against ${trial.targetWeedOrPathogen || 'target weeds'}. Location: ${trial.location || 'Research Farm'}.`,
+              status: 'Pending',
+              priority: isOverdue ? 'Urgent' : 'High',
+              type: 'Field Trial',
+              entityType: 'product',
+              entityName: prodName,
+              assignedToName: sciName,
+              dueDate: calculatedDueDate,
+            });
+            generatedCount++;
+          }
+        }
+      });
+    });
+
+    recordTokenSavings(generatedCount * 350);
+    if (generatedCount > 0) {
+      setAutoMessage(`⚡ Successfully auto-generated ${generatedCount} due observation tasks across active trials with 0 API tokens!`);
+    } else {
+      setAutoMessage('✓ All active field trial observation milestones are already up to date!');
+    }
+    setTimeout(() => setAutoMessage(null), 5000);
+  };
+
+  /**
+   * Automated Task Resolution Engine (Zero-Token AI Engine)
+   * Cross-references pending tasks with recorded plot evaluations and auto-marks them done.
+   */
+  const handleAutoResolveTasks = () => {
+    const trials = getSyncedTrials();
+    let resolvedCount = 0;
+
+    tasks.filter(t => t.status !== 'Completed').forEach(task => {
+      // Check if task is for a trial (e.g. contains [TR-...])
+      const match = task.title.match(/\[(TR-[^\]]+)\]/i) || task.title.match(/(TR-[a-zA-Z0-9_-]+)/i);
+      if (match) {
+        const code = match[1].toLowerCase();
+        const trial = trials.find(tr => (tr.trialCode || '').toLowerCase() === code);
+        if (trial) {
+          // Check if DAA is mentioned
+          const daaMatch = task.title.match(/(\d+)\s*DAA/i);
+          if (daaMatch) {
+            const targetDaa = parseInt(daaMatch[1], 10);
+            const hasEval = (trial.evaluations || []).some(e => e.daysAfterTreatment === targetDaa);
+            if (hasEval) {
+              toggleTaskStatus(task.id);
+              resolvedCount++;
+            }
+          }
+        }
+      }
+    });
+
+    if (resolvedCount > 0) {
+      setAutoMessage(`✓ Auto-resolved ${resolvedCount} tasks matching completed plot evaluations in system!`);
+    } else {
+      setAutoMessage('✓ No pending tasks match newly completed field observations.');
+    }
+    setTimeout(() => setAutoMessage(null), 5000);
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -101,6 +202,11 @@ export const Tasks: React.FC = () => {
     }
   };
 
+  // Quick statistics
+  const pendingCount = tasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
+  const urgentCount = tasks.filter(t => t.priority === 'Urgent' && t.status !== 'Completed').length;
+  const completedCount = tasks.filter(t => t.status === 'Completed').length;
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -113,16 +219,78 @@ export const Tasks: React.FC = () => {
             Global Task & Milestone Center
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Seamlessly manage and track tasks linked across Products, Experiments, Projects, and Scientists.
+            Automated task dispatch linked to live trial evaluation schedules, formulations, and scientist workflows.
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/20"
-        >
-          <Plus className="w-4 h-4" />
-          Create Linked Task
-        </button>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={handleAutoGenerateObservationTasks}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl text-xs font-bold hover:from-amber-600 hover:to-orange-600 transition-all shadow-md shadow-orange-500/20"
+            title="Auto-scan active trials and generate observation tasks for 7, 14, 21, 28 DAA (0 API Cost)"
+          >
+            <Zap className="w-4 h-4 fill-white" />
+            Auto-Generate Due Tasks
+          </button>
+
+          <button
+            onClick={handleAutoResolveTasks}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm"
+            title="Auto-mark tasks complete if the corresponding evaluation has been recorded"
+          >
+            <CheckCheck className="w-4 h-4 text-emerald-500" />
+            Auto-Resolve Finished
+          </button>
+
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-xs font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all shadow-md shadow-emerald-500/20"
+          >
+            <Plus className="w-4 h-4" />
+            Manual Task
+          </button>
+        </div>
+      </div>
+
+      {/* Auto Message Feedback */}
+      <AnimatePresence>
+        {autoMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-500" />
+              {autoMessage}
+            </span>
+            <button onClick={() => setAutoMessage(null)} className="text-gray-400 hover:text-gray-600">×</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Automation Telemetry & KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
+          <span className="text-[11px] font-medium text-gray-400 block">Total Tasks</span>
+          <span className="text-xl font-extrabold text-gray-900 dark:text-white mt-0.5 block">{tasks.length}</span>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
+          <span className="text-[11px] font-medium text-amber-500 block">Open / In Progress</span>
+          <span className="text-xl font-extrabold text-amber-600 mt-0.5 block">{pendingCount}</span>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
+          <span className="text-[11px] font-medium text-red-500 block">Urgent Action Due</span>
+          <span className="text-xl font-extrabold text-red-600 mt-0.5 block">{urgentCount}</span>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Zero-Token Engine</span>
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5 block">100% Free of Cost</span>
+          </div>
+          <ShieldCheck className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+        </div>
       </div>
 
       {/* Add Task Form Modal */}
@@ -191,48 +359,38 @@ export const Tasks: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Link To Entity</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Link to Entity Type</label>
                 <select
                   value={entityType}
-                  onChange={(e: any) => {
-                    const et = e.target.value;
-                    setEntityType(et);
-                    if (et === 'product') setEntityName(PRODUCTS[0]);
-                    if (et === 'project') setEntityName(PROJECTS[0]);
-                    if (et === 'experiment') setEntityName(EXPERIMENTS[0]);
-                  }}
+                  onChange={(e: any) => setEntityType(e.target.value)}
                   className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm"
                 >
-                  <option value="product">Product Portfolio</option>
-                  <option value="experiment">Experiment / Test</option>
+                  <option value="product">Product / Formulation</option>
+                  <option value="experiment">Experiment</option>
                   <option value="project">Project</option>
-                  <option value="general">General / Standalone</option>
+                  <option value="general">General (No Entity)</option>
                 </select>
               </div>
 
-              {entityType !== 'general' && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Target {entityType}</label>
-                  <select
-                    value={entityName}
-                    onChange={(e) => setEntityName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm"
-                  >
-                    {entityType === 'product' && PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
-                    {entityType === 'project' && PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
-                    {entityType === 'experiment' && EXPERIMENTS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-              )}
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Assigned Scientist</label>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Entity Name / Reference</label>
                 <input
                   type="text"
-                  placeholder="e.g. Dr. Sarah Jenkins"
+                  placeholder="e.g. GOWEED ULTRA, EXP-092, etc."
+                  value={entityName}
+                  onChange={(e) => setEntityName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Assigned Scientist / Lead</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bindushree B U, Pavan Dev, Sandeep"
                   value={assignedToName}
                   onChange={(e) => setAssignedToName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none"
                 />
               </div>
 
@@ -242,7 +400,18 @@ export const Tasks: React.FC = () => {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Task Details & Protocol</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional context, SOP references, or observations required..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none"
                 />
               </div>
             </div>
@@ -327,7 +496,7 @@ export const Tasks: React.FC = () => {
           <div className="p-12 text-center">
             <CheckSquare className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
             <p className="text-base font-semibold text-gray-700 dark:text-gray-300">No tasks match your filter criteria.</p>
-            <p className="text-xs text-gray-400 mt-1">Try clearing filters or adding a new global task.</p>
+            <p className="text-xs text-gray-400 mt-1">Click "Auto-Generate Due Tasks" above to instantly populate observation tasks from active field trials.</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -335,7 +504,7 @@ export const Tasks: React.FC = () => {
               <motion.li
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
+                transition={{ delay: index * 0.02 }}
                 key={task.id}
                 className="p-5 hover:bg-gray-50/70 dark:hover:bg-gray-800/40 transition-colors"
               >

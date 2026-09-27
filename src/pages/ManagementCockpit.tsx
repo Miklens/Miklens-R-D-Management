@@ -7,13 +7,14 @@ import {
   MapPin, Calendar, User, ArrowRight, Maximize2,
   Minimize2, Filter, Zap, Package, ClipboardList, ShieldCheck,
   ThumbsUp, ThumbsDown, ExternalLink, TestTube, CheckSquare, FolderGit2,
-  Layers, ArrowUpRight, Award, AlertCircle
+  Layers, ArrowUpRight, Award, AlertCircle, Sparkles
 } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useExperiments } from '../contexts/ExperimentContext';
 import { useTasks } from '../contexts/TaskContext';
 import { getSyncedTrials, getSyncedProjects, formatCleanScientistName } from '../services/trialManagerSync';
+import { getTotalTokensSaved } from '../services/geminiEngine';
 import { getEffectiveAvatar } from '../utils/avatarHelper';
 import { calculateLogMinutes, calculateTotalHours } from '../utils/timeTracking';
 import {
@@ -346,6 +347,52 @@ export const ManagementCockpit: React.FC = () => {
             {presentMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             {presentMode ? 'Exit Boardroom' : '📺 Boardroom Mode'}
           </button>
+        </div>
+      </div>
+
+      {/* Zero-Token AI & Automation Command Bar */}
+      <div className="rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-blue-500/10 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
+            <Zap className="w-5 h-5 fill-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                Zero-Token Local Intelligence Engine
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                100% Free of Cost
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+              Over {getTotalTokensSaved().toLocaleString()} API tokens saved today across automated trial evaluations, task dispatches, and MIS drafting.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/tasks"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
+          >
+            <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+            Auto-Task Dispatch
+          </Link>
+          <Link
+            to="/weekly-mis"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            1-Click Automated MIS
+          </Link>
+          <Link
+            to="/approvals"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Governance & Stage-Gates
+          </Link>
         </div>
       </div>
 

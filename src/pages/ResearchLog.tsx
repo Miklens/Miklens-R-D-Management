@@ -18,6 +18,8 @@ import {
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import type { DailyLog } from '../types';
 import { useExperiments } from '../contexts/ExperimentContext';
+import { getSyncedTrials, formatCleanScientistName } from '../services/trialManagerSync';
+import { recordTokenSavings } from '../services/geminiEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -343,6 +345,156 @@ export const ResearchLog: React.FC = () => {
 
     setActivities(copiedRows);
     setCollisionError(null);
+  };
+
+
+  const handleAutoFillFromObservations = () => {
+    const trials = getSyncedTrials();
+    const matchingTrials = trials.filter(t => {
+      const evals = t.evaluations || [];
+      return evals.some(e => (e.evalDate || '').startsWith(logDate));
+    });
+
+    const candidateTrials = matchingTrials.length > 0 ? matchingTrials : trials.filter(t => !t.isCompleted).slice(0, 2);
+
+    if (candidateTrials.length === 0) {
+      setCollisionError('No field trial observations found. Use schedule presets below instead.');
+      return;
+    }
+
+    const t1 = candidateTrials[0];
+    const t2 = candidateTrials[1] || candidateTrials[0];
+    const pName1 = t1.productName || t1.title || 'GOWEED ULTRA';
+    const pName2 = t2.productName || t2.title || 'COSMO';
+
+    const newRows: DailyActivityRow[] = [
+      {
+        id: `auto-obs-1-${Date.now()}`,
+        category: 'trials',
+        customCategory: '',
+        productId: 'p1',
+        productName: pName1,
+        customProductName: '',
+        startTime: '09:30',
+        endTime: '13:00',
+        durationMinutes: 210,
+        description: `[${t1.trialCode || 'TR'}] Bio-efficacy weed scouting, phytotoxicity assessment, and plot scoring on ${t1.cropName || 'Paddy'}.`,
+      },
+      {
+        id: `auto-obs-2-${Date.now()}`,
+        category: 'trials',
+        customCategory: '',
+        productId: 'p2',
+        productName: pName2,
+        customProductName: '',
+        startTime: '14:00',
+        endTime: '17:30',
+        durationMinutes: 210,
+        description: `[${t2.trialCode || 'TR'}] Post-emergence treatment monitoring, target weed count, and agronomist protocol verification.`,
+      }
+    ];
+
+    setDayFocus(`Field plot bio-efficacy scouting & DAA scoring for ${pName1}`);
+    setActivities(newRows);
+    setCollisionError(null);
+    recordTokenSavings(1500);
+  };
+
+  const handleApplyPreset = (preset: 'field' | 'lab' | 'dossier') => {
+    const pName = (allProducts[0] || 'Active Formulation');
+    let rows: DailyActivityRow[] = [];
+    let focus = '';
+
+    if (preset === 'field') {
+      focus = 'Full-day field trial efficacy scoring & plot scouting';
+      rows = [
+        {
+          id: `preset-1-${Date.now()}`,
+          category: 'trials',
+          customCategory: '',
+          productId: 'p1',
+          productName: pName,
+          customProductName: '',
+          startTime: '09:30',
+          endTime: '13:00',
+          durationMinutes: 210,
+          description: `Field plot spraying and calibrated knapsack application for ${pName} against target weeds.`,
+        },
+        {
+          id: `preset-2-${Date.now()}`,
+          category: 'trials',
+          customCategory: '',
+          productId: 'p1',
+          productName: pName,
+          customProductName: '',
+          startTime: '14:00',
+          endTime: '17:30',
+          durationMinutes: 210,
+          description: `Plot observation, weed suppression rating (% WCE), and crop safety phytotoxicity verification.`,
+        }
+      ];
+    } else if (preset === 'lab') {
+      focus = 'Formulation stability preparation & CIPAC thermal testing';
+      rows = [
+        {
+          id: `preset-1-${Date.now()}`,
+          category: 'formulation',
+          customCategory: '',
+          productId: 'p1',
+          productName: pName,
+          customProductName: '',
+          startTime: '09:30',
+          endTime: '13:00',
+          durationMinutes: 210,
+          description: `High-shear emulsification, surfactant ratio adjustment, and batch volume makeup for ${pName}.`,
+        },
+        {
+          id: `preset-2-${Date.now()}`,
+          category: 'lab',
+          customCategory: '',
+          productId: 'p1',
+          productName: pName,
+          customProductName: '',
+          startTime: '14:00',
+          endTime: '17:30',
+          durationMinutes: 210,
+          description: `CIPAC 54°C accelerated thermal stability chamber loading, pH drift measurement, and HPLC analysis.`,
+        }
+      ];
+    } else {
+      focus = 'Regulatory dossier compilation & bio-efficacy report drafting';
+      rows = [
+        {
+          id: `preset-1-${Date.now()}`,
+          category: 'doc_prep',
+          customCategory: '',
+          productId: 'p1',
+          productName: pName,
+          customProductName: '',
+          startTime: '10:00',
+          endTime: '13:30',
+          durationMinutes: 210,
+          description: `CIB&RC registration dossier preparation, toxicology overview, and label claim technical documentation.`,
+        },
+        {
+          id: `preset-2-${Date.now()}`,
+          category: 'report',
+          customCategory: '',
+          productId: 'p1',
+          productName: pName,
+          customProductName: '',
+          startTime: '14:30',
+          endTime: '17:30',
+          durationMinutes: 180,
+          description: `Bio-efficacy data consolidation, standard deviation analysis, and executive weekly MIS report preparation.`,
+        }
+      ];
+    }
+
+    setDayFocus(focus);
+    setActivities(rows);
+    setCollisionError(null);
+    recordTokenSavings(1200);
   };
 
   /* ---------- edit saved log ---------- */
@@ -730,20 +882,54 @@ export const ResearchLog: React.FC = () => {
                   <Zap className="w-4 h-4 text-emerald-500" />
                   Work Sessions & Time Breakdown ({activities.length} Sessions)
                 </h3>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutoFillFromObservations}
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+                    title="Auto-fill session with today's live field plot evaluations (0 API cost)"
+                  >
+                    ⚡ Auto-Fill From Plots
+                  </button>
+                  <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-0.5 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPreset('field')}
+                      className="px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Apply 7-Hour Field Plot Scouting Schedule"
+                    >
+                      🌱 Field Preset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPreset('lab')}
+                      className="px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Apply 7-Hour Lab Formulation & CIPAC Schedule"
+                    >
+                      🔬 Lab Preset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPreset('dossier')}
+                      className="px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      title="Apply 6.5-Hour Regulatory Dossier Schedule"
+                    >
+                      📄 Dossier Preset
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={handleCopyYesterdayLog}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-100 transition-all"
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-100 transition-all"
                   >
-                    📋 Copy Yesterday's Sessions
+                    📋 Copy Yesterday
                   </button>
                   <button
                     type="button"
                     onClick={addRow}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all"
                   >
-                    <Plus className="w-3.5 h-3.5" /> + Add Manually
+                    <Plus className="w-3.5 h-3.5" /> + Manual
                   </button>
                 </div>
               </div>

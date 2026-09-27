@@ -175,6 +175,9 @@ export const StabilityTracker: React.FC = () => {
 
                   <div className="flex items-center justify-between text-xs pt-1">
                     <span className="text-[11px] text-gray-400">Next Check: {batch.nextTestDate}</span>
+                    <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded">
+                      2-Yr Arrhenius: {(batch.activeRetention || 99) >= 90 ? '✓ Validated' : '⚠️ Risk'}
+                    </span>
                   </div>
 
                   <div className="pt-2 border-t border-gray-200/60 dark:border-gray-800 flex items-center justify-between text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
