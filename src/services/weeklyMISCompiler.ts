@@ -292,7 +292,19 @@ export function compileManagementSummaryReport(
     problemsRisks: problems,
     decisionsRequiredFromManagement: decisions,
     actionsForNextWeek: actions,
-    managementFeedback: 'Approved by R&D Executive Management. Proceed with trial protocol and pilot batch synthesis.'
+    managementFeedback: 'Approved by R&D Executive Management. Proceed with trial protocol and pilot batch synthesis.',
+    dailyResearchLogs: periodLogs.map(l => ({
+      id: l.id,
+      date: l.date,
+      userName: l.userName || formatCleanScientistName(l.userId, l.userEmail),
+      userEmail: l.userEmail,
+      startTime: l.startTime,
+      endTime: l.endTime,
+      timeSpentMinutes: l.timeSpentMinutes || 0,
+      objective: l.objective || '',
+      activities: l.activities || '',
+      completionStatus: l.completionStatus || 'Completed'
+    }))
   };
 }
 
@@ -334,13 +346,22 @@ export function compileIndividualScientistReport(
 
   // Filter logs for this scientist in this period
   const allLogs = getLogs();
+  const pEndMs = new Date(endDate).getTime() + 86400000;
+  const pStartMs = new Date(startDate).getTime();
+
   const sciLogs = allLogs.filter(l => {
-    const uName = (l.userName || l.userEmail || '').toLowerCase();
+    const uName = (l.userName || l.userEmail || l.userId || '').toLowerCase();
     const target = cleanName.toLowerCase();
     const isSci = uName.includes(target) || (target.includes('pavan') && uName.includes('pavan')) ||
                   (target.includes('bindu') && uName.includes('bindu')) ||
                   (target.includes('sandeep') && uName.includes('sandeep'));
     return isSci;
+  });
+
+  const sciPeriodLogs = sciLogs.filter(l => {
+    if (!l.date) return false;
+    const lMs = new Date(l.date).getTime();
+    return lMs >= pStartMs && lMs <= pEndMs;
   });
 
   // Calculate live average WCE for this scientist's evaluated trials in this specific week
@@ -493,7 +514,19 @@ export function compileIndividualScientistReport(
         status: 'Pending Approval'
       }
     ],
-    actionsForNextWeek: actions
+    actionsForNextWeek: actions,
+    dailyResearchLogs: sciPeriodLogs.map(l => ({
+      id: l.id,
+      date: l.date,
+      userName: cleanName,
+      userEmail: l.userEmail,
+      startTime: l.startTime,
+      endTime: l.endTime,
+      timeSpentMinutes: l.timeSpentMinutes || 0,
+      objective: l.objective || '',
+      activities: l.activities || '',
+      completionStatus: l.completionStatus || 'Completed'
+    }))
   };
 }
 
@@ -514,14 +547,19 @@ export function ensureAllWeeklyMISReports(
   // 1. First index any existing user reports by unique key (weekNumber + normalized author)
   existingReports.forEach(report => {
     if (!report) return;
-    const authorKey = (report.preparedBy || 'Unknown').trim().toLowerCase();
+    const isMgmt = (report.preparedBy || '').includes('Management') || report.reportType === 'summary';
+    const cleanAuthor = isMgmt ? 'R&D Executive Management' : formatCleanScientistName(report.preparedBy);
+    const authorKey = cleanAuthor.toLowerCase();
     const compositeKey = `w${report.weekNumber}_${authorKey}`;
-    mergedMap.set(compositeKey, report);
+    const normalizedReport = isMgmt
+      ? report
+      : { ...report, preparedBy: cleanAuthor };
+    mergedMap.set(compositeKey, normalizedReport);
     // Also index by its specific id
-    mergedMap.set(report.id, report);
+    mergedMap.set(report.id, normalizedReport);
   });
 
-  const targetScientists = ['Pavan Dev', 'Bindushree B U', 'Sandeep Patel'];
+  const targetScientists = ['Pavan Dev', 'Bindushree B U', 'Sandeep'];
 
   // 2. Iterate through all historical weeks (34 to 39)
   HISTORICAL_WEEKS_2026.forEach(week => {
@@ -537,11 +575,12 @@ export function ensureAllWeeklyMISReports(
 
     // B. Check Individual Scientist Reports
     targetScientists.forEach(sciName => {
-      const authorKey = sciName.toLowerCase();
+      const cleanSciName = formatCleanScientistName(sciName);
+      const authorKey = cleanSciName.toLowerCase();
       const sciKey = `w${week.weekNumber}_${authorKey}`;
       const existingSci = mergedMap.get(sciKey);
       if (!existingSci || (existingSci.status === 'Saved' && trials.length > 0)) {
-        const sciReport = compileIndividualScientistReport(week, sciName, trials);
+        const sciReport = compileIndividualScientistReport(week, cleanSciName, trials);
         mergedMap.set(sciKey, sciReport);
         mergedMap.set(sciReport.id, sciReport);
       }

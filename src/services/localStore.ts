@@ -113,6 +113,8 @@ export const addLog = (log: Omit<DailyLog, 'id' | 'createdAt'>): DailyLog => {
   if (isFirebaseConfigured) {
     addDoc(collection(db, 'rnd_daily_logs'), {
       userId: newLog.userId,
+      userName: newLog.userName || '',
+      userEmail: newLog.userEmail || '',
       date: newLog.date,
       startTime: newLog.startTime || '',
       endTime: newLog.endTime || '',

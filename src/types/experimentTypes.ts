@@ -151,6 +151,18 @@ export interface WeeklyMISReport {
   overallAverageWce?: number;
   aiModelUsed?: string;
   generatedWithAI?: boolean;
+  dailyResearchLogs?: Array<{
+    id: string;
+    date: string;
+    userName?: string;
+    userEmail?: string;
+    startTime?: string;
+    endTime?: string;
+    timeSpentMinutes: number;
+    objective: string;
+    activities: string;
+    completionStatus: string;
+  }>;
 }
 
 // ── Existing Types (unchanged) ───────────────────────────────────────────────

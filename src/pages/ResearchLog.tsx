@@ -550,8 +550,14 @@ export const ResearchLog: React.FC = () => {
         scopeTitle = act.productName || act.customProductName.trim() || 'R&D Activity';
       }
 
+      const cleanScientistName = profile?.name || formatCleanScientistName(userId, profile?.email);
+      const cleanScientistEmail = profile?.email || '';
+
       const logData: Partial<DailyLog> = {
-        date: logDate, userId,
+        date: logDate,
+        userId,
+        userName: cleanScientistName,
+        userEmail: cleanScientistEmail,
         startTime: act.startTime, endTime: act.endTime,
         timeSpentMinutes: act.durationMinutes,
         objective: dayFocus.trim() || `${workType} – ${formatTime12h(act.startTime)} to ${formatTime12h(act.endTime)}`,

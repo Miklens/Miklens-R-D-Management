@@ -30,7 +30,8 @@ import {
   getSyncedTrials,
   getSavedFirebaseConfig,
   fetchTrialsFromFirebaseCloud,
-  saveSyncedTrialsList
+  saveSyncedTrialsList,
+  formatCleanScientistName
 } from '../services/trialManagerSync';
 import { generateAutomatedWeeklyMISReport } from '../services/misAIGenerator';
 import { exportWeeklyMISToPDF } from '../utils/exportUtils';
@@ -961,6 +962,68 @@ const InspectReportModal: React.FC<{
             </div>
           )}
 
+          {/* Daily Research Logs Recorded During This Week */}
+          <div className="space-y-2.5">
+            <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-emerald-500" />
+                Daily Research Sessions & Activities Recorded ({r.dailyResearchLogs?.length || 0})
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 normal-case">
+                {r.reportingPeriodStart} → {r.reportingPeriodEnd}
+              </span>
+            </h4>
+            {r.dailyResearchLogs && r.dailyResearchLogs.length > 0 ? (
+              <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-gray-800">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 font-bold uppercase text-[10px]">
+                    <tr>
+                      <th className="px-4 py-2.5">Date</th>
+                      <th className="px-4 py-2.5">Scientist</th>
+                      <th className="px-4 py-2.5">Time Slot / Duration</th>
+                      <th className="px-4 py-2.5">Focus Objective</th>
+                      <th className="px-4 py-2.5">Activities & Formulations</th>
+                      <th className="px-4 py-2.5">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {r.dailyResearchLogs.map(log => (
+                      <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                        <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-white whitespace-nowrap">
+                          {log.date}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300 font-medium whitespace-nowrap">
+                          👨‍🔬 {log.userName || r.preparedBy}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          {log.startTime && log.endTime ? `${log.startTime} - ${log.endTime}` : ''}
+                          <span className="ml-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            ({log.timeSpentMinutes} mins)
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-800 dark:text-gray-200 font-semibold max-w-xs">
+                          {log.objective}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 text-[11px] max-w-md">
+                          {log.activities}
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            {log.completionStatus || 'Completed'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 text-center text-xs text-gray-400 italic">
+                No daily research sessions logged for this week period ({r.reportingPeriodStart} → {r.reportingPeriodEnd}).
+              </div>
+            )}
+          </div>
+
           {/* Actions for Next Week & Problems */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 space-y-2">
@@ -1136,6 +1199,48 @@ const ReportCard: React.FC<{
                       {entry.decision}
                     </span>
                     <span className="text-gray-500 flex-1 truncate">{entry.notes}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Daily Research Logs snippet */}
+          {r.dailyResearchLogs && r.dailyResearchLogs.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-500" />
+                  Daily Research Logs Recorded ({r.dailyResearchLogs.length})
+                </span>
+                <span className="text-[10px] text-gray-400 font-normal">
+                  {r.reportingPeriodStart} → {r.reportingPeriodEnd}
+                </span>
+              </p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {r.dailyResearchLogs.map(log => (
+                  <div key={log.id} className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div className="flex items-start sm:items-center gap-2">
+                      <span className="font-bold text-gray-900 dark:text-white whitespace-nowrap">{log.date}</span>
+                      <span className="text-gray-400">·</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        {log.userName || r.preparedBy}
+                      </span>
+                      <span className="text-gray-400">·</span>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium truncate max-w-sm sm:max-w-md">
+                        {log.objective}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto flex-shrink-0">
+                      {log.startTime && log.endTime && (
+                        <span className="text-gray-400 text-[10px] whitespace-nowrap">
+                          {log.startTime}-{log.endTime}
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        {log.timeSpentMinutes}m
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1468,11 +1573,27 @@ export const WeeklyMIS: React.FC = () => {
     }
   };
 
-  // Distinct Scientists in reports & users
+  // Distinct Scientists in reports & users - Normalized & Deduplicated
   const distinctScientists = useMemo(() => {
     const set = new Set<string>();
-    reports.forEach(r => { if (r.preparedBy) set.add(r.preparedBy); });
-    (users || []).forEach(u => { if (u.name) set.add(u.name); });
+    reports.forEach(r => {
+      if (r.preparedBy) {
+        if (r.preparedBy.includes('Management')) {
+          set.add('R&D Executive Management');
+        } else {
+          set.add(formatCleanScientistName(r.preparedBy));
+        }
+      }
+    });
+    (users || []).forEach(u => {
+      if (u.name) {
+        set.add(formatCleanScientistName(u.name, u.email));
+      } else if (u.email) {
+        set.add(formatCleanScientistName(u.email));
+      }
+    });
+    // Ensure the 3 core Miklens scientists are cleanly present
+    ['Pavan Dev', 'Bindushree B U', 'Sandeep'].forEach(s => set.add(s));
     return Array.from(set).sort();
   }, [reports, users]);
 
@@ -1504,9 +1625,15 @@ export const WeeklyMIS: React.FC = () => {
         if (filterStatus === 'Saved' && r.status === 'Draft') return false;
       }
 
-      // Scientist filter
-      if (filterScientist !== 'all' && r.preparedBy !== filterScientist) {
-        return false;
+      // Scientist filter (canonical name comparison)
+      if (filterScientist !== 'all') {
+        const cleanFilter = formatCleanScientistName(filterScientist);
+        const cleanPrep = (r.preparedBy || '').includes('Management')
+          ? 'R&D Executive Management'
+          : formatCleanScientistName(r.preparedBy);
+        if (cleanFilter !== cleanPrep && r.preparedBy !== filterScientist) {
+          return false;
+        }
       }
 
       // Week filter
