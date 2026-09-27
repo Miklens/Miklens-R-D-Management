@@ -158,7 +158,7 @@ Keep concise, executive, and direct.`;
                 <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   Executive Daily R&D Digest
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold">
-                    {generationSource}
+                    Live Briefing
                   </span>
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -170,26 +170,17 @@ Keep concise, executive, and direct.`;
             <div className="flex items-center gap-2">
               <button
                 onClick={generateZeroTokenDigest}
-                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-600 text-white flex items-center gap-1 shadow-sm"
-                title="Instant zero-token digest (0 API Calls)"
-              >
-                <Zap className="w-3.5 h-3.5 fill-white" />
-                Zero-Token
-              </button>
-
-              <button
-                onClick={generateGeminiDigest}
                 disabled={loading}
-                className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 flex items-center gap-1 shadow-sm"
-                title="Regenerate with Gemini Pro (Pre-distilled, token cached)"
+                className="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                title="Refresh daily intelligence briefing"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Gemini
+                <span>Refresh Briefing</span>
               </button>
 
               <button
                 onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

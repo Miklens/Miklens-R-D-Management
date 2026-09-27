@@ -25,33 +25,27 @@ const navGroups: NavGroup[] = [
     category: 'Main Hub',
     items: [
       { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-      { name: 'Gemini AI Assistant', href: '/ai-insights', icon: Sparkles },
-    ],
-  },
-  {
-    category: 'Scientist Workbench',
-    items: [
-      { name: 'Daily Research Log', href: '/research-log', icon: Edit3, roles: ['Admin', 'Scientist'] },
-      { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
-      { name: 'Trial Manager Sync', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
-      { name: 'Formulation Tracker', href: '/formulation-tracker', icon: GitBranch, roles: ['Admin', 'Scientist'] },
+      { name: 'Research Intelligence', href: '/ai-insights', icon: Sparkles },
       { name: 'Analytics & Efficacy', href: '/analytics', icon: BarChart3 },
     ],
   },
   {
-    category: 'Formulation & Pipeline',
+    category: 'Scientist Workspace',
     items: [
+      { name: 'Daily Research Log', href: '/research-log', icon: Edit3, roles: ['Admin', 'Scientist'] },
+      { name: 'Field Trials', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
+      { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
+      { name: 'Formulation Portfolio', href: '/formulation-tracker', icon: GitBranch, roles: ['Admin', 'Scientist'] },
       { name: 'R&D Phase Pipeline', href: '/product-pipeline', icon: GitPullRequest },
-      { name: 'Formulation Builder', href: '/formulation-builder', icon: FlaskConical },
     ],
   },
   {
-    category: 'Management & Audits',
+    category: 'Management & Governance',
     items: [
-      { name: 'Executive Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
       { name: 'Management Cockpit', href: '/management-cockpit', icon: ShieldCheck, roles: ['Admin', 'Management'] },
       { name: 'Weekly MIS Report', href: '/weekly-mis', icon: ClipboardList, roles: ['Admin', 'Management'] },
-      { name: 'Team Activity & Approvals', href: '/team-activity', icon: BarChart3, roles: ['Admin', 'Management'] },
+      { name: 'Team Activity & Approvals', href: '/team-activity', icon: Users, roles: ['Admin', 'Management'] },
+      { name: 'Executive Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
     ],
   },
 ];

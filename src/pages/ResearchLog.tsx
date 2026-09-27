@@ -882,54 +882,36 @@ export const ResearchLog: React.FC = () => {
                   <Zap className="w-4 h-4 text-emerald-500" />
                   Work Sessions & Time Breakdown ({activities.length} Sessions)
                 </h3>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAutoFillFromObservations}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
-                    title="Auto-fill session with today's live field plot evaluations (0 API cost)"
+                <div className="flex items-center gap-2">
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      if (val === 'plots') handleAutoFillFromObservations();
+                      else if (val === 'field') handleApplyPreset('field');
+                      else if (val === 'lab') handleApplyPreset('lab');
+                      else if (val === 'dossier') handleApplyPreset('dossier');
+                      else if (val === 'yesterday') handleCopyYesterdayLog();
+                      e.target.value = '';
+                    }}
+                    defaultValue=""
+                    className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-xs hover:border-emerald-500 cursor-pointer focus:outline-none"
                   >
-                    ⚡ Auto-Fill From Plots
-                  </button>
-                  <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-0.5 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <button
-                      type="button"
-                      onClick={() => handleApplyPreset('field')}
-                      className="px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Apply 7-Hour Field Plot Scouting Schedule"
-                    >
-                      🌱 Field Preset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyPreset('lab')}
-                      className="px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Apply 7-Hour Lab Formulation & CIPAC Schedule"
-                    >
-                      🔬 Lab Preset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyPreset('dossier')}
-                      className="px-2 py-1 text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Apply 6.5-Hour Regulatory Dossier Schedule"
-                    >
-                      📄 Dossier Preset
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyYesterdayLog}
-                    className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold shadow-sm hover:bg-blue-100 transition-all"
-                  >
-                    📋 Copy Yesterday
-                  </button>
+                    <option value="" disabled>⚡ Quick Schedule Fill...</option>
+                    <option value="plots">🌱 Auto-Fill From Today's Field Plots</option>
+                    <option value="field">🌿 Field Plot Scouting Preset (7 hrs)</option>
+                    <option value="lab">🔬 Lab Formulation & CIPAC Preset (7 hrs)</option>
+                    <option value="dossier">📄 Regulatory Dossier Preset (6.5 hrs)</option>
+                    <option value="yesterday">📋 Copy Yesterday's Sessions</option>
+                  </select>
+
                   <button
                     type="button"
                     onClick={addRow}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5" /> + Manual
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Session</span>
                   </button>
                 </div>
               </div>

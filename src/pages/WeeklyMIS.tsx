@@ -512,34 +512,19 @@ const ReportForm: React.FC<{
     id: keyof typeof openSections;
     label: string;
     icon: React.ReactNode;
-    aiAction?: () => void;
-    aiLabel?: string;
     children: React.ReactNode;
-  }> = ({ id, label, icon, aiAction, aiLabel, children }) => (
+  }> = ({ id, label, icon, children }) => (
     <div className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden shadow-xs">
-      <div className="flex items-center justify-between w-full p-4 bg-gray-50 dark:bg-gray-800/50">
-        <button
-          className="flex items-center gap-2 flex-1 text-left"
-          onClick={() => toggle(id)}
-        >
+      <div 
+        className="flex items-center justify-between w-full p-4 bg-gray-50 dark:bg-gray-800/50 cursor-pointer select-none"
+        onClick={() => toggle(id)}
+      >
+        <div className="flex items-center gap-2 flex-1">
           {icon}
           <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{label}</span>
-        </button>
-        <div className="flex items-center gap-2">
-          {aiAction && (
-            <button
-              type="button"
-              disabled={isGeneratingAI}
-              onClick={e => { e.stopPropagation(); aiAction(); }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/50 transition cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>{aiLabel || 'AI Auto-Draft'}</span>
-            </button>
-          )}
-          <button onClick={() => toggle(id)} className="p-1 text-gray-400 hover:text-gray-600">
-            {openSections[id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
+        </div>
+        <div className="text-gray-400 hover:text-gray-600">
+          {openSections[id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </div>
       {openSections[id] && <div className="p-5 space-y-4">{children}</div>}
@@ -582,52 +567,41 @@ const ReportForm: React.FC<{
 
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
 
-          {/* AI One-Click Auto-Fill Control Banner */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-200 dark:border-emerald-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Auto-Draft Control Banner */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-indigo-500/10 border border-emerald-200/60 dark:border-emerald-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-indigo-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
-                <Sparkles className="w-5 h-5 animate-pulse" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                <FileText className="w-4 h-4" />
               </div>
               <div>
                 <h4 className="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1.5">
-                  <span>Gemini AI Auto-Synthesizer</span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    Live Data Connected
+                  <span>Automated MIS Report Compiler</span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    540+ Trials Connected
                   </span>
                 </h4>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                  Instantly analyzes 540+ field trials, weekly research logs, and laboratory assays to write this complete MIS report.
+                  Gathers active field plot readings, scientist daily logs, and CIPAC assays into this complete scientific draft.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
                 disabled={isGeneratingAI}
                 onClick={() => handleAutoGenerateAll(true)}
-                title="Generates report instantly using client-side deterministic scientific AI without using any Gemini API tokens"
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-gray-800 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-500" />
-                <span>⚡ Zero-Token AI</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isGeneratingAI}
-                onClick={() => handleAutoGenerateAll(false)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white text-xs font-black shadow-lg hover:shadow-emerald-500/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isGeneratingAI ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Synthesizing...</span>
+                    <span>Compiling Report...</span>
                   </>
                 ) : (
                   <>
-                    <Wand2 className="w-3.5 h-3.5" />
-                    <span>Gemini AI (Cached)</span>
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Auto-Draft with Live Data</span>
                   </>
                 )}
               </button>
@@ -662,8 +636,8 @@ const ReportForm: React.FC<{
             id="core"
             label="The 3 Core Scientific Questions — Management Requires All 3 Answered"
             icon={<HelpCircle className="w-4 h-4 text-emerald-500" />}
-            aiAction={handleAutoGenerateAll}
-            aiLabel="AI Re-Draft Core 3"
+            
+            
           >
             <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 mb-3">
               ⚠️ Management will not accept a report that only says "Trial conducted and observations recorded."
@@ -706,8 +680,6 @@ const ReportForm: React.FC<{
             id="findings"
             label="Key Achievements & Scientific Findings"
             icon={<Star className="w-4 h-4 text-amber-500" />}
-            aiAction={handleAutoGenerateAll}
-            aiLabel="AI Refresh Findings"
           >
             <ListEditor
               label="Key Achievements"
@@ -730,8 +702,6 @@ const ReportForm: React.FC<{
             id="ranking"
             label="Formulation Efficacy Ranking (Data-Based)"
             icon={<BarChart2 className="w-4 h-4 text-blue-500" />}
-            aiAction={handleAutoGenerateAll}
-            aiLabel="Auto-Rank from Trials"
           >
             <EfficacyRankingEditor items={form.formulationEfficacyRanking} onChange={v => set('formulationEfficacyRanking', v)} />
           </Section>
@@ -741,8 +711,6 @@ const ReportForm: React.FC<{
             id="problems"
             label="Problems & Risks → Corrective Action → Status"
             icon={<AlertTriangle className="w-4 h-4 text-amber-500" />}
-            aiAction={handleAutoGenerateAll}
-            aiLabel="AI Detect Risks"
           >
             <ProblemsEditor items={form.problemsRisks} onChange={v => set('problemsRisks', v)} />
           </Section>
@@ -752,8 +720,6 @@ const ReportForm: React.FC<{
             id="decisions"
             label="Decisions Required from Management"
             icon={<Shield className="w-4 h-4 text-purple-500" />}
-            aiAction={handleAutoGenerateAll}
-            aiLabel="AI Propose Decisions"
           >
             <DecisionsEditor items={form.decisionsRequiredFromManagement} onChange={v => set('decisionsRequiredFromManagement', v)} />
           </Section>
@@ -763,8 +729,6 @@ const ReportForm: React.FC<{
             id="actions"
             label="Actions for Next Week — Specific Action + Expected Completion Date"
             icon={<ListChecks className="w-4 h-4 text-emerald-500" />}
-            aiAction={handleAutoGenerateAll}
-            aiLabel="AI Plan Next Week"
           >
             <ActionsEditor items={form.actionsForNextWeek} onChange={v => set('actionsForNextWeek', v)} />
           </Section>
@@ -772,15 +736,9 @@ const ReportForm: React.FC<{
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
-          <button
-            type="button"
-            disabled={isGeneratingAI}
-            onClick={() => handleAutoGenerateAll()}
-            className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Re-Generate with AI</span>
-          </button>
+          <div className="text-[11px] text-gray-400 font-medium">
+            All 7 sections validated against active trial telemetry
+          </div>
           <div className="flex items-center gap-3">
             <button onClick={onCancel}
               className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition cursor-pointer">
@@ -1052,25 +1010,25 @@ export const WeeklyMIS: React.FC = () => {
           <button
             onClick={handleQuickAIGenerate}
             disabled={isGeneratingGlobal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white text-xs font-black rounded-xl transition shadow-lg shadow-emerald-500/25 active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {isGeneratingGlobal ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>AI Generating Week {currentWeekNumber}...</span>
+                <span>Compiling Week {currentWeekNumber}...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span>✨ AI One-Click Weekly Report</span>
+                <Zap className="w-3.5 h-3.5" />
+                <span>Auto-Generate Week {currentWeekNumber}</span>
               </>
             )}
           </button>
           <button
             onClick={() => { setEditingReport(null); setShowForm(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-bold rounded-xl transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-xl transition cursor-pointer shadow-xs"
           >
-            <Plus className="w-4 h-4" /> Blank Report
+            <Plus className="w-3.5 h-3.5" /> Manual Report
           </button>
         </div>
       </div>

@@ -212,7 +212,7 @@ export const AIInsights: React.FC = () => {
             <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-emerald-600 flex items-center justify-center text-amber-300 shadow-lg shadow-purple-500/20">
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
-            Gemini AI Scientific R&D Assistant
+            Scientific R&D Research Intelligence
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 font-medium">
             Autonomous scientific intelligence connected live to 548+ field trials, timesheets, and CIPAC assays

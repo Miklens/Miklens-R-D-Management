@@ -7,7 +7,7 @@ import {
   MapPin, Calendar, User, ArrowRight, Maximize2,
   Minimize2, Filter, Zap, Package, ClipboardList, ShieldCheck,
   ThumbsUp, ThumbsDown, ExternalLink, TestTube, CheckSquare, FolderGit2,
-  Layers, ArrowUpRight, Award, AlertCircle, Sparkles
+  Layers, ArrowUpRight, Award, AlertCircle, Sparkles, FileText
 } from 'lucide-react';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
@@ -352,47 +352,48 @@ export const ManagementCockpit: React.FC = () => {
       </div>
 
       {/* Zero-Token AI & Automation Command Bar */}
-      <div className="rounded-2xl border border-emerald-200/60 dark:border-emerald-800/40 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-blue-500/10 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
+      {/* Executive Command Toolbar */}
+      <div className="rounded-2xl border border-gray-200/60 dark:border-gray-800/60 bg-white dark:bg-gray-900 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md">
-            <Zap className="w-5 h-5 fill-white" />
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-xs">
+            <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
-                Zero-Token Local Intelligence Engine
+              <span className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white">
+                R&D Executive Command & Governance
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                100% Free of Cost
+                540+ Trials Synchronized
               </span>
             </div>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-              Over {getTotalTokensSaved().toLocaleString()} API tokens saved today across automated trial evaluations, task dispatches, and MIS drafting.
+              Live scientist scorecards, cross-trial efficacy rankings, and automated stage-gate telemetry.
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to="/tasks"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs font-bold hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
-            Auto-Task Dispatch
-          </Link>
-          <Link
             to="/weekly-mis"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            1-Click Automated MIS
+            <ClipboardList className="w-3.5 h-3.5" />
+            Weekly MIS Reports
           </Link>
           <Link
-            to="/approvals"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm"
+            to="/team-activity"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-xs cursor-pointer"
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Governance & Stage-Gates
+            <Users className="w-3.5 h-3.5 text-indigo-500" />
+            Team Activity & Timesheets
+          </Link>
+          <Link
+            to="/reports"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition shadow-xs cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-500" />
+            Executive Reports
           </Link>
         </div>
       </div>

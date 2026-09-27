@@ -262,7 +262,7 @@ export const Dashboard: React.FC = () => {
                     + Daily Log
                   </Link>
                   <Link to="/ai-insights" className="col-span-2 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-center font-black text-emerald-700 dark:text-emerald-300 transition-colors">
-                    💬 Talk to R&D Gemini Assistant
+                    💬 Research Intelligence Assistant
                   </Link>
                 </div>
               </div>
