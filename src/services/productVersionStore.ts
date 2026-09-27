@@ -494,13 +494,20 @@ export const deleteMainProduct = (id: string): void => {
   const current = getMainProducts();
   saveMainProducts(current.filter(p => p.id !== id));
 
-  // Also remove all associated versions
+  // Also remove all associated versions from R&D storage ONLY.
+  // DATA ISOLATION GUARANTEE: This strictly never deletes or modifies Trial Manager collections (trials, formulations, etc.)
   const versions = getProductVersions();
+  const versionsToDelete = versions.filter(v => v.productId === id);
   saveProductVersions(versions.filter(v => v.productId !== id));
 
   if (isFirebaseConfigured) {
     try {
       deleteDoc(doc(db, 'rnd_main_products', id));
+      versionsToDelete.forEach(v => {
+        try {
+          deleteDoc(doc(db, 'rnd_product_versions', v.id));
+        } catch { /* ignore */ }
+      });
     } catch { /* ignore */ }
   }
 };
@@ -548,7 +555,7 @@ export const saveProductVersions = (versions: ProductVersion[]): void => {
 
 export const addProductVersion = (data: Omit<ProductVersion, 'id' | 'releasedAt'>): ProductVersion => {
   const current = getProductVersions();
-  const id = `ver-${data.productId}-${Date.now().toString().slice(-4)}`;
+  const id = `ver-${data.productId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const now = new Date().toISOString();
 
   const newVersion: ProductVersion = {
@@ -780,4 +787,78 @@ export const linkFormulaAsVersion = (
   });
 
   return ver;
+};
+
+export const batchLinkFormulasAsVersions = (
+  formulas: ExternalFormulation[],
+  productId: string,
+  options?: {
+    namingPattern?: 'auto_v' | 'use_formula_name';
+    stage?: 'Lab Synthesis' | 'Plot Screening' | 'Multi-Loc Field Trial' | 'Regulatory Testing' | 'Commercial Ready';
+    status?: ProductVersion['status'];
+    upgradeReason?: string;
+  }
+): ProductVersion[] => {
+  const product = getMainProductById(productId);
+  if (!product) throw new Error(`Product not found: ${productId}`);
+
+  const existingVersions = getVersionsForProduct(productId);
+  const nextNum = existingVersions.length + 1;
+  const results: ProductVersion[] = [];
+
+  formulas.forEach((f, idx) => {
+    const vTag = options?.namingPattern === 'use_formula_name'
+      ? f.code || f.name
+      : `V1.${nextNum + idx}`;
+
+    const created = linkFormulaAsVersion(f, productId, {
+      versionTag: vTag,
+      versionName: f.name,
+      upgradeReason: options?.upgradeReason || `Batch-imported iteration from Trial Manager (${f.category || product.category}).`,
+      stage: options?.stage || 'Multi-Loc Field Trial',
+      status: options?.status || 'Validated',
+      dosage: '35 ml/L'
+    });
+
+    results.push(created);
+  });
+
+  return results;
+};
+
+export const batchLinkTrialsAsVersions = (
+  trials: ExternalFieldTrial[],
+  productId: string,
+  options?: {
+    namingPattern?: 'auto_v' | 'use_trial_code';
+    stage?: 'Lab Synthesis' | 'Plot Screening' | 'Multi-Loc Field Trial' | 'Regulatory Testing' | 'Commercial Ready';
+    status?: ProductVersion['status'];
+    upgradeReason?: string;
+  }
+): ProductVersion[] => {
+  const product = getMainProductById(productId);
+  if (!product) throw new Error(`Product not found: ${productId}`);
+
+  const existingVersions = getVersionsForProduct(productId);
+  const nextNum = existingVersions.length + 1;
+  const results: ProductVersion[] = [];
+
+  trials.forEach((t, idx) => {
+    const vTag = options?.namingPattern === 'use_trial_code'
+      ? t.trialCode
+      : `V1.${nextNum + idx}`;
+
+    const created = linkTrialAsVersion(t, productId, {
+      versionTag: vTag,
+      versionName: t.productName || t.title || `Trial ${t.trialCode}`,
+      upgradeReason: options?.upgradeReason || `Batch-linked field trial iteration (${t.trialCode}).`,
+      stage: options?.stage || 'Multi-Loc Field Trial',
+      status: options?.status || (t.isCompleted ? 'Validated' : 'Testing'),
+      dosage: t.dosage || '35 ml/L'
+    });
+
+    results.push(created);
+  });
+
+  return results;
 };

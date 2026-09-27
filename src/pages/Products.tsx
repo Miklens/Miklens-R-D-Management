@@ -18,7 +18,8 @@ import {
   Download,
   AlertCircle,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +36,7 @@ import {
   getVersionsForProduct, 
   getActiveVersion, 
   addMainProduct,
+  deleteMainProduct,
   subscribeToProductChanges 
 } from '../services/productVersionStore';
 import { getSyncedFormulations, getSyncedTrials } from '../services/trialManagerSync';
@@ -481,9 +483,23 @@ export const Products: React.FC = () => {
                       </span>
                     </div>
 
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider shrink-0 ${getStatusBadgeColor(product.commercialStatus)}`}>
-                      {product.commercialStatus}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${getStatusBadgeColor(product.commercialStatus)}`}>
+                        {product.commercialStatus}
+                      </span>
+                      <button
+                        type="button"
+                        title="Delete Main Product Line from R&D"
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete "${product.name}" from R&D Management?\n\nDATA SAFETY GUARANTEE: This will only remove this product and its version records from the R&D Management App. Your raw field trials and formulation recipes in the Trial Manager database will NOT be deleted or modified.`)) {
+                            deleteMainProduct(product.id);
+                          }
+                        }}
+                        className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Title & Code */}
