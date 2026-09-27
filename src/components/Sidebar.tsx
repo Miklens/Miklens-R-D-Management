@@ -44,7 +44,7 @@ const navGroups: NavGroup[] = [
     items: [
       { name: 'Management Cockpit', href: '/management-cockpit', icon: ShieldCheck, roles: ['Admin', 'Management'] },
       { name: 'Weekly MIS Report', href: '/weekly-mis', icon: ClipboardList, roles: ['Admin', 'Management'] },
-      { name: 'Team Activity & Approvals', href: '/team-activity', icon: Users, roles: ['Admin', 'Management'] },
+      { name: 'Team Activity & Timesheets', href: '/team-activity', icon: Users, roles: ['Admin', 'Management'] },
       { name: 'Executive Reports', href: '/reports', icon: FileText, roles: ['Admin', 'Management'] },
     ],
   },

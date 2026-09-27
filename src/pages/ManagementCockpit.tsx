@@ -948,29 +948,12 @@ export const ManagementCockpit: React.FC = () => {
                               <div key={d.id} className="p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between gap-3 text-xs">
                                 <div>
                                   <span className="font-bold text-gray-900 dark:text-white block">{d.decisionRequired}</span>
-                                  <span className="text-[10px] text-gray-500">Urgency: {d.urgency} · Deadline: {fmtDate(d.deadline)}</span>
+                                  <span className="text-[10px] text-gray-500">Urgency: {d.urgency} · Target: {fmtDate(d.deadline)}</span>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                  {d.status === 'Pending Approval' ? (
-                                    <>
-                                      <button
-                                        onClick={() => handleDecision(report.id, d.id, 'Approved')}
-                                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition-all"
-                                      >
-                                        Approve
-                                      </button>
-                                      <button
-                                        onClick={() => handleDecision(report.id, d.id, 'Rejected')}
-                                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow transition-all"
-                                      >
-                                        Reject
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${d.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                                      {d.status}
-                                    </span>
-                                  )}
+                                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                    Action Planned
+                                  </span>
                                 </div>
                               </div>
                             ))}

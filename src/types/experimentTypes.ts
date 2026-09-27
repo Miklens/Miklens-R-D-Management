@@ -138,7 +138,7 @@ export interface WeeklyMISReport {
   decisionsRequiredFromManagement: ManagementDecisionItem[];
   actionsForNextWeek: ActionItem[];
 
-  status: 'Draft' | 'Submitted' | 'Reviewed' | 'Approved';
+  status: 'Draft' | 'Final' | 'Saved' | 'Submitted' | 'Reviewed' | 'Approved';
   managementFeedback?: string;
 }
 

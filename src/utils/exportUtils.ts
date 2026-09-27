@@ -300,3 +300,188 @@ export const quickExport = (data: ExportData, formatType: 'pdf' | 'excel', custo
     exportToExcel(data, customFilename);
   }
 };
+
+// Dedicated Executive PDF generator for Weekly MIS Reports
+export const exportWeeklyMISToPDF = (report: any, customFilename?: string): void => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 14;
+  const contentWidth = pageWidth - 2 * margin;
+
+  // Header Banner (Emerald-600)
+  doc.setFillColor(5, 150, 105);
+  doc.rect(0, 0, pageWidth, 26, 'F');
+
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('MIKLENS R&D MANAGEMENT | WEEKLY MIS DECISION SUMMARY', margin, 12);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Confidential Scientific & Management Decision Record', margin, 18);
+
+  let y = 33;
+
+  // Metadata block
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, y - 4, contentWidth, 16, 2, 2, 'FD');
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text(`WEEK ${report.weekNumber} SCIENTIFIC REPORT`, margin + 4, y + 2);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Period: ${report.reportingPeriodStart} → ${report.reportingPeriodEnd}`, margin + 4, y + 7.5);
+  doc.text(`Scientist: ${report.preparedBy || 'Lead Scientist'}`, margin + 75, y + 7.5);
+  doc.text(`Status: Saved / Final Record`, margin + 135, y + 7.5);
+
+  y += 20;
+
+  const checkPageBreak = (neededHeight: number) => {
+    if (y + neededHeight > pageHeight - margin) {
+      doc.addPage();
+      y = margin + 5;
+    }
+  };
+
+  // Section 1: The 3 Core Scientific Questions
+  checkPageBreak(30);
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(5, 150, 105);
+  doc.text('1. THE THREE CORE SCIENTIFIC DECISION QUESTIONS', margin, y);
+  y += 6;
+
+  const questions = [
+    { title: 'Q1: What did we learn?', body: report.whatDidWeLearn || 'No observation recorded' },
+    { title: 'Q2: What does this data mean scientifically?', body: report.whatDoesDataMeanScientifically || 'No interpretation recorded' },
+    { title: 'Q3: What commercial decision follows?', body: report.whatDecisionFollows || 'No decision recorded' },
+  ];
+
+  questions.forEach(q => {
+    checkPageBreak(18);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 41, 59);
+    doc.text(q.title, margin + 2, y);
+    y += 4;
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    const splitBody = doc.splitTextToSize(q.body, contentWidth - 4);
+    doc.text(splitBody, margin + 2, y);
+    y += (splitBody.length * 3.8) + 4;
+  });
+
+  // Section 2: Key Achievements
+  if (report.keyAchievements && report.keyAchievements.length > 0) {
+    checkPageBreak(20);
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(5, 150, 105);
+    doc.text('2. KEY OPERATIONAL & RESEARCH ACHIEVEMENTS', margin, y);
+    y += 6;
+
+    report.keyAchievements.filter(Boolean).forEach((ach: string) => {
+      checkPageBreak(10);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      const splitAch = doc.splitTextToSize(`• ${ach}`, contentWidth - 4);
+      doc.text(splitAch, margin + 2, y);
+      y += (splitAch.length * 3.8) + 2;
+    });
+    y += 4;
+  }
+
+  // Section 3: Formulation Efficacy Ranking Table
+  if (report.formulationEfficacyRanking && report.formulationEfficacyRanking.length > 0) {
+    checkPageBreak(25);
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(5, 150, 105);
+    doc.text('3. FORMULATION EFFICACY LEADERBOARD & VERDICTS', margin, y);
+    y += 6;
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(margin, y - 3, contentWidth, 6.5, 'F');
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('Rank', margin + 2, y + 1.2);
+    doc.text('Formulation Name', margin + 12, y + 1.2);
+    doc.text('WCE %', margin + 70, y + 1.2);
+    doc.text('DAA', margin + 90, y + 1.2);
+    doc.text('Decision Verdict', margin + 108, y + 1.2);
+    doc.text('Scientific Notes', margin + 145, y + 1.2);
+    y += 7.5;
+
+    [...report.formulationEfficacyRanking].sort((a: any, b: any) => a.rank - b.rank).forEach((item: any, idx: number) => {
+      checkPageBreak(9);
+      doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+      doc.rect(margin, y - 3, contentWidth, 5.5, 'F');
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 41, 59);
+      doc.text(String(item.rank), margin + 2, y + 1);
+      doc.text(String(item.formulationName || '').slice(0, 26), margin + 12, y + 1);
+      doc.text(`${item.wceAtLatestDaa}%`, margin + 70, y + 1);
+      doc.text(`DAA-${item.latestDaa}`, margin + 90, y + 1);
+      doc.text(String(item.decision || ''), margin + 108, y + 1);
+      doc.text(String(item.notes || '').slice(0, 22), margin + 145, y + 1);
+      y += 5.5;
+    });
+    y += 4;
+  }
+
+  // Section 4: Actions for Next Week
+  if (report.actionsForNextWeek && report.actionsForNextWeek.length > 0) {
+    checkPageBreak(25);
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(5, 150, 105);
+    doc.text('4. COMMITTED ACTIONS FOR NEXT WEEK', margin, y);
+    y += 6;
+
+    report.actionsForNextWeek.forEach((act: any) => {
+      checkPageBreak(12);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`→ ${act.action}`, margin + 2, y);
+      y += 4;
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Responsible: ${act.responsiblePerson} | Target: ${act.expectedCompletion} | Priority: ${act.priority || 'High'}`, margin + 6, y);
+      y += 5;
+    });
+  }
+
+  // Footers
+  const totalPages = (doc.internal as any).getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      `Miklens Biotech R&D — Confidential Management MIS | Page ${p} of ${totalPages}`,
+      pageWidth / 2,
+      pageHeight - 8,
+      { align: 'center' }
+    );
+  }
+
+  const cleanName = (report.preparedBy || 'Scientist').replace(/[^a-zA-Z0-9]/g, '_');
+  const fname = customFilename || `Miklens_Weekly_MIS_Week_${report.weekNumber}_${cleanName}.pdf`;
+  doc.save(fname);
+};
