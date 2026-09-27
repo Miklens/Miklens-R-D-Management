@@ -30,6 +30,9 @@ import { TrialProgressReport } from './TrialProgressReport';
 export const Reports: React.FC = () => {
   const { data: logs } = useDailyLogs();
   const { data: users } = useUsers();
+  const { experiments, labTests } = useExperiments();
+  const syncedTrials = useMemo(() => getSyncedTrials(), []);
+  const syncedFormulations = useMemo(() => getSyncedFormulations(), []);
   
   const [activeTab, setActiveTab] = useState<'reports' | 'trial-progress' | 'analytics' | 'team' | 'ai' | 'audit'>('reports');
   const [selectedScientist, setSelectedScientist] = useState('all');
@@ -167,10 +170,6 @@ export const Reports: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
-
-  const { experiments, labTests } = useExperiments();
-  const syncedTrials = useMemo(() => getSyncedTrials(), []);
-  const syncedFormulations = useMemo(() => getSyncedFormulations(), []);
 
   const productsSummary = useMemo(() => {
     const productSet = new Set<string>();
