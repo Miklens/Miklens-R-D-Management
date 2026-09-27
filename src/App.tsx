@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
@@ -90,7 +90,7 @@ function App() {
                         <Route element={<DashboardLayout />}>
                           <Route path="/" element={<Dashboard />} />
                           <Route path="/product-pipeline" element={<ProductPipeline />} />
-                          <Route path="/products" element={<Navigate to="/product-pipeline" replace />} />
+                          <Route path="/products" element={<Products />} />
                           <Route path="/formulation-builder" element={<FormulationBuilder />} />
                           <Route path="/stability-tracker" element={<Navigate to="/formulation-builder" replace />} />
                           <Route path="/tasks" element={<Navigate to="/" replace />} />

@@ -2,10 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, RefreshCw, Database, CheckCircle2, Key, AlertCircle,
   Lock, Mail, UserCheck, Leaf, Shield, Bug, Beaker, Sprout, Users,
-  ChevronDown, ChevronUp, X, Activity, TrendingUp, BarChart3, Calendar, Filter
+  ChevronDown, ChevronUp, X, Activity, TrendingUp, BarChart3, Calendar, Filter,
+  GitBranch, Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FieldTrialCard } from '../components/FieldTrialCard';
+import { LinkVersionModal } from '../components/LinkVersionModal';
+import { getMainProducts, findProductForTrialOrFormula } from '../services/productVersionStore';
+import { MainProduct } from '../types/productVersionTypes';
 import {
   getSyncedTrials,
   saveSyncedTrialsList,
@@ -77,6 +81,13 @@ export const FieldTrials: React.FC = () => {
 
   // Scientist Filter
   const [selectedScientistFilter, setSelectedScientistFilter] = useState<string>('all-scientists');
+
+  // Main Product Filter & Version Modal
+  const [selectedProductFilter, setSelectedProductFilter] = useState<string>('all-products');
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkModalTrial, setLinkModalTrial] = useState<ExternalFieldTrial | null>(null);
+
+  const mainProducts = useMemo(() => getMainProducts(), [showLinkModal]);
 
   // Firebase Config Modal State
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -240,10 +251,16 @@ export const FieldTrials: React.FC = () => {
     return true;
   };
 
+  const matchesProduct = (trial: ExternalFieldTrial): boolean => {
+    if (selectedProductFilter === 'all-products') return true;
+    const match = findProductForTrialOrFormula(trial.productName || trial.title);
+    return match.product?.id === selectedProductFilter;
+  };
+
   // Base filtered list
   const baseFiltered = useMemo(() => {
-    return syncedTrials.filter(t => matchesSearch(t) && matchesUser(t) && matchesSubTab(t));
-  }, [syncedTrials, searchTerm, selectedScientistFilter, activeSubTab, currentUserEmail, currentUserUid, isAdminOrManagement]);
+    return syncedTrials.filter(t => matchesSearch(t) && matchesUser(t) && matchesSubTab(t) && matchesProduct(t));
+  }, [syncedTrials, searchTerm, selectedScientistFilter, activeSubTab, selectedProductFilter, currentUserEmail, currentUserUid, isAdminOrManagement]);
 
   // Category map counts for top pills
   const categoryCounts = useMemo(() => {
@@ -338,6 +355,15 @@ export const FieldTrials: React.FC = () => {
           >
             <Key className="w-4 h-4 text-purple-500" />
             {getSavedFirebaseConfig()?.email ? `🔐 ${getSavedFirebaseConfig()?.email?.split('@')[0]}` : '🔑 Connect Credentials'}
+          </button>
+
+          <button
+            onClick={() => { setLinkModalTrial(null); setShowLinkModal(true); }}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-black shadow-md transition-all active:scale-95"
+            title="Link a trial as an upgraded formulation version of a main product"
+          >
+            <GitBranch className="w-4 h-4" />
+            + Link as Version
           </button>
 
           <button
@@ -464,6 +490,22 @@ export const FieldTrials: React.FC = () => {
               </select>
             )}
 
+            {/* Main Product Filter Dropdown */}
+            {mainProducts.length > 0 && (
+              <select
+                value={selectedProductFilter}
+                onChange={e => setSelectedProductFilter(e.target.value)}
+                className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold outline-none text-gray-800 dark:text-gray-200 cursor-pointer"
+              >
+                <option value="all-products">📦 All Main Products ({mainProducts.length})</option>
+                {mainProducts.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.variantType})
+                  </option>
+                ))}
+              </select>
+            )}
+
             {/* Search Input */}
             <div className="relative w-full sm:w-64">
               <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -511,7 +553,14 @@ export const FieldTrials: React.FC = () => {
               {/* 4-Column Responsive Grid matching Trial Manager Card Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {section.trials.map(trial => (
-                  <FieldTrialCard key={trial.id} trial={trial} />
+                  <FieldTrialCard 
+                    key={trial.id} 
+                    trial={trial} 
+                    onLinkVersion={(t) => {
+                      setLinkModalTrial(t);
+                      setShowLinkModal(true);
+                    }}
+                  />
                 ))}
               </div>
             </div>
@@ -601,8 +650,20 @@ export const FieldTrials: React.FC = () => {
             </motion.div>
           </div>
         )}
-
       </AnimatePresence>
+
+      {/* ── Link Trial as Main Product Version Modal ── */}
+      <LinkVersionModal
+        isOpen={showLinkModal}
+        onClose={() => {
+          setShowLinkModal(false);
+          setLinkModalTrial(null);
+        }}
+        initialTrial={linkModalTrial}
+        onSuccess={(ver, prod) => {
+          setSyncNotice(`✅ Successfully linked trial as "${ver.versionTag} - ${ver.versionName}" under "${prod.name}" (${prod.variantType})!`);
+        }}
+      />
     </div>
   );
 };

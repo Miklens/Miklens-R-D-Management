@@ -700,20 +700,38 @@ export const fetchProjectsFromFirebaseCloud = async (config: FirebaseConnectionC
 };
 
 // ── Formulations Synced Storage Helpers ──
+export interface ExternalIngredient {
+  name: string;
+  quantity?: string | number;
+  unit?: string;
+  cost?: number;
+}
+
 export interface ExternalFormulation {
   id: string;
   name: string;
+  code?: string;
   category: string;
   stage: string;
   status: string;
   progress: number;
   teamSize: number;
   lastUpdate: string;
+  notes?: string;
+  ingredients?: ExternalIngredient[];
+  ingredientsJson?: string;
+  estimatedCost?: number;
+  killRate?: number;
+  controlLongevity?: string;
+  linkedTrialsCount?: number;
+  createdAt?: string;
+  createdBy?: string;
 }
 
 const FORMULATIONS_SYNC_STORAGE_KEY = 'miklens_rnd_synced_formulations_v1';
 const FORMULATION_COLLECTIONS = [
   'formulations',
+  'herbicide_formulations',
   'fungicide_formulations',
   'pesticide_formulations',
   'nutrition_formulations',
@@ -735,6 +753,60 @@ export const saveSyncedFormulationsList = (formulations: ExternalFormulation[]):
     localStorage.setItem(FORMULATIONS_SYNC_STORAGE_KEY, JSON.stringify(formulations));
   } catch (e) {
     console.error('Failed to cache synced formulations:', e);
+  }
+};
+
+export const readFormulationsFromIndexedDB = async (): Promise<ExternalFormulation[]> => {
+  try {
+    const dbExists = await IndexedDBDatabaseExists('MiklensTrialManagerDexieDB');
+    if (!dbExists) return [];
+
+    const trialDb = new Dexie('MiklensTrialManagerDexieDB');
+    trialDb.version(1).stores({
+      trials: 'ID, ProjectID, Date, LastModified',
+      projects: 'ID',
+      formulations: 'ID',
+      trialPhotos: 'ID',
+    });
+
+    const rawForms = await trialDb.table('formulations').toArray();
+    if (!rawForms || rawForms.length === 0) return [];
+
+    const mapped: ExternalFormulation[] = rawForms.map((f: any) => {
+      let parsedIngs: ExternalIngredient[] = [];
+      try {
+        if (typeof f.IngredientsJSON === 'string') parsedIngs = JSON.parse(f.IngredientsJSON);
+        else if (Array.isArray(f.IngredientsJSON)) parsedIngs = f.IngredientsJSON;
+        else if (Array.isArray(f.ingredients)) parsedIngs = f.ingredients;
+      } catch (e) {
+        parsedIngs = [];
+      }
+
+      const cat = deriveCategoryFromCollectionOrField('formulations', f.Category || f.category);
+
+      return {
+        id: String(f.ID || f.id || `fml-${Date.now()}`),
+        name: f.Name || f.name || f.Title || f.FormulationName || 'Unnamed Formula',
+        code: f.Code || f.code || f.FormulationCode || '',
+        category: cat.toUpperCase(),
+        stage: f.Stage || f.stage || 'Lab Testing',
+        status: f.Status || f.status || 'Active',
+        progress: f.Progress || f.progress || 35,
+        teamSize: 2,
+        lastUpdate: f.LastUpdate || f.lastUpdate || parseFlexibleDateStr(f.CreatedAt || f.createdAt),
+        notes: f.Notes || f.notes || '',
+        ingredients: parsedIngs,
+        ingredientsJson: typeof f.IngredientsJSON === 'string' ? f.IngredientsJSON : JSON.stringify(parsedIngs),
+        estimatedCost: parseFloat(String(f.EstimatedCost || f.estimatedCost || '0')) || 0,
+        createdAt: parseFlexibleDateStr(f.CreatedAt || f.createdAt),
+        createdBy: f.CreatedBy || f.createdBy || '',
+      };
+    });
+
+    return mapped;
+  } catch (err) {
+    console.warn('[TrialManagerSync] Could not read formulations from IndexedDB:', err);
+    return [];
   }
 };
 
@@ -769,24 +841,82 @@ export const fetchFormulationsFromFirebaseCloud = async (config: FirebaseConnect
       }
     }
 
+    // Try reading IndexedDB as well to merge local + cloud formulations
+    let idbForms: ExternalFormulation[] = [];
+    try {
+      idbForms = await readFormulationsFromIndexedDB();
+    } catch { /* ignore */ }
+
+    const syncedTrials = getSyncedTrials();
+
     const mappedFormulations: ExternalFormulation[] = allCloudFormulations.map(item => {
       const data = item.data;
       const id = item.id;
       const category = deriveCategoryFromCollectionOrField(item.collection, data.Category || data.category);
 
+      let parsedIngs: ExternalIngredient[] = [];
+      try {
+        if (typeof data.IngredientsJSON === 'string') parsedIngs = JSON.parse(data.IngredientsJSON);
+        else if (Array.isArray(data.IngredientsJSON)) parsedIngs = data.IngredientsJSON;
+        else if (Array.isArray(data.ingredients)) parsedIngs = data.ingredients;
+      } catch (e) {
+        parsedIngs = [];
+      }
+
+      const formName = data.Name || data.name || data.Title || data.FormulationName || 'Unnamed Formulation';
+      const formCode = data.Code || data.code || data.FormulationCode || '';
+
+      // Match linked field trials by name or code
+      const matchingTrials = syncedTrials.filter(t => {
+        const pName = (t.productName || '').toLowerCase().trim();
+        const tTitle = (t.title || '').toLowerCase().trim();
+        const fLow = formName.toLowerCase().trim();
+        const cLow = formCode ? formCode.toLowerCase().trim() : '';
+        return (fLow && (pName.includes(fLow) || tTitle.includes(fLow))) ||
+               (cLow && (pName.includes(cLow) || tTitle.includes(cLow)));
+      });
+
+      let avgEff: number | undefined = undefined;
+      if (matchingTrials.length > 0) {
+        const effs = matchingTrials.map(t => {
+          const evals = t.evaluations || [];
+          if (evals.length > 0) return evals[evals.length - 1].efficacyPercent;
+          return t.resultRating === 'Excellent' ? 85 : t.resultRating === 'Good' ? 70 : 50;
+        });
+        avgEff = Math.round(effs.reduce((a, b) => a + b, 0) / effs.length);
+      }
+
       return {
         id: String(id),
-        name: data.Name || data.name || data.FormulationCode || 'Unnamed Formulation',
+        name: formName,
+        code: formCode,
         category: category.toUpperCase(),
-        stage: data.Stage || data.stage || 'Lab Testing',
+        stage: data.Stage || data.stage || (matchingTrials.length > 0 ? 'Field Testing' : 'Lab Testing'),
         status: data.Status || data.status || 'Active',
-        progress: data.Progress || data.progress || 15,
-        teamSize: data.TeamSize || data.teamSize || 2,
-        lastUpdate: data.LastUpdate || data.lastUpdate || 'Synced'
+        progress: data.Progress || data.progress || (matchingTrials.length > 0 ? 65 : 25),
+        teamSize: data.TeamSize || data.teamSize || Math.max(1, new Set(matchingTrials.map(t => t.scientistName)).size),
+        lastUpdate: data.LastUpdate || data.lastUpdate || parseFlexibleDateStr(data.CreatedAt || data.createdAt || data.Date),
+        notes: data.Notes || data.notes || '',
+        ingredients: parsedIngs,
+        ingredientsJson: typeof data.IngredientsJSON === 'string' ? data.IngredientsJSON : JSON.stringify(parsedIngs),
+        estimatedCost: parseFloat(String(data.EstimatedCost || data.estimatedCost || data.cost || '0')) || 0,
+        killRate: avgEff || data.KillRate || data.killRate || undefined,
+        controlLongevity: data.ControlLongevity || data.controlLongevity || (matchingTrials.length > 0 ? '14-20 Days Sustained' : undefined),
+        linkedTrialsCount: matchingTrials.length,
+        createdAt: parseFlexibleDateStr(data.CreatedAt || data.createdAt || data.Date),
+        createdBy: data.CreatedBy || data.createdBy || ''
       };
     });
 
-    return mappedFormulations;
+    // Merge with any unique IDB formulations
+    const combined = [...mappedFormulations];
+    idbForms.forEach(idbF => {
+      if (!combined.some(c => c.id === idbF.id || (c.name.toLowerCase() === idbF.name.toLowerCase() && c.category === idbF.category))) {
+        combined.push(idbF);
+      }
+    });
+
+    return combined;
   } catch (err: any) {
     console.error('[TrialManagerSync] Cloud Firebase formulations fetch error:', err);
     return [];

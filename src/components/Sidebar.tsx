@@ -36,6 +36,7 @@ const navGroups: NavGroup[] = [
       { name: 'Field Trials', href: '/trial-sync', icon: MapPin, roles: ['Admin', 'Scientist'] },
       { name: 'Experiments & Testing', href: '/experiments', icon: Beaker, roles: ['Admin', 'Scientist'] },
       { name: 'Formulation Portfolio', href: '/formulation-tracker', icon: GitBranch, roles: ['Admin', 'Scientist'] },
+      { name: 'Main Products & Lineage', href: '/products', icon: Layers },
       { name: 'R&D Phase Pipeline', href: '/product-pipeline', icon: GitPullRequest },
     ],
   },
