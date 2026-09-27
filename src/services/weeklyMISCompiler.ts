@@ -386,7 +386,7 @@ export function compileIndividualScientistReport(
         id: `pr-${cleanName.toLowerCase().replace(/\s+/g, '-')}-w${weekNumber}-${idx + 1}`,
         problem: l.problems,
         impact: 'Potential variance in plot evaluation windows.',
-        correctiveAction: l.nextSteps || 'Rescheduled observation window to early morning calm conditions.',
+        correctiveAction: l.blockers || (l as any).nextSteps || 'Rescheduled observation window to early morning calm conditions.',
         status: 'In Progress',
       });
     }

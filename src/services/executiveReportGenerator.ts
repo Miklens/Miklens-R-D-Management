@@ -7,6 +7,12 @@ import type {
   ScientificEvaluationRecord,
   WeeklyMISReport,
 } from '../types/experimentTypes';
+import {
+  loadScientificFormulations,
+  loadScientificEvaluations,
+  loadMISReports,
+} from './experimentStore';
+import { getSyncedTrials } from './trialManagerSync';
 
 /**
  * EXCEL EXPORT: Export Scientist Executive Profile and Trial records to Excel (.xlsx)
@@ -1526,11 +1532,11 @@ export const exportManagementWorkbookToExcel = (
   XLSX.utils.book_append_sheet(wb, wsFml, '3. Formulation Log (14-Field)');
 
   // ── Sheet 4: Version Lineage Map ──────────────────────────────────────────
-  const idToFml = new Map(safeFormulations.map(f => [f.id, f]));
+  const idToFml = new Map<string, ScientificFormulation>(safeFormulations.map(f => [f.id, f]));
   const getParentVersion = (id?: string) => {
     if (!id) return '— (Root)';
     const p = idToFml.get(id);
-    return p ? `${p.name} ${p.version}` : '—';
+    return (p && 'name' in p && 'version' in p) ? `${p.name} ${p.version}` : '—';
   };
   const lineageHeaders = ['Product Name', 'Version', 'Batch No', 'Parent Version', 'Reason for Revision', 'Efficacy (%)', 'Final Decision'];
   const lineageRows = safeFormulations.map(f => [

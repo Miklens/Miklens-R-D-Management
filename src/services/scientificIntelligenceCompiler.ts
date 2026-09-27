@@ -201,19 +201,19 @@ export function deriveScientificEvaluations(
           trialId,
           formulationName: fmlName,
           daysAfterTreatment: daa,
-          evalDate: ev.evaluationDate || t.startDate || '2026-09-20',
-          observation: ev.observationNotes || `At DAA-${daa}, treated plots showed strong chlorosis and desiccation of broadleaf weeds. Crop canopy remained healthy and unaffected.`,
+          evalDate: ev.evalDate || t.startDate || '2026-09-20',
+          observation: ev.notes || `At DAA-${daa}, treated plots showed strong chlorosis and desiccation of broadleaf weeds. Crop canopy remained healthy and unaffected.`,
           measurement: {
             weedCoverPct: weedCover,
             baselineCoverPct: baseline,
             deltaControlPct: wce,
-            phytotoxicityScore: ev.phytotoxicityRating || 0,
+            phytotoxicityScore: ev.phytotoxicityScore || 0,
             dominantSpeciesRemaining: t.targetWeedOrPathogen || 'Broadleaf weed complexes'
           },
           scientificInterpretation: `WCE of ${wce}% demonstrates rapid systemic absorption through leaf cuticles. Lack of crop injury (Phyto 0) confirms high therapeutic selectivity window.`,
           decisionAction: wce >= 80 ? 'Advance formulation to multi-location replication' : 'Continue observation for residual longevity',
           evaluatedBy: scientist,
-          createdAt: ev.evaluationDate || '2026-09-20'
+          createdAt: ev.evalDate || '2026-09-20'
         });
       });
     } else {
