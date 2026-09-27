@@ -26,7 +26,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUsers } from '../hooks/useUsers';
 import { useDailyLogs } from '../hooks/useDailyLogs';
 import { useExperiments } from '../contexts/ExperimentContext';
-import { getSyncedTrials } from '../services/trialManagerSync';
+import {
+  getSyncedTrials,
+  getSavedFirebaseConfig,
+  fetchTrialsFromFirebaseCloud,
+  saveSyncedTrialsList
+} from '../services/trialManagerSync';
 import { generateAutomatedWeeklyMISReport } from '../services/misAIGenerator';
 import { exportWeeklyMISToPDF } from '../utils/exportUtils';
 import { ensureAllWeeklyMISReports } from '../services/weeklyMISCompiler';
@@ -1330,11 +1335,43 @@ export const WeeklyMIS: React.FC = () => {
   const { data: users } = useUsers();
   const { data: logs } = useDailyLogs();
   const { experiments, labTests } = useExperiments();
-  const syncedTrials = useMemo(() => getSyncedTrials(), []);
+  const [syncedTrials, setSyncedTrials] = useState<ExternalFieldTrial[]>(() => getSyncedTrials());
   const formulations = useMemo(() => loadScientificFormulations(), []);
   const stabilityLogs = useMemo(() => loadStabilityLogs(), []);
 
   const [reports, setReports] = useState<WeeklyMISReport[]>(() => loadMISReports());
+
+  // Background Cloud Sync & Real-time Trials Listener
+  useEffect(() => {
+    // 1. Initial compile check from cached trials if reports empty
+    setReports(prev => ensureAllWeeklyMISReports(prev, getSyncedTrials(), loadScientificFormulations()));
+
+    // 2. Fetch fresh trials from Cloud Firebase if credentials are saved
+    const savedConfig = getSavedFirebaseConfig();
+    if (savedConfig?.apiKey && savedConfig?.projectId) {
+      fetchTrialsFromFirebaseCloud(savedConfig).then((cloudTrials) => {
+        if (cloudTrials && cloudTrials.length > 0) {
+          setSyncedTrials(cloudTrials);
+          saveSyncedTrialsList(cloudTrials);
+          setReports(prev => ensureAllWeeklyMISReports(prev, cloudTrials, loadScientificFormulations()));
+        }
+      }).catch(err => {
+        console.warn('[WeeklyMIS] Auto cloud sync notice:', err);
+      });
+    }
+
+    // 3. Listen to external sync updates (e.g. from FieldTrials page or sync service)
+    const handleTrialsUpdated = (e: any) => {
+      const updatedTrials: ExternalFieldTrial[] = e.detail || getSyncedTrials();
+      setSyncedTrials(updatedTrials);
+      setReports(prev => ensureAllWeeklyMISReports(prev, updatedTrials, loadScientificFormulations()));
+    };
+
+    window.addEventListener('trials:synced', handleTrialsUpdated);
+    return () => {
+      window.removeEventListener('trials:synced', handleTrialsUpdated);
+    };
+  }, []);
   const [showForm, setShowForm] = useState(false);
   const [editingReport, setEditingReport] = useState<WeeklyMISReport | null>(null);
   const [inspectingReport, setInspectingReport] = useState<WeeklyMISReport | null>(null);

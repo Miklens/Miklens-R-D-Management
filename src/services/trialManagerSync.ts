@@ -260,7 +260,8 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
     for (const colName of TARGET_COLLECTIONS) {
       try {
         const trialsRef = collection(firestore, colName);
-        const snapshot = await getDocs(query(trialsRef, limit(500)));
+        // Query full collection so all newest trial records (such as recent September trials) are never excluded by limit
+        const snapshot = await getDocs(trialsRef);
         if (!snapshot.empty) {
           console.log(`[TrialManagerSync] Found ${snapshot.size} records in Cloud collection "${colName}"`);
           snapshot.docs.forEach(doc => {
@@ -272,7 +273,7 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
         if (authUserUid) {
           try {
             const trialsRef = collection(firestore, colName);
-            const q = query(trialsRef, where('CreatedBy', '==', authUserUid), limit(300));
+            const q = query(trialsRef, where('CreatedBy', '==', authUserUid));
             const snap = await getDocs(q);
             snap.docs.forEach(doc => {
               allCloudDocs.push({ id: doc.id, data: doc.data(), collection: colName });
@@ -291,7 +292,16 @@ export const fetchTrialsFromFirebaseCloud = async (config: FirebaseConnectionCon
       return [];
     }
 
-    const cloudTrials: ExternalFieldTrial[] = allCloudDocs.map(item => {
+    // Deduplicate by document id (preserving most specific collection match)
+    const uniqueDocsMap = new Map<string, { id: string; data: any; collection: string }>();
+    allCloudDocs.forEach(item => {
+      if (!uniqueDocsMap.has(item.id)) {
+        uniqueDocsMap.set(item.id, item);
+      }
+    });
+    const uniqueCloudDocs = Array.from(uniqueDocsMap.values());
+
+    const cloudTrials: ExternalFieldTrial[] = uniqueCloudDocs.map(item => {
       const data = item.data;
       const id = item.id;
 
@@ -607,6 +617,9 @@ export const getSyncedTrials = (): ExternalFieldTrial[] => {
 export const saveSyncedTrialsList = (trials: ExternalFieldTrial[]): void => {
   try {
     localStorage.setItem(SYNC_STORAGE_KEY, JSON.stringify(trials));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('trials:synced', { detail: trials }));
+    }
   } catch (e) {
     console.error('Failed to cache synced trials:', e);
   }

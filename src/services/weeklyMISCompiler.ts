@@ -258,9 +258,9 @@ export function compileManagementSummaryReport(
     totalPlotsEvaluated: 40 + weekNumber * 2,
     overallAverageWce: avgWce,
     status: 'Saved',
-    whatDidWeLearn: theme.q1,
-    whatDoesDataMeanScientifically: theme.q2,
-    whatDecisionFollows: theme.q3,
+    whatDidWeLearn: dynamicQ1,
+    whatDoesDataMeanScientifically: dynamicQ2,
+    whatDecisionFollows: dynamicQ3,
     keyAchievements: [
       `Completed comprehensive weekly bio-efficacy audit across ${40 + weekNumber * 2} monitored trial plots.`,
       `Aggregated portfolio bio-efficacy reached ${avgWce}% WCE, maintaining high selective crop safety margin.`,
@@ -493,7 +493,9 @@ export function ensureAllWeeklyMISReports(
   HISTORICAL_WEEKS_2026.forEach(week => {
     // A. Check Consolidated Management Summary
     const mgmtKey = `w${week.weekNumber}_r&d executive management`;
-    if (!mergedMap.has(mgmtKey)) {
+    const existingMgmt = mergedMap.get(mgmtKey);
+    // If no report or not manually edited draft, recompile with newest live trial data
+    if (!existingMgmt || (existingMgmt.status === 'Saved' && trials.length > 0)) {
       const summaryReport = compileManagementSummaryReport(week, trials, formulations);
       mergedMap.set(mgmtKey, summaryReport);
       mergedMap.set(summaryReport.id, summaryReport);
@@ -503,7 +505,8 @@ export function ensureAllWeeklyMISReports(
     targetScientists.forEach(sciName => {
       const authorKey = sciName.toLowerCase();
       const sciKey = `w${week.weekNumber}_${authorKey}`;
-      if (!mergedMap.has(sciKey)) {
+      const existingSci = mergedMap.get(sciKey);
+      if (!existingSci || (existingSci.status === 'Saved' && trials.length > 0)) {
         const sciReport = compileIndividualScientistReport(week, sciName, trials);
         mergedMap.set(sciKey, sciReport);
         mergedMap.set(sciReport.id, sciReport);
